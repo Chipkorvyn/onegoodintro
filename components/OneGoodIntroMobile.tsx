@@ -129,7 +129,8 @@ const OneGoodIntroMobile = () => {
   const [resumeStatus, setResumeStatus] = useState<'empty' | 'processing' | 'complete'>('empty');
   const [resumeValue, setResumeValue] = useState<string>('');
   const [showAISuggestions, setShowAISuggestions] = useState<boolean>(false);
-  const [activeField, setActiveField] = useState<'challenge' | 'reason' | 'helpType' | 'current' | 'background' | 'personal' | 'linkedin' | null>(null);
+  type ActiveFieldType = 'challenge' | 'reason' | 'helpType' | 'current' | 'background' | 'personal' | 'linkedin' | null;
+  const [activeField, setActiveField] = useState<ActiveFieldType>(null);
 
   const inputRefs = {
     challenge: useRef<HTMLInputElement>(null),
@@ -284,23 +285,14 @@ const OneGoodIntroMobile = () => {
   };
 
   // Enhanced profile field handlers
-  const handleFieldClick = (fieldName: string) => {
-    setActiveField(fieldName as typeof activeField);
-    setShowTimelineChips(false);
-    // Focus the input after state update
-    setTimeout(() => {
-      if (inputRefs[fieldName as keyof typeof inputRefs]?.current) {
-        inputRefs[fieldName as keyof typeof inputRefs].current?.focus();
-      }
-    }, 0);
-  };
-
-  const handleProfileFieldClick = (fieldName: string) => {
+  const handleProfileFieldClick = (fieldName: ActiveFieldType) => {
     setEditingField(fieldName);
-    setFieldValues({ ...fieldValues, [fieldName]: profileData[fieldName as keyof typeof profileData] });
+    if (fieldName) {
+      setFieldValues({ ...fieldValues, [fieldName]: profileData[fieldName as keyof typeof profileData] });
+    }
     setTimeout(() => {
-      if (inputRefs[fieldName as keyof typeof inputRefs]?.current) {
-        inputRefs[fieldName as keyof typeof inputRefs].current?.focus();
+      if (fieldName && inputRefs[fieldName]?.current) {
+        inputRefs[fieldName].current?.focus();
       }
     }, 0);
   };
@@ -403,7 +395,7 @@ const OneGoodIntroMobile = () => {
               />
             ) : (
               <span
-                onClick={() => handleProfileFieldClick(fieldName)}
+                onClick={() => handleProfileFieldClick(fieldName as ActiveFieldType)}
                 className="cursor-pointer text-gray-900 hover:bg-gray-50 px-2 py-1 rounded transition-colors"
               >
                 {value}
@@ -415,7 +407,7 @@ const OneGoodIntroMobile = () => {
           {showSuccess && <Check className="h-4 w-4 text-green-600 animate-pulse" />}
           {isSaving && <div className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin" />}
           <button 
-            onClick={() => handleProfileFieldClick(fieldName)}
+            onClick={() => handleProfileFieldClick(fieldName as ActiveFieldType)}
             className="text-blue-600 text-sm font-medium hover:text-blue-700 hover:bg-blue-50 transition-all px-3 py-2 rounded-lg"
           >
             [Edit]
