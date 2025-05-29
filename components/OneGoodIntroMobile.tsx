@@ -91,20 +91,31 @@ const OneGoodIntroMobile = () => {
   };
 
   // State management
-  const [currentView, setCurrentView] = useState('auth');
-  const [showModal, setShowModal] = useState(false);
-  const [modalContent, setModalContent] = useState('');
-  const [showGooglePopup, setShowGooglePopup] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [showBottomSheet, setShowBottomSheet] = useState(false);
-  const [selectedTimeline, setSelectedTimeline] = useState('');
-  const [expandedCard, setExpandedCard] = useState(null);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [newProblem, setNewProblem] = useState({ title: '', proof: '' });
+  const [currentView, setCurrentView] = useState<'auth' | 'full-profile' | string>('auth');
+  const [showModal, setShowModal] = useState<boolean>(false);
+  const [modalContent, setModalContent] = useState<{
+    icon?: string;
+    title: string;
+    message: string;
+  } | null>(null);
+  const [showGooglePopup, setShowGooglePopup] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [showBottomSheet, setShowBottomSheet] = useState<boolean>(false);
+  const [selectedTimeline, setSelectedTimeline] = useState<string>('');
+  const [expandedCard, setExpandedCard] = useState<number | null>(null);
+  const [showAddForm, setShowAddForm] = useState<boolean>(false);
+  const [newProblem, setNewProblem] = useState<{
+    title: string;
+    proof: string;
+  }>({ title: '', proof: '' });
   const [activeField, setActiveField] = useState<string | null>(null);
-  const [showTimelineChips, setShowTimelineChips] = useState(false);
-  const [helpForm, setHelpForm] = useState({
+  const [showTimelineChips, setShowTimelineChips] = useState<boolean>(false);
+  const [helpForm, setHelpForm] = useState<{
+    challenge: string;
+    reason: string;
+    helpType: string;
+  }>({
     challenge: '',
     reason: '',
     helpType: ''
