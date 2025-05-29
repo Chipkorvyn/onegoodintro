@@ -668,6 +668,7 @@ const OneGoodIntroMobile = () => {
                 src={mockGoogleUser.picture} 
                 alt="Profile" 
                 className="w-12 h-12 rounded-full"
+                // eslint-disable-next-line @next/next/no-img-element
               />
               <div>
                 <p className="font-medium text-gray-900">{mockGoogleUser.name}</p>
@@ -925,7 +926,7 @@ const OneGoodIntroMobile = () => {
 
               {/* Question */}
               <h3 className="text-lg font-medium text-gray-900 mb-3 leading-snug">
-                "{request.text}"
+                {"`request.text"}`
               </h3>
 
               {/* Context */}
@@ -1032,7 +1033,7 @@ const OneGoodIntroMobile = () => {
                     {request.status}
                   </div>
                   <div className="text-sm font-semibold text-gray-900 mb-3 mr-20 leading-tight">
-                    "{request.text}"
+                    {"`request.text"}`
                   </div>
                   <div className="text-xs text-gray-600 flex items-center gap-2">
                     <span>{request.timeAgo}</span>
@@ -1598,7 +1599,7 @@ const OneGoodIntroMobile = () => {
           {/* Empty State for Search */}
           {filteredConnections.length === 0 && searchTerm && (
             <div className="text-center py-12">
-              <p className="text-gray-500">No connections found matching "{searchTerm}"</p>
+              <p className="text-gray-500">No connections found matching {"`searchTerm"}`</p>
             </div>
           )}
 
