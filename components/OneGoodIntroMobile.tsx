@@ -882,58 +882,79 @@ const OneGoodIntroMobile = () => {
   const renderPublicBoard = () => (
     <div className="min-h-screen bg-white pb-20">
       {/* Header */}
-      <div className="px-4 py-4">
+      <div className="px-5 py-4">
         <div className="flex items-center justify-between">
           <button 
             onClick={() => setCurrentView('full-profile')}
-            className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-all px-3 py-2 rounded-lg"
+            className="text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-all px-3 py-2 rounded-lg"
           >
             ← Back
           </button>
-          <div className="flex items-center space-x-2">
-            <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center">
-              <Zap className="h-4 w-4 text-white" />
-            </div>
-            <div>
-              <h1 className="font-bold text-gray-900">OneGoodIntro</h1>
-              <p className="text-xs text-gray-600">Introduction Request</p>
-            </div>
-          </div>
-          <div className="w-12"></div>
+          <h1 className="text-lg font-semibold text-gray-900">Help Others</h1>
+          <div className="w-5"></div>
         </div>
       </div>
 
       {/* Content */}
-      <div className="px-4 py-8">
-        <div className="bg-white rounded-2xl shadow-sm p-8 text-center">
-          {/* Success Icon */}
-          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle className="h-10 w-10 text-green-600" />
-          </div>
+      <div className="p-5">
+        <div className="text-center mb-8">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">People you can help</h2>
+          <p className="text-gray-600">Requests matched to your experience</p>
+        </div>
 
-          {/* Title */}
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Confirmed Your Interest!</h2>
+        <div className="space-y-6">
+          {helpRequests.map(request => (
+            <div 
+              key={request.id} 
+              className="bg-white rounded-2xl shadow-sm p-5 hover:shadow-md transition-all"
+            >
+              {/* Person info */}
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-sm font-semibold text-gray-600">
+                  {request.avatar}
+                </div>
+                <div>
+                  <p className="text-base font-semibold text-gray-900">{request.person}</p>
+                  <p className="text-sm text-gray-600">{request.title} at {request.company}</p>
+                </div>
+              </div>
 
-          {/* Status Message */}
-          <div className="mb-6">
-            <p className="text-gray-700 text-base leading-relaxed">
-              Sarah also received this match. When you both confirm, we'll send introduction emails.
-            </p>
-          </div>
+              {/* Question */}
+              <h3 className="text-lg font-medium text-gray-900 mb-3 leading-snug">
+                "{request.text}"
+              </h3>
 
-          {/* Timeline */}
-          <div className="mb-8">
-            <p className="text-sm text-gray-600">
-              Most matches connect within 2–3 days.
-            </p>
-          </div>
+              {/* Context */}
+              <p className="text-sm text-gray-700 mb-4 leading-relaxed">
+                {request.context}
+              </p>
 
-          {/* Action Button */}
-          <button 
-            onClick={() => setCurrentView('match-found')}
-            className="w-full bg-gray-900 text-white py-4 rounded-2xl font-semibold hover:bg-gray-800 transition-colors"
-          >
-            OK, Got It
+              {/* Actions */}
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => {
+                    showSuccessModal('help');  
+                  }}
+                  className="bg-gray-900 text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-black transition-colors"
+                >
+                  I can help
+                </button>
+                <button className="text-gray-500 text-sm font-medium hover:text-gray-700 hover:bg-gray-100 transition-all py-3 px-4 rounded-lg">
+                  Skip
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Bottom Message */}
+        <div className="mt-8 p-4 bg-white rounded-2xl shadow-sm text-center">
+          <h3 className="text-base font-semibold text-gray-900 mb-1">That's this week's selection</h3>
+          <p className="text-gray-600 text-sm mb-3">
+            New requests appear throughout the week, filtered to areas where you have relevant experience.
+          </p>
+          <button className="text-blue-600 text-sm font-semibold hover:text-blue-700 transition-colors">
+            See more requests
           </button>
         </div>
       </div>
@@ -1141,6 +1162,300 @@ const OneGoodIntroMobile = () => {
       </div>
     </div>
   );
+
+  const renderNewGetHelp = () => (
+    <div className="min-h-screen bg-white pb-20">
+      <div className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md px-5 py-4 flex items-center justify-between border-b border-gray-100">
+        <button 
+          onClick={() => setCurrentView('full-profile')}
+          className="text-gray-900 text-lg hover:text-gray-700 hover:bg-gray-100 transition-all px-3 py-2 rounded-lg"
+        >
+          ←
+        </button>
+        <div className="text-lg font-semibold text-gray-900">Your Requests</div>
+        <button 
+          onClick={() => setShowBottomSheet(true)}
+          className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-semibold"
+        >
+          New
+        </button>
+      </div>
+
+      <div className="pt-20">
+        <div className="px-5 py-10 text-center bg-white">
+          <h1 className="text-2xl font-bold text-gray-900 mb-3">What help do you need?</h1>
+          <p className="text-gray-600 mb-4">Weekly matching • Keep 2-3 requests active for best matches</p>
+          <p className="mb-8"><span className="text-green-600">✓ Peer advice & insights</span> • <span className="text-green-600">✓ Professional introductions</span> • <span className="text-red-600">✗ Sales & recruiting</span></p>
+          
+          <div className="flex justify-center gap-8 p-5 bg-white rounded-2xl shadow-sm">
+            <div className="text-center">
+              <span className="text-2xl font-bold text-gray-900 block">2</span>
+              <div className="text-xs text-gray-600 uppercase tracking-wide">Active Requests</div>
+            </div>
+            <div className="text-center">
+              <span className="text-2xl font-bold text-gray-900 block">5</span>
+              <div className="text-xs text-gray-600 uppercase tracking-wide">People Helped</div>
+            </div>
+            <div className="text-center">
+              <span className="text-2xl font-bold text-gray-900 block">12</span>
+              <div className="text-xs text-gray-600 uppercase tracking-wide">Introductions Made</div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="px-5 space-y-8">
+          <div className="flex items-center justify-between mb-5">
+            <div className="text-lg font-semibold text-gray-900">Your Requests</div>
+            <div className="flex bg-gray-50 rounded-full p-1">
+              <button className="bg-gray-900 text-white px-4 py-2 rounded-full text-xs font-semibold">All</button>
+              <button className="text-gray-600 px-4 py-2 rounded-full text-xs font-semibold">Active</button>
+            </div>
+          </div>
+          
+          <div className="space-y-6">
+            {userRequests.map(request => (
+              <div 
+                key={request.id}
+                className={`bg-white rounded-2xl shadow-sm cursor-pointer transition-all duration-300 overflow-hidden hover:shadow-md ${
+                  expandedCard === request.id ? 'transform -translate-y-1 shadow-lg' : ''
+                }`}
+                onClick={() => setExpandedCard(expandedCard === request.id ? null : request.id)}
+              >
+                <div className="p-5 relative">
+                  <div className={`absolute top-4 right-4 text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wide ${
+                    request.status === 'active' ? 'bg-green-500 text-white' :
+                    request.status === 'paused' ? 'bg-gray-200 text-gray-600' :
+                    'bg-gray-900 text-white'
+                  }`}>
+                    {request.status}
+                  </div>
+                  <div className="text-sm font-semibold text-gray-900 mb-3 mr-20 leading-tight">
+                    "{request.text}"
+                  </div>
+                  <div className="text-xs text-gray-600 flex items-center gap-2">
+                    <span>{request.timeAgo}</span>
+                    {request.statusText && (
+                      <>
+                        <div className="w-1 h-1 bg-current rounded-full"></div>
+                        <span>{request.statusText}</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+                {expandedCard === request.id && (request.context || request.lookingFor) && (
+                  <div className="px-5 pb-5 transition-all duration-300">
+                    {request.context && (
+                      <div className="mb-3">
+                        <div className="text-xs font-bold uppercase tracking-wide text-gray-600 mb-1">Context</div>
+                        <div className="text-sm text-gray-900 leading-relaxed">{request.context}</div>
+                      </div>
+                    )}
+                    {request.lookingFor && (
+                      <div>
+                        <div className="text-xs font-bold uppercase tracking-wide text-gray-600 mb-1">Looking for</div>
+                        <div className="text-sm text-gray-900 leading-relaxed">{request.lookingFor}</div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+            
+            <div 
+              className="bg-white rounded-2xl shadow-sm p-10 text-center cursor-pointer transition-all duration-300 hover:shadow-md hover:transform hover:-translate-y-0.5"
+              onClick={() => setShowBottomSheet(true)}
+            >
+              <div className="text-3xl mb-3 text-gray-600">+</div>
+              <div className="text-sm font-semibold mb-1 text-gray-900">New request</div>
+              <div className="text-xs text-gray-600">What help do you need?</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom Sheet */}
+      {showBottomSheet && (
+        <>
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-40 z-50"
+            onClick={() => setShowBottomSheet(false)}
+          ></div>
+          <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl z-50 max-h-[85vh] overflow-y-auto shadow-2xl">
+            {/* Header */}
+            <div className="p-5 text-center relative">
+              <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-4"></div>
+              <div className="text-lg font-bold text-gray-900">What help do you need?</div>
+              <button 
+                className="absolute top-4 right-4 text-gray-600 text-2xl hover:bg-gray-100 transition-all w-10 h-10 rounded-full flex items-center justify-center"
+                onClick={() => setShowBottomSheet(false)}
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="p-5">
+              {/* Example Section */}
+              <div className="p-4 bg-blue-50 rounded-2xl shadow-sm mb-6">
+                <div className="text-sm font-semibold text-blue-900 mb-2">💡 Here's how others ask:</div>
+                <div className="text-sm text-blue-800 italic leading-relaxed">
+                  "I need help with choosing between two job offers because both have pros and cons. 
+                  I'd like to be introduced to someone who can share career decision frameworks within 1 week."
+                </div>
+              </div>
+
+              {/* Flowing Paragraph */}
+              <div className="bg-white rounded-2xl shadow-sm p-6 mb-6 text-base leading-relaxed">
+                <div className="text-gray-900">
+                  I need help with{' '}
+                  <span 
+                    className={`inline-block min-w-[120px] px-3 py-1 rounded cursor-pointer transition-all ${
+                      helpForm.challenge 
+                        ? 'bg-blue-100 text-blue-900 border border-blue-200' 
+                        : 'bg-gray-200 text-gray-600 border border-gray-300 hover:bg-gray-300'
+                    }`}
+                    onClick={() => handleFieldClick('challenge')}
+                  >
+                    {getDisplayText('challenge', 'your challenge')}
+                  </span>{' '}
+                  because{' '}
+                  <span 
+                    className={`inline-block min-w-[120px] px-3 py-1 rounded cursor-pointer transition-all ${
+                      helpForm.reason 
+                        ? 'bg-blue-100 text-blue-900 border border-blue-200' 
+                        : 'bg-gray-200 text-gray-600 border border-gray-300 hover:bg-gray-300'
+                    }`}
+                    onClick={() => handleFieldClick('reason')}
+                  >
+                    {getDisplayText('reason', 'why it matters')}
+                  </span>.
+                </div>
+                
+                <div className="text-gray-900 mt-3">
+                  I'd like to be introduced to someone who can{' '}
+                  <span 
+                    className={`inline-block min-w-[120px] px-3 py-1 rounded cursor-pointer transition-all ${
+                      helpForm.helpType 
+                        ? 'bg-blue-100 text-blue-900 border border-blue-200' 
+                        : 'bg-gray-200 text-gray-600 border border-gray-300 hover:bg-gray-300'
+                    }`}
+                    onClick={() => handleFieldClick('helpType')}
+                  >
+                    {getDisplayText('helpType', 'help me with')}
+                  </span>{' '}
+                  within{' '}
+                  <span 
+                    className={`inline-block min-w-[80px] px-3 py-1 rounded cursor-pointer transition-all ${
+                      selectedTimeline 
+                        ? 'bg-blue-100 text-blue-900 border border-blue-200' 
+                        : 'bg-gray-200 text-gray-600 border border-gray-300 hover:bg-gray-300'
+                    }`}
+                    onClick={handleTimelineClick}
+                  >
+                    {getTimelineDisplay()}
+                  </span>.
+                </div>
+              </div>
+
+              {/* Inline Input Field */}
+              {activeField && (
+                <div className="mb-4">
+                  <div className="text-sm font-medium text-gray-700 mb-2">
+                    {activeField === 'challenge' && 'What do you need help with?'}
+                    {activeField === 'reason' && 'Why does this matter to you?'}
+                    {activeField === 'helpType' && 'What kind of help would be most valuable?'}
+                  </div>
+                  <div className="relative">
+                    <input
+                      ref={inputRefs[activeField]}
+                      type="text"
+                      value={helpForm[activeField]}
+                      onChange={(e) => handleInputChange(activeField, e.target.value)}
+                      onBlur={handleInputBlur}
+                      className="w-full border border-gray-300 rounded-lg p-3 text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder={
+                        activeField === 'challenge' ? 'relocating to Edinburgh for this role' :
+                        activeField === 'reason' ? 'it\'s a great opportunity but I\'m concerned about work-life balance' :
+                        'share insights about working in Scotland'
+                      }
+                      maxLength={activeField === 'challenge' ? 80 : activeField === 'reason' ? 100 : 60}
+                    />
+                    <button 
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-green-600 hover:text-green-700"
+                      onClick={() => setActiveField(null)}
+                    >
+                      ✓
+                    </button>
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {helpForm[activeField]?.length || 0} / {activeField === 'challenge' ? 80 : activeField === 'reason' ? 100 : 60} characters
+                  </div>
+                </div>
+              )}
+
+              {/* Timeline Chips */}
+              {showTimelineChips && (
+                <div className="mb-4">
+                  <div className="text-sm font-medium text-gray-700 mb-2">When do you need this?</div>
+                  <div className="grid grid-cols-3 gap-3">
+                    {[
+                      { value: '1 week', label: '1 week', desc: 'ASAP' },
+                      { value: '2 weeks', label: '2 weeks', desc: 'Soon' },
+                      { value: 'flexible', label: 'Flexible', desc: 'This month' }
+                    ].map((timeline) => (
+                      <div
+                        key={timeline.value}
+                        className="border rounded-lg p-3 text-center cursor-pointer transition-all border-gray-300 hover:border-gray-900 hover:bg-gray-50"
+                        onClick={() => handleTimelineSelect(timeline.value)}
+                      >
+                        <div className="text-sm font-semibold mb-1">{timeline.label}</div>
+                        <div className="text-xs text-gray-600">{timeline.desc}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="p-5">
+              <button
+                className={`w-full py-4 rounded-lg text-base font-semibold transition-all ${
+                  validateHelpForm()
+                    ? 'bg-gray-900 text-white hover:bg-black'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
+                disabled={!validateHelpForm()}
+                onClick={submitHelpRequest}
+              >
+                Add Request
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+
+  // Add missing helper functions for the form
+  const handleFieldClick = (fieldName: ActiveFieldType) => {
+    setActiveField(fieldName);
+    setShowTimelineChips(false);
+    // Focus the input after state update
+    setTimeout(() => {
+      if (fieldName && inputRefs[fieldName]?.current) {
+        inputRefs[fieldName].current?.focus();
+      }
+    }, 0);
+  };
+
+  const handleTimelineClick = () => {
+    setShowTimelineChips(true);
+    setActiveField(null);
+  };
+
+  const handleTimelineSelect = (timeline: string) => {
+    setSelectedTimeline(timeline);
+    setShowTimelineChips(false);
+  };
 
   const renderNetwork = () => {
     // Network connections
@@ -1425,6 +1740,7 @@ const OneGoodIntroMobile = () => {
     <div className="font-sans">
       {currentView === 'auth' && renderAuth()}
       {currentView === 'full-profile' && renderFullProfile()}
+      {currentView === 'new-get-help' && renderNewGetHelp()}
       {currentView === 'match-connection' && renderMatchConnection()}
       {currentView === 'match-found' && renderMatchFound()}
       {currentView === 'public-board' && renderPublicBoard()}
