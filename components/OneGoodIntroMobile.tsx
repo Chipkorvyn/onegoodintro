@@ -129,7 +129,7 @@ const OneGoodIntroMobile = () => {
   const [resumeStatus, setResumeStatus] = useState<'empty' | 'processing' | 'complete'>('empty');
   const [resumeValue, setResumeValue] = useState<string>('');
   const [showAISuggestions, setShowAISuggestions] = useState<boolean>(false);
-  const [activeField, setActiveField] = useState<string | null>(null);
+  const [activeField, setActiveField] = useState<'challenge' | 'reason' | 'helpType' | 'current' | 'background' | 'personal' | 'linkedin' | null>(null);
 
   const inputRefs = {
     challenge: useRef<HTMLInputElement>(null),
@@ -285,7 +285,7 @@ const OneGoodIntroMobile = () => {
 
   // Enhanced profile field handlers
   const handleFieldClick = (fieldName: string) => {
-    setActiveField(fieldName as string | null);
+    setActiveField(fieldName as typeof activeField);
     setShowTimelineChips(false);
     // Focus the input after state update
     setTimeout(() => {
