@@ -284,6 +284,17 @@ const OneGoodIntroMobile = () => {
   };
 
   // Enhanced profile field handlers
+  const handleFieldClick = (fieldName: string) => {
+    setActiveField(fieldName as string | null);
+    setShowTimelineChips(false);
+    // Focus the input after state update
+    setTimeout(() => {
+      if (inputRefs[fieldName as keyof typeof inputRefs]?.current) {
+        inputRefs[fieldName as keyof typeof inputRefs].current?.focus();
+      }
+    }, 0);
+  };
+
   const handleProfileFieldClick = (fieldName: string) => {
     setEditingField(fieldName);
     setFieldValues({ ...fieldValues, [fieldName]: profileData[fieldName as keyof typeof profileData] });
