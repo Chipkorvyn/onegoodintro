@@ -223,7 +223,7 @@ const OneGoodIntroMobile = () => {
     }
   };
 
-  const handleFieldClick = (fieldName) => {
+  const handleFieldClick = (fieldName: string) => {
     setActiveField(fieldName);
     setShowTimelineChips(false);
     // Focus the input after state update
@@ -239,12 +239,12 @@ const OneGoodIntroMobile = () => {
     setActiveField(null);
   };
 
-  const handleTimelineSelect = (timeline) => {
+  const handleTimelineSelect = (timeline: string) => {
     setSelectedTimeline(timeline);
     setShowTimelineChips(false);
   };
 
-  const handleInputChange = (field, value) => {
+  const handleInputChange = (field: string, value: string) => {
     setHelpForm(prev => ({ ...prev, [field]: value }));
   };
 
@@ -294,7 +294,7 @@ const OneGoodIntroMobile = () => {
   };
 
   // Enhanced profile field handlers
-  const handleProfileFieldClick = (fieldName) => {
+  const handleProfileFieldClick = (fieldName: string) => {
     setEditingField(fieldName);
     setFieldValues({ ...fieldValues, [fieldName]: profileData[fieldName] });
     setTimeout(() => {
@@ -308,7 +308,7 @@ const OneGoodIntroMobile = () => {
     setFieldValues({ ...fieldValues, [fieldName]: value });
   };
 
-  const handleProfileFieldSave = (fieldName) => {
+  const handleProfileFieldSave = (fieldName: string) => {
     setSavingField(fieldName);
     
     setTimeout(() => {
@@ -321,7 +321,7 @@ const OneGoodIntroMobile = () => {
     }, 500);
   };
 
-  const handleProfileFieldBlur = (fieldName) => {
+  const handleProfileFieldBlur = (fieldName: string) => {
     handleProfileFieldSave(fieldName);
   };
 
