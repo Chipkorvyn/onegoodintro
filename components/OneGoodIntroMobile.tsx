@@ -90,11 +90,15 @@ const OneGoodIntroMobile = () => {
     expertise: ["Product Leadership", "Career Development", "Team Scaling", "B2B SaaS"]
   };
 
+  // Define proper types
+  type ActiveFieldType = 'challenge' | 'reason' | 'helpType' | 'current' | 'background' | 'personal' | 'linkedin' | null;
+  type ModalIconType = 'handshake' | 'check' | 'heart';
+
   // State management
-  const [currentView, setCurrentView] = useState<'auth' | 'full-profile' | string>('auth');
+  const [currentView, setCurrentView] = useState<'auth' | 'full-profile' | 'match-found' | 'match-connection' | 'public-board' | 'network' | 'new-get-help'>('auth');
   const [showModal, setShowModal] = useState<boolean>(false);
   const [modalContent, setModalContent] = useState<{
-    icon?: string;
+    icon: ModalIconType;
     title: string;
     message: string;
   } | null>(null);
@@ -129,7 +133,6 @@ const OneGoodIntroMobile = () => {
   const [resumeStatus, setResumeStatus] = useState<'empty' | 'processing' | 'complete'>('empty');
   const [resumeValue, setResumeValue] = useState<string>('');
   const [showAISuggestions, setShowAISuggestions] = useState<boolean>(false);
-  type ActiveFieldType = 'challenge' | 'reason' | 'helpType' | 'current' | 'background' | 'personal' | 'linkedin' | null;
   const [activeField, setActiveField] = useState<ActiveFieldType>(null);
 
   const inputRefs = {
@@ -264,17 +267,17 @@ const OneGoodIntroMobile = () => {
   const showSuccessModal = (type: 'connection' | 'request' | 'help') => {
     const configs = {
       'connection': {
-        icon: 'handshake',
+        icon: 'handshake' as ModalIconType,
         title: 'Connection made!',
         message: "We'll send you both an email with contact details. Schedule your call and help each other out."
       },
       'request': {
-        icon: 'check',
+        icon: 'check' as ModalIconType,
         title: 'Request submitted!',
         message: "We'll look for matches this week and email you if we find someone who can help."
       },
       'help': {
-        icon: 'heart',
+        icon: 'heart' as ModalIconType,
         title: 'Interest sent!',
         message: "We'll let them know you can help. They'll check out what you can offer in return."
       }
@@ -661,7 +664,6 @@ const OneGoodIntroMobile = () => {
                 src={mockGoogleUser.picture} 
                 alt="Profile" 
                 className="w-12 h-12 rounded-full"
-                // eslint-disable-next-line @next/next/no-img-element
               />
               <div>
                 <p className="font-medium text-gray-900">{mockGoogleUser.name}</p>
@@ -1329,12 +1331,6 @@ const OneGoodIntroMobile = () => {
       </div>
     );
   };
-
-  interface ModalContent {
-    icon: 'handshake' | 'check' | 'heart';
-    title: string;
-    message: string;
-  }
 
   const renderModal = () => {
     if (!showModal || !modalContent) return null;
