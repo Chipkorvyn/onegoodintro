@@ -102,7 +102,7 @@ const OneGoodIntroMobile = () => {
   const [expandedCard, setExpandedCard] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newProblem, setNewProblem] = useState({ title: '', proof: '' });
-  const [activeField, setActiveField] = useState(null);
+  const [activeField, setActiveField] = useState<string | null>(null);
   const [showTimelineChips, setShowTimelineChips] = useState(false);
   const [helpForm, setHelpForm] = useState({
     challenge: '',
@@ -111,9 +111,9 @@ const OneGoodIntroMobile = () => {
   });
 
   // Enhanced profile editing state
-  const [editingField, setEditingField] = useState(null);
+  const [editingField, setEditingField] = useState<string | null>(null);
   const [fieldValues, setFieldValues] = useState({});
-  const [savingField, setSavingField] = useState(null);
+  const [savingField, setSavingField] = useState<string | null>(null);
   const [linkedInStatus, setLinkedInStatus] = useState('empty');
   const [linkedInValue, setLinkedInValue] = useState('');
   const [resumeStatus, setResumeStatus] = useState('empty');
