@@ -1,14 +1,113 @@
 'use client';
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { User, CheckCircle, Users, Plus, Zap, Target, Heart, Network, Handshake, MessageCircle, Check, MapPin, Building2, X } from 'lucide-react';
+import { useSession, signIn, signOut } from 'next-auth/react'
+import { supabase, type User as DbUser, type UserProblem } from '@/lib/supabase'
 
 const OneGoodIntroMobile = () => {
-  // Mock user data from Google
-  const mockGoogleUser = {
-    name: "Sarah Johnson",
-    email: "sarah.johnson@gmail.com", 
-    picture: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face"
-  };
+  
+  // Replace mockGoogleUser and simulation with:
+  const { data: session, status } = useSession()
+  const [profileData, setProfileData] = useState({
+    name: '',
+    current: '',
+    background: '',
+    personal: ''
+  })
+  const [userProblems, setUserProblems] = useState<UserProblem[]>([])
+
+  // Load user data when session exists
+  useEffect(() => {
+    if (session?.user?.email) {
+      loadUserData(session.user.email)
+    }
+  }, [session])
+
+  const loadUserData = async (userEmail: string) => {
+    // Load or create user profile
+    let { data: user } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', userEmail)
+      .single()
+
+    if (!user && session?.user?.email) {
+      // Create new user - use email as ID since NextAuth doesn't provide user.id
+      const userId = session.user.email!
+      const { data: newUser } = await supabase
+        .from('users')
+        .insert({
+          id: userId,
+          email: session.user.email!,
+          name: session.user.name || '',
+          image: session.user.image || ''
+        })
+        .select()
+        .single()
+      
+      user = newUser
+
+      // Add default problems for new user
+      const defaultProblems = [
+        {
+          user_id: userId,
+          title: 'Navigating your first interim executive role',
+          proof: 'I\'ve been interim CEO during company turnaround with 2000+ employees',
+          verified: true,
+          helped_count: 3
+        },
+        {
+          user_id: userId,
+          title: 'Building teams across cultures and time zones',
+          proof: 'I\'ve scaled teams from 5 to 50+ people across US/Europe/Switzerland',
+          verified: true,
+          helped_count: 2
+        },
+        {
+          user_id: userId,
+          title: 'Taking on P&L responsibility for the first time',
+          proof: 'I\'ve mentored executives taking on €20M+ P&L responsibility',
+          verified: true,
+          helped_count: 1
+        },
+        {
+          user_id: userId,
+          title: 'Making M&A integration actually work',
+          proof: 'I\'ve led deals with €90M+ savings across multiple integrations',
+          verified: true,
+          helped_count: 2
+        }
+      ]
+
+      await supabase
+        .from('user_problems')
+        .insert(defaultProblems)
+    }
+
+    if (user) {
+      setProfileData({
+        name: user.name || '',
+        current: user.current_focus,
+        background: user.background,
+        personal: user.personal_info
+      })
+    }
+
+    // Load user problems
+    const { data: problems } = await supabase
+      .from('user_problems')
+      .select('*')
+      .eq('user_id', userEmail)
+
+    if (problems) {
+      setUserProblems(problems)
+    }
+  }
+
+  // Replace handleGoogleSignIn
+  const handleGoogleSignIn = () => {
+    signIn('google')
+  }
 
   const helpRequests = [
     {
@@ -145,82 +244,18 @@ const OneGoodIntroMobile = () => {
     linkedin: useRef<HTMLInputElement>(null)
   };
 
-  // All problems you can solve
-  const problemsYouCanSolve = [
-    {
-      id: 1,
-      title: "Navigating your first interim executive role",
-      proof: "I've been interim CEO during company turnaround with 2000+ employees",
-      verified: true,
-      helpedCount: 3
-    },
-    {
-      id: 2,
-      title: "Building teams across cultures and time zones",
-      proof: "I've scaled teams from 5 to 50+ people across US/Europe/Switzerland",
-      verified: true,
-      helpedCount: 2
-    },
-    {
-      id: 3,
-      title: "Taking on P&L responsibility for the first time",
-      proof: "I've mentored executives taking on €20M+ P&L responsibility",
-      verified: true,
-      helpedCount: 1
-    },
-    {
-      id: 4,
-      title: "Making M&A integration actually work",
-      proof: "I've led deals with €90M+ savings across multiple integrations",
-      verified: true,
-      helpedCount: 2
-    },
-    {
-      id: 5,
-      title: "Running due diligence under tight deadlines",
-      proof: "I've co-led $7B+ due diligence processes in 6-8 week timeframes",
-      verified: true,
-      helpedCount: 1
-    },
-    {
-      id: 6,
-      title: "Launching AI products at enterprise scale",
-      proof: "I've deployed AI solutions for 100K+ users with zero downtime",
-      verified: true,
-      helpedCount: 1
-    },
-    {
-      id: 7,
-      title: "Selling complex tech solutions to large enterprises",
-      proof: "I've closed €30M+ enterprise deals in AI and technology",
-      verified: false,
-      helpedCount: 0
+  // Skip simulated auth flow, go straight to profile if signed in
+  useEffect(() => {
+    if (status === 'authenticated' && currentView === 'auth') {
+      setCurrentView('full-profile')
     }
-  ];
+  }, [status, currentView])
 
-  // Profile data structure
-  const profileData = {
-    name: 'Chip Alexandru',
-    avatar: 'CA',
-    current: 'AI founder in Zurich, advising global retailers',
-    background: 'BCG/PwC/Accenture, led €90M+ deals, interim CEO experience',
-    personal: 'Originally from Romania, now Swiss-based, frequent travel to US/Europe'
-  };
-
-  // Helper functions
-  const handleGoogleSignIn = () => {
-    setShowGooglePopup(true);
-  };
-
-  const handleGoogleAuth = () => {
-    setIsLoading(true);
-    
-    // Simulate OAuth processing time
-    setTimeout(() => {
-      setShowGooglePopup(false);
-      setIsLoading(false);
-      setCurrentView('full-profile');
-    }, 2000);
+  // Mock Google user for popup (only used in simulation)
+  const mockGoogleUser = {
+    name: "Sarah Johnson",
+    email: "sarah.johnson@gmail.com",
+    picture: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face"
   };
 
   const validateHelpForm = () => {
@@ -239,7 +274,9 @@ const OneGoodIntroMobile = () => {
   };
 
   const handleInputChange = (field: string, value: string) => {
-    setHelpForm(prev => ({ ...prev, [field]: value }));
+    if (field === 'challenge' || field === 'reason' || field === 'helpType') {
+      setHelpForm(prev => ({ ...prev, [field]: value }));
+    }
   };
 
   const handleInputBlur = () => {
@@ -250,7 +287,10 @@ const OneGoodIntroMobile = () => {
   };
 
   const getDisplayText = (field: string, placeholder: string) => {
-    return helpForm[field as keyof typeof helpForm] || placeholder;
+    if (field === 'challenge' || field === 'reason' || field === 'helpType') {
+      return helpForm[field as keyof typeof helpForm] || placeholder;
+    }
+    return placeholder;
   };
 
   const getTimelineDisplay = () => {
@@ -287,10 +327,10 @@ const OneGoodIntroMobile = () => {
     setShowModal(true);
   };
 
-  // Enhanced profile field handlers
+  // Enhanced profile field handlers with database integration
   const handleProfileFieldClick = (fieldName: ActiveFieldType) => {
     setEditingField(fieldName);
-    if (fieldName) {
+    if (fieldName && fieldName !== 'challenge' && fieldName !== 'reason' && fieldName !== 'helpType' && fieldName !== 'linkedin') {
       setFieldValues({ ...fieldValues, [fieldName]: profileData[fieldName as keyof typeof profileData] });
     }
     setTimeout(() => {
@@ -304,17 +344,37 @@ const OneGoodIntroMobile = () => {
     setFieldValues({ ...fieldValues, [fieldName]: value });
   };
 
-  const handleProfileFieldSave = (fieldName: string) => {
-    setSavingField(fieldName);
+  // Step 5A: Database save functions
+  const handleProfileFieldSave = async (fieldName: string) => {
+    if (!session?.user?.email) return
     
-    setTimeout(() => {
-      setEditingField(null);
-      setSavingField(null);
-      
-      // Show success flash
-      setTimeout(() => setSavingField(fieldName + '_success'), 50);
-      setTimeout(() => setSavingField(null), 1500);
-    }, 500);
+    setSavingField(fieldName)
+    
+    const value = fieldValues[fieldName]
+    const dbField = fieldName === 'current' ? 'current_focus' : 
+                    fieldName === 'background' ? 'background' :
+                    fieldName === 'personal' ? 'personal_info' : fieldName
+
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ [dbField]: value })
+        .eq('email', session.user.email!)
+
+      if (!error) {
+        // Update local state
+        setProfileData(prev => ({ ...prev, [fieldName]: value }))
+        
+        // Show success
+        setEditingField(null)
+        setSavingField(null)
+        setTimeout(() => setSavingField(fieldName + '_success'), 50)
+        setTimeout(() => setSavingField(null), 1500)
+      }
+    } catch (error) {
+      console.error('Error saving field:', error)
+      setSavingField(null)
+    }
   };
 
   const handleProfileFieldBlur = (fieldName: string) => {
@@ -331,19 +391,39 @@ const OneGoodIntroMobile = () => {
     }, 0);
   };
 
-  const handleLinkedInSave = () => {
-    const value = fieldValues.linkedin?.trim();
+  // Update LinkedIn save handler with database
+  const handleLinkedInSave = async () => {
+    if (!session?.user?.email) return
+    
+    const value = fieldValues.linkedin?.trim()
     if (value) {
-      setLinkedInStatus('processing');
-      setEditingField(null);
+      setLinkedInStatus('processing')
+      setEditingField(null)
       
-      setTimeout(() => {
-        setLinkedInStatus('complete');
-        setLinkedInValue(value);
-        setShowAISuggestions(true);
-      }, 2000);
+      // Update database
+      await supabase
+        .from('users')
+        .update({ 
+          linkedin_url: value,
+          linkedin_status: 'processing'
+        })
+        .eq('email', session.user.email!)
+      
+      // Simulate processing
+      setTimeout(async () => {
+        if (session?.user?.email) {
+          await supabase
+            .from('users')
+            .update({ linkedin_status: 'complete' })
+            .eq('email', session.user.email!)
+            
+          setLinkedInStatus('complete')
+          setLinkedInValue(value)
+          setShowAISuggestions(true)
+        }
+      }, 2000)
     } else {
-      setEditingField(null);
+      setEditingField(null)
     }
   };
 
@@ -351,23 +431,53 @@ const OneGoodIntroMobile = () => {
     setFieldValues({ ...fieldValues, linkedin: value });
   };
 
-  const handleResumeUpload = () => {
-    setResumeStatus('processing');
+  const handleResumeUpload = async () => {
+    if (!session?.user?.email) return
     
-    setTimeout(() => {
-      setResumeStatus('complete');
-      setResumeValue('Marketing_Resume.pdf');
-      setShowAISuggestions(true);
-    }, 1500);
+    setResumeStatus('processing')
+    
+    // Update database
+    await supabase
+      .from('users')
+      .update({ resume_status: 'processing' })
+      .eq('email', session.user.email!)
+    
+    setTimeout(async () => {
+      if (session?.user?.email) {
+        await supabase
+          .from('users')
+          .update({ 
+            resume_status: 'complete',
+            resume_filename: 'Marketing_Resume.pdf'
+          })
+          .eq('email', session.user.email!)
+          
+        setResumeStatus('complete')
+        setResumeValue('Marketing_Resume.pdf')
+        setShowAISuggestions(true)
+      }
+    }, 1500)
   };
 
-  const handleResumeChange = () => {
-    setResumeStatus('processing');
+  const handleResumeChange = async () => {
+    if (!session?.user?.email) return
     
-    setTimeout(() => {
-      setResumeStatus('complete');
-      setResumeValue('Updated_Resume.pdf');
-    }, 1500);
+    setResumeStatus('processing')
+    
+    setTimeout(async () => {
+      if (session?.user?.email) {
+        await supabase
+          .from('users')
+          .update({ 
+            resume_status: 'complete',
+            resume_filename: 'Updated_Resume.pdf'
+          })
+          .eq('email', session.user.email!)
+          
+        setResumeStatus('complete')
+        setResumeValue('Updated_Resume.pdf')
+      }
+    }, 1500)
   };
 
   // Enhanced field rendering functions
@@ -567,6 +677,11 @@ const OneGoodIntroMobile = () => {
     );
   };
 
+  // Show loading screen while checking auth
+  if (status === 'loading') {
+    return <div className="min-h-screen bg-white flex items-center justify-center">Loading...</div>
+  }
+
   // Main render functions
   const renderAuth = () => (
     <div className="min-h-screen bg-white">
@@ -628,97 +743,13 @@ const OneGoodIntroMobile = () => {
     </div>
   );
 
-  const renderGooglePopup = () => (
-    <>
-      {/* Backdrop */}
-      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden">
-          {/* Google Header */}
-          <div className="p-6 border-b border-gray-200">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-2">
-                <svg className="w-6 h-6" viewBox="0 0 24 24">
-                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                </svg>
-                <span className="font-medium text-gray-900">Sign in with Google</span>
-              </div>
-              <button 
-                onClick={() => setShowGooglePopup(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <p className="text-sm text-gray-600">
-              OneGoodIntro wants to access your Google Account
-            </p>
-          </div>
-
-          {/* User Profile */}
-          <div className="p-6">
-            <div className="flex items-center space-x-3 mb-6">
-              <img 
-                src={mockGoogleUser.picture} 
-                alt="Profile" 
-                className="w-12 h-12 rounded-full"
-              />
-              <div>
-                <p className="font-medium text-gray-900">{mockGoogleUser.name}</p>
-                <p className="text-sm text-gray-600">{mockGoogleUser.email}</p>
-              </div>
-            </div>
-
-            {/* Permissions */}
-            <div className="mb-6">
-              <p className="text-sm font-medium text-gray-900 mb-3">OneGoodIntro will be able to:</p>
-              <div className="space-y-2 text-sm text-gray-600">
-                <div className="flex items-center space-x-2">
-                  <Check className="h-4 w-4 text-green-600" />
-                  <span>See your basic profile info</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Check className="h-4 w-4 text-green-600" />
-                  <span>See your email address</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex space-x-3">
-              <button 
-                onClick={() => setShowGooglePopup(false)}
-                className="flex-1 py-3 px-4 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={handleGoogleAuth}
-                disabled={isLoading}
-                className="flex-1 py-3 px-4 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center"
-              >
-                {isLoading ? (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                ) : (
-                  'Continue'
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </>
-  );
-
   const renderFullProfile = () => (
     <div className="min-h-screen bg-white pb-20">
       <div className="max-w-2xl mx-auto bg-white">
         {/* Header */}
         <div className="p-8 text-center border-b border-gray-100">
           <div className="relative w-32 h-32 rounded-full bg-gray-100 flex items-center justify-center text-3xl font-semibold text-gray-500 mx-auto mb-4">
-            {profileData.avatar}
+            CA
             <button className="absolute -bottom-1 -right-1 w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-medium hover:bg-blue-700 transition-colors">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -727,7 +758,7 @@ const OneGoodIntroMobile = () => {
           </div>
           
           <div className="flex items-center justify-center gap-2 mb-6">
-            <h1 className="text-2xl font-bold text-gray-900">{profileData.name}</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{profileData.name || 'User'}</h1>
             <button className="text-blue-600 hover:text-blue-700 transition-colors">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -766,8 +797,8 @@ const OneGoodIntroMobile = () => {
         <div className="px-8 py-6 text-center">
           <p className="text-gray-600 mb-2">Ready to help others with your experience</p>
           <div className="text-sm text-gray-500">
-            <span className="font-semibold text-gray-900">10</span> people helped • 
-            <span className="font-semibold text-gray-900 ml-1">7</span> problems you can solve
+            <span className="font-semibold text-gray-900">{userProblems.reduce((acc, p) => acc + p.helped_count, 0)}</span> people helped • 
+            <span className="font-semibold text-gray-900 ml-1">{userProblems.length}</span> problems you can solve
           </div>
         </div>
 
@@ -786,7 +817,7 @@ const OneGoodIntroMobile = () => {
 
           {/* Simple Problem List */}
           <div className="space-y-6">
-            {problemsYouCanSolve.map((problem) => (
+            {userProblems.map((problem) => (
               <div
                 key={problem.id}
                 className="p-6 bg-white rounded-2xl shadow-sm hover:shadow-md transition-all"
@@ -801,9 +832,9 @@ const OneGoodIntroMobile = () => {
                     }`}>
                       {problem.verified ? '✓ Verified' : 'Added by you'}
                     </div>
-                    {problem.helpedCount > 0 && (
+                    {problem.helped_count > 0 && (
                       <div className="text-xs text-gray-500">
-                        Helped {problem.helpedCount} {problem.helpedCount === 1 ? 'person' : 'people'}
+                        Helped {problem.helped_count} {problem.helped_count === 1 ? 'person' : 'people'}
                       </div>
                     )}
                   </div>
@@ -1368,8 +1399,8 @@ const OneGoodIntroMobile = () => {
                     <input
                       ref={inputRefs[activeField]}
                       type="text"
-                      value={helpForm[activeField]}
-                      onChange={(e) => handleInputChange(activeField, e.target.value)}
+                      value={activeField && (activeField === 'challenge' || activeField === 'reason' || activeField === 'helpType') ? helpForm[activeField] : ''}
+                      onChange={(e) => handleInputChange(activeField || '', e.target.value)}
                       onBlur={handleInputBlur}
                       className="w-full border border-gray-300 rounded-lg p-3 text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder={
@@ -1387,7 +1418,9 @@ const OneGoodIntroMobile = () => {
                     </button>
                   </div>
                   <div className="text-xs text-gray-500 mt-1">
-                    {helpForm[activeField]?.length || 0} / {activeField === 'challenge' ? 80 : activeField === 'reason' ? 100 : 60} characters
+                    {activeField && (activeField === 'challenge' || activeField === 'reason' || activeField === 'helpType') 
+                      ? (helpForm[activeField]?.length || 0) 
+                      : 0} / {activeField === 'challenge' ? 80 : activeField === 'reason' ? 100 : 60} characters
                   </div>
                 </div>
               )}
@@ -1628,7 +1661,7 @@ const OneGoodIntroMobile = () => {
           {/* Empty State for Search */}
           {filteredConnections.length === 0 && searchTerm && (
             <div className="text-center py-12">
-              <p className="text-gray-500">No connections found matching {searchTerm}</p>
+              <p className="text-gray-500">No connections found matching "{searchTerm}"</p>
             </div>
           )}
 
@@ -1745,7 +1778,6 @@ const OneGoodIntroMobile = () => {
       {currentView === 'match-found' && renderMatchFound()}
       {currentView === 'public-board' && renderPublicBoard()}
       {currentView === 'network' && renderNetwork()}
-      {showGooglePopup && renderGooglePopup()}
       {renderModal()}
       {currentView !== 'auth' && renderBottomNav()}
     </div>
