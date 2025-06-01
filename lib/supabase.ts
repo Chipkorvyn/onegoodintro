@@ -35,3 +35,35 @@ export interface UserProblem {
   ai_generated: boolean
   created_at: string
 }
+
+// Add these interfaces to your existing supabase.ts file
+export interface HelpRequest {
+  id: string
+  user_id: string
+  challenge: string
+  reason: string
+  help_type: string
+  timeline: string
+  status: 'active' | 'paused' | 'solved'
+  status_text: string
+  views: number
+  match_count: number
+  created_at: string
+  updated_at: string
+}
+
+// Utility function to format time ago
+export function timeAgo(dateString: string): string {
+  const date = new Date(dateString)
+  const now = new Date()
+  const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60))
+  
+  if (diffInHours < 1) return 'Just now'
+  if (diffInHours < 24) return `${diffInHours} hour${diffInHours === 1 ? '' : 's'} ago`
+  
+  const diffInDays = Math.floor(diffInHours / 24)
+  if (diffInDays < 7) return `${diffInDays} day${diffInDays === 1 ? '' : 's'} ago`
+  
+  const diffInWeeks = Math.floor(diffInDays / 7)
+  return `${diffInWeeks} week${diffInWeeks === 1 ? '' : 's'} ago`
+}

@@ -2,11 +2,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { User, CheckCircle, Users, Plus, Zap, Target, Heart, Network, Handshake, MessageCircle, Check, MapPin, Building2, X } from 'lucide-react';
 import { useSession, signIn, signOut } from 'next-auth/react'
-import { supabase, type User as DbUser, type UserProblem } from '@/lib/supabase'
+import { supabase, type User as DbUser, type UserProblem, type HelpRequest, timeAgo } from '@/lib/supabase'
 
 const OneGoodIntroMobile = () => {
   
-  // Replace mockGoogleUser and simulation with:
+  // Session and user data
   const { data: session, status } = useSession()
   const [profileData, setProfileData] = useState({
     name: '',
@@ -15,11 +15,20 @@ const OneGoodIntroMobile = () => {
     personal: ''
   })
   const [userProblems, setUserProblems] = useState<UserProblem[]>([])
+  const [userRequests, setUserRequests] = useState<HelpRequest[]>([])
+  const [loadingRequests, setLoadingRequests] = useState(false)
 
   // Load user data when session exists
   useEffect(() => {
     if (session?.user?.email) {
       loadUserData(session.user.email)
+    }
+  }, [session])
+
+  // Load user requests when session exists
+  useEffect(() => {
+    if (session?.user?.email) {
+      loadUserRequests()
     }
   }, [session])
 
@@ -32,7 +41,7 @@ const OneGoodIntroMobile = () => {
       .single()
 
     if (!user && session?.user?.email) {
-      // Create new user - use email as ID since NextAuth doesn't provide user.id
+      // Create new user
       const userId = session.user.email!
       const { data: newUser } = await supabase
         .from('users')
@@ -104,7 +113,26 @@ const OneGoodIntroMobile = () => {
     }
   }
 
-  // Replace handleGoogleSignIn
+  const loadUserRequests = async () => {
+    if (!session?.user?.email) return
+    
+    setLoadingRequests(true)
+    try {
+      const response = await fetch('/api/requests')
+      if (response.ok) {
+        const requests = await response.json()
+        setUserRequests(requests)
+        console.log('Loaded user requests:', requests)
+      } else {
+        console.error('Failed to load requests')
+      }
+    } catch (error) {
+      console.error('Error loading requests:', error)
+    } finally {
+      setLoadingRequests(false)
+    }
+  }
+
   const handleGoogleSignIn = () => {
     signIn('google')
   }
@@ -148,33 +176,6 @@ const OneGoodIntroMobile = () => {
     }
   ];
 
-  const userRequests = [
-    {
-      id: 1,
-      text: "Should I relocate to Edinburgh for this role?",
-      status: 'active',
-      timeAgo: '2 days ago',
-      statusText: 'Looking for match',
-      context: 'Great opportunity but concerned about work-life balance in Scotland. Salary is 15% higher.',
-      lookingFor: 'Chat with someone who works in Edinburgh about living there'
-    },
-    {
-      id: 2,
-      text: "How do I break into the tech industry?",
-      status: 'paused',
-      timeAgo: '1 week ago',
-      context: 'Marketing background, interested in product management roles at tech companies.',
-      lookingFor: 'Chat with product managers about their career path'
-    },
-    {
-      id: 3,
-      text: "Best way to negotiate a promotion?",
-      status: 'solved',
-      timeAgo: '3 weeks ago',
-      statusText: 'Helped by Maria R.'
-    }
-  ];
-
   // Match data for connection flow
   const matchedPerson = {
     name: "Sarah Johnson",
@@ -206,7 +207,7 @@ const OneGoodIntroMobile = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [showBottomSheet, setShowBottomSheet] = useState<boolean>(false);
   const [selectedTimeline, setSelectedTimeline] = useState<string>('');
-  const [expandedCard, setExpandedCard] = useState<number | null>(null);
+  const [expandedCard, setExpandedCard] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState<boolean>(false);
   const [newProblem, setNewProblem] = useState<{
     title: string;
@@ -251,27 +252,63 @@ const OneGoodIntroMobile = () => {
     }
   }, [status, currentView])
 
-  // Mock Google user for popup (only used in simulation)
-  const mockGoogleUser = {
-    name: "Sarah Johnson",
-    email: "sarah.johnson@gmail.com",
-    picture: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face"
-  };
-
   const validateHelpForm = () => {
     return helpForm.challenge.trim() && helpForm.reason.trim() && helpForm.helpType.trim() && selectedTimeline;
   };
 
-  const submitHelpRequest = () => {
-    if (validateHelpForm()) {
-      setShowBottomSheet(false);
-      setHelpForm({ challenge: '', reason: '', helpType: '' });
-      setSelectedTimeline('');
-      setActiveField(null);
-      setShowTimelineChips(false);
-      showSuccessModal('request');
+  const submitHelpRequest = async () => {
+    if (!validateHelpForm() || !session?.user?.email) {
+      console.log('Validation failed or no session')
+      return
     }
-  };
+    
+    console.log('Submitting request...', {
+      challenge: helpForm.challenge,
+      reason: helpForm.reason,
+      help_type: helpForm.helpType,
+      timeline: selectedTimeline
+    })
+    
+    try {
+      const response = await fetch('/api/requests', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          challenge: helpForm.challenge.trim(),
+          reason: helpForm.reason.trim(),
+          help_type: helpForm.helpType.trim(),
+          timeline: selectedTimeline
+        })
+      })
+  
+      console.log('Response status:', response.status)
+  
+      if (response.ok) {
+        const newRequest = await response.json()
+        console.log('✅ Request created successfully:', newRequest)
+        
+        // Reset form
+        setShowBottomSheet(false)
+        setHelpForm({ challenge: '', reason: '', helpType: '' })
+        setSelectedTimeline('')
+        setActiveField(null)
+        setShowTimelineChips(false)
+        
+        // Refresh user requests list
+        await loadUserRequests()
+        
+        // Show success modal
+        showSuccessModal('request')
+      } else {
+        const error = await response.json()
+        console.error('❌ Failed to create request:', error)
+      }
+    } catch (error) {
+      console.error('❌ Network error:', error)
+    }
+  }
 
   const handleInputChange = (field: string, value: string) => {
     if (field === 'challenge' || field === 'reason' || field === 'helpType') {
@@ -280,7 +317,6 @@ const OneGoodIntroMobile = () => {
   };
 
   const handleInputBlur = () => {
-    // Small delay to allow for timeline selection
     setTimeout(() => {
       setActiveField(null);
     }, 100);
@@ -344,7 +380,6 @@ const OneGoodIntroMobile = () => {
     setFieldValues({ ...fieldValues, [fieldName]: value });
   };
 
-  // Step 5A: Database save functions
   const handleProfileFieldSave = async (fieldName: string) => {
     if (!session?.user?.email) return
     
@@ -362,10 +397,7 @@ const OneGoodIntroMobile = () => {
         .eq('email', session.user.email!)
 
       if (!error) {
-        // Update local state
         setProfileData(prev => ({ ...prev, [fieldName]: value }))
-        
-        // Show success
         setEditingField(null)
         setSavingField(null)
         setTimeout(() => setSavingField(fieldName + '_success'), 50)
@@ -391,7 +423,6 @@ const OneGoodIntroMobile = () => {
     }, 0);
   };
 
-  // Update LinkedIn save handler with database
   const handleLinkedInSave = async () => {
     if (!session?.user?.email) return
     
@@ -400,7 +431,6 @@ const OneGoodIntroMobile = () => {
       setLinkedInStatus('processing')
       setEditingField(null)
       
-      // Update database
       await supabase
         .from('users')
         .update({ 
@@ -409,7 +439,6 @@ const OneGoodIntroMobile = () => {
         })
         .eq('email', session.user.email!)
       
-      // Simulate processing
       setTimeout(async () => {
         if (session?.user?.email) {
           await supabase
@@ -436,7 +465,6 @@ const OneGoodIntroMobile = () => {
     
     setResumeStatus('processing')
     
-    // Update database
     await supabase
       .from('users')
       .update({ resume_status: 'processing' })
@@ -677,6 +705,27 @@ const OneGoodIntroMobile = () => {
     );
   };
 
+  // Add missing helper functions for the form
+  const handleFieldClick = (fieldName: ActiveFieldType) => {
+    setActiveField(fieldName);
+    setShowTimelineChips(false);
+    setTimeout(() => {
+      if (fieldName && inputRefs[fieldName]?.current) {
+        inputRefs[fieldName].current?.focus();
+      }
+    }, 0);
+  };
+
+  const handleTimelineClick = () => {
+    setShowTimelineChips(true);
+    setActiveField(null);
+  };
+
+  const handleTimelineSelect = (timeline: string) => {
+    setSelectedTimeline(timeline);
+    setShowTimelineChips(false);
+  };
+
   // Show loading screen while checking auth
   if (status === 'loading') {
     return <div className="min-h-screen bg-white flex items-center justify-center">Loading...</div>
@@ -910,290 +959,6 @@ const OneGoodIntroMobile = () => {
     </div>
   );
 
-  const renderPublicBoard = () => (
-    <div className="min-h-screen bg-white pb-20">
-      {/* Header */}
-      <div className="px-5 py-4">
-        <div className="flex items-center justify-between">
-          <button 
-            onClick={() => setCurrentView('full-profile')}
-            className="text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-all px-3 py-2 rounded-lg"
-          >
-            ← Back
-          </button>
-          <h1 className="text-lg font-semibold text-gray-900">Help Others</h1>
-          <div className="w-5"></div>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="p-5">
-        <div className="text-center mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">People you can help</h2>
-          <p className="text-gray-600">Requests matched to your experience</p>
-        </div>
-
-        <div className="space-y-6">
-          {helpRequests.map(request => (
-            <div 
-              key={request.id} 
-              className="bg-white rounded-2xl shadow-sm p-5 hover:shadow-md transition-all"
-            >
-              {/* Person info */}
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-sm font-semibold text-gray-600">
-                  {request.avatar}
-                </div>
-                <div>
-                  <p className="text-base font-semibold text-gray-900">{request.person}</p>
-                  <p className="text-sm text-gray-600">{request.title} at {request.company}</p>
-                </div>
-              </div>
-
-              {/* Question */}
-              <h3 className="text-lg font-medium text-gray-900 mb-3 leading-snug">
-                "{request.text}"
-              </h3>
-
-              {/* Context */}
-              <p className="text-sm text-gray-700 mb-4 leading-relaxed">
-                {request.context}
-              </p>
-
-              {/* Actions */}
-              <div className="flex gap-3">
-                <button 
-                  onClick={() => {
-                    showSuccessModal('help');  
-                  }}
-                  className="bg-gray-900 text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-black transition-colors"
-                >
-                  I can help
-                </button>
-                <button className="text-gray-500 text-sm font-medium hover:text-gray-700 hover:bg-gray-100 transition-all py-3 px-4 rounded-lg">
-                  Skip
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Bottom Message */}
-        <div className="mt-8 p-4 bg-white rounded-2xl shadow-sm text-center">
-          <h3 className="text-base font-semibold text-gray-900 mb-1">That's this week's selection</h3>
-          <p className="text-gray-600 text-sm mb-3">
-            New requests appear throughout the week, filtered to areas where you have relevant experience.
-          </p>
-          <button className="text-blue-600 text-sm font-semibold hover:text-blue-700 transition-colors">
-            See more requests
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderMatchConnection = () => (
-    <div className="min-h-screen bg-white pb-20">
-      {/* Header */}
-      <div className="bg-white px-4 py-4 sticky top-0 z-10 border-b border-gray-100">
-        <div className="flex items-center justify-between">
-          <button 
-            className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-all px-3 py-2 rounded-lg"
-            onClick={() => setCurrentView('match-found')}
-          >
-            ← Back
-          </button>
-          <div className="flex items-center space-x-2">
-            <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center">
-              <Zap className="h-4 w-4 text-white" />
-            </div>
-            <div>
-              <h1 className="font-bold text-gray-900">OneGoodIntro</h1>
-              <p className="text-xs text-gray-600">Introduction Request</p>
-            </div>
-          </div>
-          <div className="w-12"></div>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="px-4 py-8">
-        <div className="bg-white rounded-2xl shadow-sm p-8 text-center">
-          {/* Success Icon */}
-          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle className="h-10 w-10 text-green-600" />
-          </div>
-
-          {/* Title */}
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Confirmed Your Interest!</h2>
-
-          {/* Status Message */}
-          <div className="mb-6">
-            <p className="text-gray-700 text-base leading-relaxed">
-              Sarah also received this match. When you both confirm, we'll send introduction emails.
-            </p>
-          </div>
-
-          {/* Timeline */}
-          <div className="mb-8">
-            <p className="text-sm text-gray-600">
-              Most matches connect within 2–3 days.
-            </p>
-          </div>
-
-          {/* Action Button */}
-          <button 
-            onClick={() => setCurrentView('match-found')}
-            className="w-full bg-gray-900 text-white py-4 rounded-2xl font-semibold hover:bg-gray-800 transition-colors"
-          >
-            OK, Got It
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderMatchFound = () => (
-    <div className="min-h-screen bg-white pb-20">
-      {/* Header */}
-      <div className="bg-white px-4 py-4 sticky top-0 z-10 border-b border-gray-100">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <button 
-              className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-all px-3 py-2 rounded-lg"
-              onClick={() => setCurrentView('new-get-help')}
-            >
-              ← Back
-            </button>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center">
-              <Zap className="h-4 w-4 text-white" />
-            </div>
-            <div>
-              <h1 className="font-bold text-gray-900">OneGoodIntro</h1>
-              <p className="text-xs text-gray-600">Weekly Match</p>
-            </div>
-          </div>
-          <div className="w-12"></div>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="px-4 py-6">
-        <div className="space-y-8">
-          {/* Weekly Match Header */}
-          <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl shadow-sm p-5 text-center">
-            <div className="flex items-center justify-center space-x-2 mb-3">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-              <span className="text-sm font-medium text-gray-700">This Week's Match</span>
-            </div>
-            <h2 className="text-xl font-bold text-gray-900">You've been matched with Sarah</h2>
-          </div>
-
-          {/* Sarah's Profile Card */}
-          <div className="bg-white rounded-2xl shadow-sm p-6">
-            <div className="flex items-center space-x-4 mb-6">
-              <div className="relative">
-                <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-xl">
-                  {matchedPerson.avatar}
-                </div>
-                {matchedPerson.verified && (
-                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
-                    <Check className="h-3 w-3 text-white" />
-                  </div>
-                )}
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center space-x-2 mb-1">
-                  <h2 className="text-lg font-bold text-gray-900">{matchedPerson.name}</h2>
-                  <svg className="w-4 h-4 text-blue-600" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0013 14.19a.66.66 0 000 .14V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.55 0 3.36.86 3.36 3.66z"/>
-                  </svg>
-                </div>
-                <p className="text-gray-600 font-medium">{matchedPerson.title}</p>
-                <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
-                  <div className="flex items-center space-x-1">
-                    <Building2 className="h-3 w-3" />
-                    <span>{matchedPerson.company}</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <MapPin className="h-3 w-3" />
-                    <span>{matchedPerson.location}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-4">
-              <div className="flex flex-wrap gap-2">
-                {matchedPerson.expertise.map((skill: string) => (
-                  <span key={skill} className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-xs font-medium">
-                    {skill}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Match Overview */}
-          <div className="bg-white rounded-2xl shadow-sm p-5">
-            <div className="mb-4">
-              <h3 className="font-semibold text-gray-900 text-sm flex items-center">
-                <div className="w-2 h-2 bg-blue-600 rounded-full mr-2"></div>
-                Strong Match
-              </h3>
-            </div>
-            
-            <div className="space-y-6">
-              {/* Sarah can help you */}
-              <div className="flex items-start space-x-3">
-                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900">
-                    Sarah might help with: <span className="text-green-700">"Navigate promotion to senior PM level"</span>
-                  </p>
-                  <p className="text-gray-600 text-xs mt-1">From your active requests • Based on her experience with similar career transitions</p>
-                </div>
-              </div>
-
-              {/* Divider */}
-              <div className="border-t border-gray-100"></div>
-
-              {/* You help Sarah */}
-              <div className="flex items-start space-x-3">
-                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <User className="h-4 w-4 text-blue-600" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900">
-                    You might help with: <span className="text-blue-700">"Get insights on scaling product teams effectively"</span>
-                  </p>
-                  <p className="text-gray-600 text-xs mt-1">Her current need • Your consulting and strategy expertise is highly relevant</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="space-y-3 pt-2">
-            <button 
-              onClick={() => setCurrentView('match-connection')}
-              className="w-full bg-gray-900 text-white py-4 rounded-2xl font-semibold hover:bg-gray-800 transition-colors"
-            >
-              Arrange Introduction
-            </button>
-            <button className="w-full bg-gray-100 text-gray-700 py-4 rounded-2xl font-semibold hover:bg-gray-200 transition-colors">
-              Try again next week
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
   const renderNewGetHelp = () => (
     <div className="min-h-screen bg-white pb-20">
       <div className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md px-5 py-4 flex items-center justify-between border-b border-gray-100">
@@ -1220,7 +985,7 @@ const OneGoodIntroMobile = () => {
           
           <div className="flex justify-center gap-8 p-5 bg-white rounded-2xl shadow-sm">
             <div className="text-center">
-              <span className="text-2xl font-bold text-gray-900 block">2</span>
+              <span className="text-2xl font-bold text-gray-900 block">{userRequests.filter(r => r.status === 'active').length}</span>
               <div className="text-xs text-gray-600 uppercase tracking-wide">Active Requests</div>
             </div>
             <div className="text-center">
@@ -1244,53 +1009,66 @@ const OneGoodIntroMobile = () => {
           </div>
           
           <div className="space-y-6">
-            {userRequests.map(request => (
-              <div 
-                key={request.id}
-                className={`bg-white rounded-2xl shadow-sm cursor-pointer transition-all duration-300 overflow-hidden hover:shadow-md ${
-                  expandedCard === request.id ? 'transform -translate-y-1 shadow-lg' : ''
-                }`}
-                onClick={() => setExpandedCard(expandedCard === request.id ? null : request.id)}
-              >
-                <div className="p-5 relative">
-                  <div className={`absolute top-4 right-4 text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wide ${
-                    request.status === 'active' ? 'bg-green-500 text-white' :
-                    request.status === 'paused' ? 'bg-gray-200 text-gray-600' :
-                    'bg-gray-900 text-white'
-                  }`}>
-                    {request.status}
+            {loadingRequests ? (
+              <div className="text-center py-8">
+                <div className="w-6 h-6 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin mx-auto mb-2"></div>
+                <p className="text-gray-500">Loading your requests...</p>
+              </div>
+            ) : userRequests.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-gray-500 mb-4">No requests yet</p>
+                <button 
+                  onClick={() => setShowBottomSheet(true)}
+                  className="text-blue-600 font-medium"
+                >
+                  Create your first request
+                </button>
+              </div>
+            ) : (
+              userRequests.map(request => (
+                <div 
+                  key={request.id}
+                  className={`bg-white rounded-2xl shadow-sm cursor-pointer transition-all duration-300 overflow-hidden hover:shadow-md ${
+                    expandedCard === request.id ? 'transform -translate-y-1 shadow-lg' : ''
+                  }`}
+                  onClick={() => setExpandedCard(expandedCard === request.id ? null : request.id)}
+                >
+                  <div className="p-5 relative">
+                    <div className={`absolute top-4 right-4 text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wide ${
+                      request.status === 'active' ? 'bg-green-500 text-white' :
+                      request.status === 'paused' ? 'bg-gray-200 text-gray-600' :
+                      'bg-gray-900 text-white'
+                    }`}>
+                      {request.status}
+                    </div>
+                    <div className="text-sm font-semibold text-gray-900 mb-3 mr-20 leading-tight">
+                      "{request.challenge}"
+                    </div>
+                    <div className="text-xs text-gray-600 flex items-center gap-2">
+                      <span>{timeAgo(request.created_at)}</span>
+                      <div className="w-1 h-1 bg-current rounded-full"></div>
+                      <span>{request.status_text}</span>
+                    </div>
                   </div>
-                  <div className="text-sm font-semibold text-gray-900 mb-3 mr-20 leading-tight">
-                    "{request.text}"
-                  </div>
-                  <div className="text-xs text-gray-600 flex items-center gap-2">
-                    <span>{request.timeAgo}</span>
-                    {request.statusText && (
-                      <>
-                        <div className="w-1 h-1 bg-current rounded-full"></div>
-                        <span>{request.statusText}</span>
-                      </>
-                    )}
-                  </div>
-                </div>
-                {expandedCard === request.id && (request.context || request.lookingFor) && (
-                  <div className="px-5 pb-5 transition-all duration-300">
-                    {request.context && (
+                  {expandedCard === request.id && (
+                    <div className="px-5 pb-5 transition-all duration-300">
                       <div className="mb-3">
                         <div className="text-xs font-bold uppercase tracking-wide text-gray-600 mb-1">Context</div>
-                        <div className="text-sm text-gray-900 leading-relaxed">{request.context}</div>
+                        <div className="text-sm text-gray-900 leading-relaxed">{request.reason}</div>
                       </div>
-                    )}
-                    {request.lookingFor && (
                       <div>
                         <div className="text-xs font-bold uppercase tracking-wide text-gray-600 mb-1">Looking for</div>
-                        <div className="text-sm text-gray-900 leading-relaxed">{request.lookingFor}</div>
+                        <div className="text-sm text-gray-900 leading-relaxed">{request.help_type}</div>
                       </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            ))}
+                      <div className="mt-3">
+                        <div className="text-xs font-bold uppercase tracking-wide text-gray-600 mb-1">Timeline</div>
+                        <div className="text-sm text-gray-900">{request.timeline}</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
             
             <div 
               className="bg-white rounded-2xl shadow-sm p-10 text-center cursor-pointer transition-all duration-300 hover:shadow-md hover:transform hover:-translate-y-0.5"
@@ -1468,30 +1246,268 @@ const OneGoodIntroMobile = () => {
     </div>
   );
 
-  // Add missing helper functions for the form
-  const handleFieldClick = (fieldName: ActiveFieldType) => {
-    setActiveField(fieldName);
-    setShowTimelineChips(false);
-    // Focus the input after state update
-    setTimeout(() => {
-      if (fieldName && inputRefs[fieldName]?.current) {
-        inputRefs[fieldName].current?.focus();
-      }
-    }, 0);
-  };
+  const renderPublicBoard = () => (
+    <div className="min-h-screen bg-white pb-20">
+      <div className="px-5 py-4">
+        <div className="flex items-center justify-between">
+          <button 
+            onClick={() => setCurrentView('full-profile')}
+            className="text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-all px-3 py-2 rounded-lg"
+          >
+            ← Back
+          </button>
+          <h1 className="text-lg font-semibold text-gray-900">Help Others</h1>
+          <div className="w-5"></div>
+        </div>
+      </div>
 
-  const handleTimelineClick = () => {
-    setShowTimelineChips(true);
-    setActiveField(null);
-  };
+      <div className="p-5">
+        <div className="text-center mb-8">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">People you can help</h2>
+          <p className="text-gray-600">Requests matched to your experience</p>
+        </div>
 
-  const handleTimelineSelect = (timeline: string) => {
-    setSelectedTimeline(timeline);
-    setShowTimelineChips(false);
-  };
+        <div className="space-y-6">
+          {helpRequests.map(request => (
+            <div 
+              key={request.id} 
+              className="bg-white rounded-2xl shadow-sm p-5 hover:shadow-md transition-all"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-sm font-semibold text-gray-600">
+                  {request.avatar}
+                </div>
+                <div>
+                  <p className="text-base font-semibold text-gray-900">{request.person}</p>
+                  <p className="text-sm text-gray-600">{request.title} at {request.company}</p>
+                </div>
+              </div>
+
+              <h3 className="text-lg font-medium text-gray-900 mb-3 leading-snug">
+                "{request.text}"
+              </h3>
+
+              <p className="text-sm text-gray-700 mb-4 leading-relaxed">
+                {request.context}
+              </p>
+
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => {
+                    showSuccessModal('help');  
+                  }}
+                  className="bg-gray-900 text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-black transition-colors"
+                >
+                  I can help
+                </button>
+                <button className="text-gray-500 text-sm font-medium hover:text-gray-700 hover:bg-gray-100 transition-all py-3 px-4 rounded-lg">
+                  Skip
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-8 p-4 bg-white rounded-2xl shadow-sm text-center">
+          <h3 className="text-base font-semibold text-gray-900 mb-1">That's this week's selection</h3>
+          <p className="text-gray-600 text-sm mb-3">
+            New requests appear throughout the week, filtered to areas where you have relevant experience.
+          </p>
+          <button className="text-blue-600 text-sm font-semibold hover:text-blue-700 transition-colors">
+            See more requests
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderMatchConnection = () => (
+    <div className="min-h-screen bg-white pb-20">
+      <div className="bg-white px-4 py-4 sticky top-0 z-10 border-b border-gray-100">
+        <div className="flex items-center justify-between">
+          <button 
+            className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-all px-3 py-2 rounded-lg"
+            onClick={() => setCurrentView('match-found')}
+          >
+            ← Back
+          </button>
+          <div className="flex items-center space-x-2">
+            <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center">
+              <Zap className="h-4 w-4 text-white" />
+            </div>
+            <div>
+              <h1 className="font-bold text-gray-900">OneGoodIntro</h1>
+              <p className="text-xs text-gray-600">Introduction Request</p>
+            </div>
+          </div>
+          <div className="w-12"></div>
+        </div>
+      </div>
+
+      <div className="px-4 py-8">
+        <div className="bg-white rounded-2xl shadow-sm p-8 text-center">
+          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <CheckCircle className="h-10 w-10 text-green-600" />
+          </div>
+
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">Confirmed Your Interest!</h2>
+
+          <div className="mb-6">
+            <p className="text-gray-700 text-base leading-relaxed">
+              Sarah also received this match. When you both confirm, we'll send introduction emails.
+            </p>
+          </div>
+
+          <div className="mb-8">
+            <p className="text-sm text-gray-600">
+              Most matches connect within 2–3 days.
+            </p>
+          </div>
+
+          <button 
+            onClick={() => setCurrentView('match-found')}
+            className="w-full bg-gray-900 text-white py-4 rounded-2xl font-semibold hover:bg-gray-800 transition-colors"
+          >
+            OK, Got It
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderMatchFound = () => (
+    <div className="min-h-screen bg-white pb-20">
+      <div className="bg-white px-4 py-4 sticky top-0 z-10 border-b border-gray-100">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <button 
+              className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-all px-3 py-2 rounded-lg"
+              onClick={() => setCurrentView('new-get-help')}
+            >
+              ← Back
+            </button>
+          </div>
+          <div className="flex items-center space-x-2">
+            <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center">
+              <Zap className="h-4 w-4 text-white" />
+            </div>
+            <div>
+              <h1 className="font-bold text-gray-900">OneGoodIntro</h1>
+              <p className="text-xs text-gray-600">Weekly Match</p>
+            </div>
+          </div>
+          <div className="w-12"></div>
+        </div>
+      </div>
+
+      <div className="px-4 py-6">
+        <div className="space-y-8">
+          <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl shadow-sm p-5 text-center">
+            <div className="flex items-center justify-center space-x-2 mb-3">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span className="text-sm font-medium text-gray-700">This Week's Match</span>
+            </div>
+            <h2 className="text-xl font-bold text-gray-900">You've been matched with Sarah</h2>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-sm p-6">
+            <div className="flex items-center space-x-4 mb-6">
+              <div className="relative">
+                <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-xl">
+                  {matchedPerson.avatar}
+                </div>
+                {matchedPerson.verified && (
+                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                    <Check className="h-3 w-3 text-white" />
+                  </div>
+                )}
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center space-x-2 mb-1">
+                  <h2 className="text-lg font-bold text-gray-900">{matchedPerson.name}</h2>
+                  <svg className="w-4 h-4 text-blue-600" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0013 14.19a.66.66 0 000 .14V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.55 0 3.36.86 3.36 3.66z"/>
+                  </svg>
+                </div>
+                <p className="text-gray-600 font-medium">{matchedPerson.title}</p>
+                <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
+                  <div className="flex items-center space-x-1">
+                    <Building2 className="h-3 w-3" />
+                    <span>{matchedPerson.company}</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <MapPin className="h-3 w-3" />
+                    <span>{matchedPerson.location}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <div className="flex flex-wrap gap-2">
+                {matchedPerson.expertise.map((skill: string) => (
+                  <span key={skill} className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-xs font-medium">
+                    {skill}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-sm p-5">
+            <div className="mb-4">
+              <h3 className="font-semibold text-gray-900 text-sm flex items-center">
+                <div className="w-2 h-2 bg-blue-600 rounded-full mr-2"></div>
+                Strong Match
+              </h3>
+            </div>
+            
+            <div className="space-y-6">
+              <div className="flex items-start space-x-3">
+                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-900">
+                    Sarah might help with: <span className="text-green-700">"Navigate promotion to senior PM level"</span>
+                  </p>
+                  <p className="text-gray-600 text-xs mt-1">From your active requests • Based on her experience with similar career transitions</p>
+                </div>
+              </div>
+
+              <div className="border-t border-gray-100"></div>
+
+              <div className="flex items-start space-x-3">
+                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <User className="h-4 w-4 text-blue-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-900">
+                    You might help with: <span className="text-blue-700">"Get insights on scaling product teams effectively"</span>
+                  </p>
+                  <p className="text-gray-600 text-xs mt-1">Her current need • Your consulting and strategy expertise is highly relevant</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-3 pt-2">
+            <button 
+              onClick={() => setCurrentView('match-connection')}
+              className="w-full bg-gray-900 text-white py-4 rounded-2xl font-semibold hover:bg-gray-800 transition-colors"
+            >
+              Arrange Introduction
+            </button>
+            <button className="w-full bg-gray-100 text-gray-700 py-4 rounded-2xl font-semibold hover:bg-gray-200 transition-colors">
+              Try again next week
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   const renderNetwork = () => {
-    // Network connections
     interface NetworkConnection {
       id: number;
       name: string;
@@ -1562,7 +1578,6 @@ const OneGoodIntroMobile = () => {
       }
     ];
 
-    // Filter connections based on search
     const filteredConnections = networkConnectionsImproved.filter((conn: NetworkConnection) => {
       if (searchTerm === '') return true;
       
@@ -1575,7 +1590,6 @@ const OneGoodIntroMobile = () => {
 
     return (
       <div className="min-h-screen bg-white pb-20">
-        {/* Header */}
         <div className="px-5 py-4">
           <div className="flex items-center justify-between">
             <button 
@@ -1598,14 +1612,12 @@ const OneGoodIntroMobile = () => {
         </div>
 
         <div className="p-5">
-          {/* Network Overview */}
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-gray-900 mb-2">Your Network</h2>
             <p className="text-gray-600 mb-1">People you've connected with through OneGoodIntro</p>
             <p className="text-sm text-gray-500">{networkConnectionsImproved.length} connections</p>
           </div>
 
-          {/* Search */}
           <div className="relative mb-8">
             <div className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1622,7 +1634,6 @@ const OneGoodIntroMobile = () => {
             />
           </div>
 
-          {/* Network Connections */}
           <div className="space-y-6">
             {filteredConnections.map((connection: NetworkConnection) => (
               <div key={connection.id} className="bg-white rounded-2xl shadow-sm p-4 hover:shadow-md transition-all">
@@ -1634,13 +1645,11 @@ const OneGoodIntroMobile = () => {
                     <h3 className="font-bold text-gray-900 text-lg">{connection.name}</h3>
                     <p className="text-gray-600 mb-2">{connection.company}</p>
                     
-                    {/* Connection Context */}
                     <div className="mb-3">
                       <p className="text-sm text-gray-500 mb-1">How you connected:</p>
                       <p className="text-sm text-gray-700">{connection.connectionContext}</p>
                     </div>
                     
-                    {/* Current Status */}
                     <div>
                       <p className="text-sm text-gray-500 mb-1">Current activity:</p>
                       <p className={`text-sm font-medium ${
@@ -1658,14 +1667,12 @@ const OneGoodIntroMobile = () => {
             ))}
           </div>
 
-          {/* Empty State for Search */}
           {filteredConnections.length === 0 && searchTerm && (
             <div className="text-center py-12">
               <p className="text-gray-500">No connections found matching "{searchTerm}"</p>
             </div>
           )}
 
-          {/* Empty State for No Network */}
           {networkConnectionsImproved.length === 0 && (
             <div className="text-center py-12">
               <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
