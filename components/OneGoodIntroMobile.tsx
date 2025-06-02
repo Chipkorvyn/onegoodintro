@@ -47,6 +47,46 @@ const OneGoodIntroMobile = () => {
   const [linkedinUrl, setLinkedinUrl] = useState<string>('');
   const [editingLinkedin, setEditingLinkedin] = useState<boolean>(false);
 
+  // Help requests data
+  const helpRequests = [
+    {
+      id: 1,
+      person: "Sarah Chen",
+      title: "Product Manager",
+      company: "B2B SaaS Startup",
+      avatar: "SC",
+      text: "Should I relocate to Edinburgh for this new role?",
+      timeAgo: "2 hours ago",
+      context: "Got offered a senior PM role at a healthtech company there. Good step up but means leaving my network in London.",
+      lookingFor: "Chat with someone who relocated for career growth",
+      matchedSkill: "Career Strategy"
+    },
+    {
+      id: 2,
+      person: "Marcus Rodriguez",
+      title: "Engineering Manager", 
+      company: "Growing Startup",
+      avatar: "MR",
+      text: "How do I restructure after losing 3 engineers?",
+      timeAgo: "4 hours ago",
+      context: "Had to let go some team members due to budget cuts. Need to reorganize workload across remaining 8 people.",
+      lookingFor: "Advice from managers who have been through similar situations",
+      matchedSkill: "Management Skills"
+    },
+    {
+      id: 3,
+      person: "Jennifer Liu",
+      title: "Senior Strategy Analyst",
+      company: "Mid-size Tech Co",
+      avatar: "JL", 
+      text: "First time leading an acquisition integration",
+      timeAgo: "1 day ago",
+      context: "My company just acquired a smaller competitor (about 30 people). I have been put in charge of integration.",
+      lookingFor: "Tips from someone who has done M&A integration before",
+      matchedSkill: "Business Strategy"
+    }
+  ];
+
   // Load user data when session exists
   useEffect(() => {
     if (session?.user?.email) {
@@ -454,45 +494,6 @@ const OneGoodIntroMobile = () => {
       window.open(linkedinUrl.startsWith('http') ? linkedinUrl : `https://${linkedinUrl}`, '_blank');
     }
   };
-
-  const helpRequests = [
-    {
-      id: 1,
-      person: "Sarah Chen",
-      title: "Product Manager",
-      company: "B2B SaaS Startup",
-      avatar: "SC",
-      text: "Should I relocate to Edinburgh for this new role?",
-      timeAgo: "2 hours ago",
-      context: "Got offered a senior PM role at a healthtech company there. Good step up but means leaving my network in London.",
-      lookingFor: "Chat with someone who relocated for career growth",
-      matchedSkill: "Career Strategy"
-    },
-    {
-      id: 2,
-      person: "Marcus Rodriguez",
-      title: "Engineering Manager", 
-      company: "Growing Startup",
-      avatar: "MR",
-      text: "How do I restructure after losing 3 engineers?",
-      timeAgo: "4 hours ago",
-      context: "Had to let go some team members due to budget cuts. Need to reorganize workload across remaining 8 people.",
-      lookingFor: "Advice from managers who have been through similar situations",
-      matchedSkill: "Management Skills"
-    },
-    {
-      id: 3,
-      person: "Jennifer Liu",
-      title: "Senior Strategy Analyst",
-      company: "Mid-size Tech Co",
-      avatar: "JL", 
-      text: "First time leading an acquisition integration",
-      timeAgo: "1 day ago",
-      context: "My company just acquired a smaller competitor (about 30 people). I have been put in charge of integration.",
-      lookingFor: "Tips from someone who has done M&A integration before",
-      matchedSkill: "Business Strategy"
-    }
-  ];
 
   // Match data for connection flow
   const matchedPerson = {
@@ -1013,7 +1014,7 @@ const OneGoodIntroMobile = () => {
   // Voice recording popup
   const renderVoicePopup = () => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-8 text-center">
         <button 
           onClick={() => setCurrentView('full-profile')}
           className="absolute top-4 right-4 text-gray-600 hover:text-gray-900"
@@ -1023,51 +1024,49 @@ const OneGoodIntroMobile = () => {
 
         {voiceState === 'initial' && (
           <>
-            <Mic className="h-12 w-12 text-blue-600 mx-auto mb-4" />
-            <h3 className="text-xl font-bold text-gray-900 mb-3">Add what you can help with</h3>
-            <p className="text-gray-600 mb-6 text-sm leading-relaxed">
-              Describe a problem you could help someone solve and why you're good at it.
+            <p className="text-gray-700 mb-6 text-base leading-relaxed">
+              Share a skill and why you have it
             </p>
+
+            <div className="bg-gray-50 p-4 rounded-lg mb-8 text-left">
+              <p className="text-sm text-gray-600 mb-2">Example:</p>
+              <p className="text-sm text-gray-800">
+                "Managing remote teams because I led 15 people across 4 countries for 3 years"
+              </p>
+            </div>
+
             <button 
               onMouseDown={handleVoiceRecord}
               onTouchStart={handleVoiceRecord}
-              className="w-20 h-20 bg-blue-600 hover:bg-blue-700 rounded-full flex items-center justify-center text-white font-semibold mb-4 mx-auto transition-colors"
+              className="w-20 h-20 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center text-white font-semibold mx-auto transition-colors"
             >
-              ⭕ Hold
+              🔴 Hold
             </button>
-            <div className="text-xs text-gray-500 bg-gray-50 p-3 rounded-lg">
-              💡 "Crisis communication because I managed our Black Friday payment outage recovery"
-            </div>
           </>
         )}
 
         {voiceState === 'recording' && (
           <>
-            <div className="w-16 h-16 bg-red-500 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
-              <div className="w-4 h-4 bg-white rounded-full"></div>
+            <div className="w-20 h-20 bg-red-500 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
+              <div className="w-6 h-6 bg-white rounded-full"></div>
             </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">Recording...</h3>
-            <div className="text-2xl font-mono text-gray-600 mb-4">⏱️ {formatTime(recordingTime)}</div>
+            <h3 className="text-xl font-bold text-gray-900 mb-4">Recording...</h3>
+            <div className="text-3xl font-mono text-gray-600 mb-6">⏱️ {formatTime(recordingTime)}</div>
             <button 
               onClick={handleVoiceStop}
-              className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition-colors"
+              className="bg-gray-900 text-white px-8 py-3 rounded-lg hover:bg-black transition-colors font-semibold"
             >
-              Release to Stop
+              Stop Recording
             </button>
-            {voiceTranscript && (
-              <div className="mt-4 p-3 bg-gray-50 rounded-lg text-sm text-gray-700">
-                "{voiceTranscript}"
-              </div>
-            )}
           </>
         )}
 
         {voiceState === 'processing' && (
           <>
-            <Brain className="h-12 w-12 text-purple-600 mx-auto mb-4" />
-            <h3 className="text-xl font-bold text-gray-900 mb-3">Creating your help card...</h3>
+            <Brain className="h-16 w-16 text-purple-600 mx-auto mb-6" />
+            <h3 className="text-xl font-bold text-gray-900 mb-4">Creating your help card...</h3>
             <div className="flex justify-center">
-              <div className="w-6 h-6 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
+              <div className="w-8 h-8 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
             </div>
           </>
         )}
@@ -1193,277 +1192,262 @@ const OneGoodIntroMobile = () => {
   const renderFullProfile = () => (
     <div className="min-h-screen bg-white pb-20">
       <div className="max-w-2xl mx-auto bg-white">
-        {/* Header */}
-        <div className="p-8 text-center border-b border-gray-100">
-          <div className="relative w-32 h-32 rounded-full bg-gray-100 flex items-center justify-center text-3xl font-semibold text-gray-500 mx-auto mb-4">
-            CA
-            <button className="absolute -bottom-1 -right-1 w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-medium hover:bg-blue-700 transition-colors">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-              </svg>
-            </button>
+        
+        {/* Compact Header - Instagram Style */}
+        <div className="p-4 border-b border-gray-100">
+          <div className="flex items-center gap-3 mb-3">
+            {/* Small Avatar */}
+            <div className="relative w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center text-lg font-semibold text-gray-500 flex-shrink-0">
+              CA
+              <button className="absolute -bottom-1 -right-1 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-medium hover:bg-blue-700 transition-colors">
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                </svg>
+              </button>
+            </div>
+            
+            {/* Profile Info - Left Aligned */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <h1 className="text-lg font-bold text-gray-900">{profileData.name || 'Chip Alexandru'}</h1>
+                <button className="text-blue-600 hover:text-blue-700 transition-colors">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  </svg>
+                </button>
+              </div>
+              
+              {/* About Text - Compact */}
+              {editingField === 'about' ? (
+                <div className="space-y-2">
+                  <textarea
+                    ref={aboutRef}
+                    value={fieldValues.about || ''}
+                    onChange={(e) => handleProfileFieldChange('about', e.target.value)}
+                    onBlur={() => handleProfileFieldBlur('about')}
+                    className="w-full px-2 py-1 text-sm text-gray-900 bg-blue-50 border border-blue-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+                    rows={3}
+                    placeholder="AI founder in Zurich with BCG/PwC background..."
+                  />
+                  <p className="text-xs text-gray-500">Press Enter to save</p>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-700 leading-relaxed mb-2">
+                  <span
+                    onClick={() => handleProfileFieldClick('about')}
+                    className="cursor-pointer hover:bg-gray-50 px-1 py-0.5 rounded transition-colors"
+                  >
+                    {profileData.current && profileData.background && profileData.personal
+                      ? `${profileData.current} ${profileData.background} ${profileData.personal}`
+                      : 'AI founder in Zurich with BCG/PwC background. Led €90M+ deals, interim CEO experience.'}
+                  </span>
+                  <button 
+                    onClick={() => handleProfileFieldClick('about')}
+                    className="text-blue-600 text-xs font-medium hover:text-blue-700 ml-1"
+                  >
+                    [Edit]
+                  </button>
+                  {savingField === 'about_success' && <Check className="inline h-3 w-3 text-green-600 animate-pulse ml-1" />}
+                  {savingField === 'about' && <div className="inline-block w-2 h-2 border border-gray-400 border-t-transparent rounded-full animate-spin ml-1" />}
+                </p>
+              )}
+              
+              {/* Status Line - LinkedIn + Resume */}
+              <div className="flex items-center gap-3 text-xs text-gray-600">
+                {/* LinkedIn Status */}
+                {!linkedinUrl && !editingLinkedin ? (
+                  <button 
+                    onClick={() => setEditingLinkedin(true)}
+                    className="text-blue-600 hover:text-blue-700 transition-colors"
+                  >
+                    + LinkedIn
+                  </button>
+                ) : editingLinkedin ? (
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="text"
+                      value={linkedinUrl}
+                      onChange={(e) => setLinkedinUrl(e.target.value)}
+                      placeholder="linkedin.com/in/yourname"
+                      className="text-xs px-2 py-1 border border-gray-300 rounded w-32 focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                    />
+                    <button 
+                      onClick={handleLinkedinSave}
+                      className="text-green-600 text-xs"
+                    >
+                      ✓
+                    </button>
+                    <button 
+                      onClick={() => {setEditingLinkedin(false); setLinkedinUrl('');}}
+                      className="text-gray-600 text-xs"
+                    >
+                      ✗
+                    </button>
+                  </div>
+                ) : (
+                  <button 
+                    onClick={handleLinkedinClick}
+                    className="flex items-center gap-1 text-blue-600 hover:text-blue-700 transition-colors"
+                  >
+                    <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0013 14.19a.66.66 0 000 .14V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.55 0 3.36.86 3.36 3.66z"/>
+                    </svg>
+                    LinkedIn
+                  </button>
+                )}
+                
+                {/* Resume Status */}
+                {resumeState === 'complete' ? (
+                  <span className="flex items-center gap-1 text-green-600">
+                    📄 Resume ✓
+                  </span>
+                ) : (
+                  <button 
+                    onClick={handleResumeStart}
+                    className="text-gray-600 hover:text-gray-700 transition-colors"
+                  >
+                    📄 Add Resume
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
           
-          <div className="flex items-center justify-center gap-2 mb-6">
-            <h1 className="text-2xl font-bold text-gray-900">{profileData.name || 'User'}</h1>
-            <button className="text-blue-600 hover:text-blue-700 transition-colors">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-              </svg>
-            </button>
-          </div>
-
-          {/* Simplified Single About Field */}
-          <div className="text-left max-w-lg mx-auto mb-6">
-            {editingField === 'about' ? (
-              <div className="space-y-2">
-                <p className="text-sm font-semibold text-gray-700">About:</p>
-                <textarea
-                  ref={aboutRef}
-                  value={fieldValues.about || ''}
-                  onChange={(e) => handleProfileFieldChange('about', e.target.value)}
-                  onBlur={() => handleProfileFieldBlur('about')}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && e.metaKey) {
-                      aboutRef.current?.blur();
-                    }
-                  }}
-                  className="w-full px-3 py-2 text-gray-900 bg-blue-50 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                  rows={4}
-                  placeholder="AI founder in Zurich with BCG/PwC background. Led €90M+ deals, interim CEO experience. Originally from Romania, now Swiss-based."
-                />
-                <p className="text-xs text-gray-500">Press Cmd+Enter to save</p>
-              </div>
-            ) : (
-              <p className="text-sm text-gray-700 leading-relaxed">
-                <span className="font-semibold">About:</span>{' '}
-                <span
-                  onClick={() => {
-                    setEditingField('about');
-                    setFieldValues({ ...fieldValues, about: profileData.current && profileData.background && profileData.personal ? `${profileData.current} ${profileData.background} ${profileData.personal}` : '' });
-                    setTimeout(() => aboutRef.current?.focus(), 0);
-                  }}
-                  className="cursor-pointer text-gray-900 hover:bg-gray-50 px-2 py-1 rounded transition-colors"
-                >
-                  {profileData.current && profileData.background && profileData.personal
-                    ? `${profileData.current} ${profileData.background} ${profileData.personal}`
-                    : 'AI founder in Zurich with BCG/PwC background. Led €90M+ deals, interim CEO experience. Originally from Romania, now Swiss-based.'}
-                </span>
-                <button 
-                  onClick={() => {
-                    setEditingField('about');
-                    setFieldValues({ ...fieldValues, about: profileData.current && profileData.background && profileData.personal ? `${profileData.current} ${profileData.background} ${profileData.personal}` : '' });
-                    setTimeout(() => aboutRef.current?.focus(), 0);
-                  }}
-                  className="text-blue-600 text-sm font-medium hover:text-blue-700 hover:bg-blue-50 transition-all px-3 py-2 rounded-lg ml-2"
-                >
-                  [Edit]
-                </button>
-                {savingField === 'about_success' && <Check className="inline h-4 w-4 text-green-600 animate-pulse ml-2" />}
-                {savingField === 'about' && <div className="inline-block w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin ml-2" />}
-              </p>
-            )}
-          </div>
-
-          {/* LinkedIn Profile Section */}
-          <div className="max-w-lg mx-auto mb-6">
-            {!linkedinUrl && !editingLinkedin ? (
-              <div className="flex items-center justify-center">
-                <button 
-                  onClick={() => setEditingLinkedin(true)}
-                  className="text-blue-600 text-sm font-medium hover:text-blue-700 hover:bg-blue-50 transition-all px-3 py-2 rounded-lg"
-                >
-                  + Add LinkedIn Profile
-                </button>
-              </div>
-            ) : editingLinkedin ? (
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={linkedinUrl}
-                  onChange={(e) => setLinkedinUrl(e.target.value)}
-                  placeholder="linkedin.com/in/yourname"
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                />
-                <button 
-                  onClick={handleLinkedinSave}
-                  className="bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-blue-700"
-                >
-                  Save
-                </button>
-                <button 
-                  onClick={() => {setEditingLinkedin(false); setLinkedinUrl('');}}
-                  className="text-gray-600 hover:text-gray-900"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center justify-center gap-2">
-                <button 
-                  onClick={handleLinkedinClick}
-                  className="flex items-center gap-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-all px-3 py-2 rounded-lg"
-                >
-                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0013 14.19a.66.66 0 000 .14V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.55 0 3.36.86 3.36 3.66z"/>
-                  </svg>
-                  LinkedIn Profile
-                  <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
-                </button>
-                <button 
-                  onClick={() => setEditingLinkedin(true)}
-                  className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 p-1 rounded"
-                >
-                  <Edit className="h-3 w-3" />
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex gap-4 justify-center mb-6">
-            <button 
-              onClick={handleVoiceStart}
-              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Mic className="h-4 w-4" />
-              Add Experience
-            </button>
-            <button 
-              onClick={handleResumeStart}
-              className="flex items-center gap-2 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
-            >
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-              </svg>
-              Upload Resume
-              {resumeState === 'complete' && <span className="ml-1 text-xs">✓ Processed</span>}
-            </button>
-          </div>
-
-          {/* Voice Y/N Validation */}
-          {showVoiceValidation && currentVoiceCard && (
-            <div className="mb-6 p-6 bg-blue-50 rounded-xl border-2 border-blue-200 max-w-lg mx-auto">
-              <div className="flex items-center justify-between mb-4">
-                <div className="text-sm text-blue-600 font-medium">🎤 Voice Card Created</div>
-                <button 
-                  onClick={() => handleVoiceApproval(false)}
-                  className="text-gray-600 hover:text-gray-900"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-
-              <div className="bg-white rounded-lg p-4 mb-4">
-                <h4 className="font-semibold text-gray-900 mb-2">
-                  {currentVoiceCard.title}
-                </h4>
-                <p className="text-sm text-gray-600">
-                  {currentVoiceCard.proof}
-                </p>
-              </div>
-
-              <p className="text-center text-sm text-gray-600 mb-4">
-                Is this experience accurate?<br />
-                Can you help individuals with this?
-              </p>
-
-              <div className="flex gap-3">
-                <button 
-                  onClick={() => handleVoiceApproval(true)}
-                  className="flex-1 bg-green-600 text-white py-2 rounded-lg font-semibold hover:bg-green-700 transition-colors text-sm"
-                >
-                  YES
-                </button>
-                <button 
-                  onClick={() => handleVoiceApproval(false)}
-                  className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg font-semibold hover:bg-gray-400 transition-colors text-sm"
-                >
-                  NO
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Resume Y/N Validation */}
-          {showResumeValidation && currentResumeCard && (
-            <div className="mb-6 p-6 bg-purple-50 rounded-xl border-2 border-purple-200 max-w-lg mx-auto">
-              <div className="flex items-center justify-between mb-4">
-                <div className="text-sm text-purple-600 font-medium">✨ AI Recommendations</div>
-                <div className="text-sm text-gray-500">{cardsAccepted}/5 ⭐</div>
-                <button 
-                  onClick={() => setShowResumeValidation(false)}
-                  className="text-gray-600 hover:text-gray-900"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-
-              <div className="text-center mb-4">
-                <div className="text-2xl mb-2">🤔</div>
-                <h4 className="font-bold text-gray-900">Can you help with this?</h4>
-              </div>
-
-              <div className="bg-white rounded-lg p-4 mb-4">
-                <h4 className="font-semibold text-gray-900 mb-2">
-                  {currentResumeCard.title}
-                </h4>
-                <p className="text-sm text-gray-600">
-                  {currentResumeCard.proof}
-                </p>
-              </div>
-
-              <p className="text-center text-sm text-gray-600 mb-4">
-                Is this experience accurate?<br />
-                Can you help individuals with this?
-              </p>
-
-              <div className="flex gap-3">
-                <button 
-                  onClick={() => handleResumeApproval(true)}
-                  className="flex-1 bg-green-600 text-white py-2 rounded-lg font-semibold hover:bg-green-700 transition-colors text-sm"
-                >
-                  YES, I can help
-                </button>
-                <button 
-                  onClick={() => handleResumeApproval(false)}
-                  className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg font-semibold hover:bg-gray-400 transition-colors text-sm"
-                >
-                  NO, not really
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Simple Action Stats */}
-        <div className="px-8 py-6 text-center">
-          <p className="text-gray-600 mb-2">Ready to help others with your experience</p>
-          <div className="text-sm text-gray-500">
+          {/* Stats - Compact */}
+          <div className="text-sm text-gray-500 text-center">
             <span className="font-semibold text-gray-900">{userProblems.reduce((acc, p) => acc + p.helped_count, 0)}</span> people helped • 
             <span className="font-semibold text-gray-900 ml-1">{userProblems.length}</span> problem areas
           </div>
         </div>
 
-        {/* Problems You Can Solve - Simple List (REMOVED ADD BUTTON) */}
-        <div className="p-8 space-y-8">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-lg font-semibold text-gray-900">Problems you can solve</h2>
+        {/* Voice Section - Replace existing action buttons */}
+        <div className="px-8 py-4">
+          <div className="flex items-center justify-between max-w-lg mx-auto">
+            <div className="flex-1">
+              <p className="text-gray-900 font-medium">
+                Share your experience, connect with others
+              </p>
+            </div>
+            <button 
+              onClick={handleVoiceStart}
+              className="text-2xl hover:scale-110 transition-transform ml-4"
+            >
+              📞
+            </button>
+          </div>
+        </div>
+
+        {/* Voice Y/N Validation */}
+        {showVoiceValidation && currentVoiceCard && (
+          <div className="mx-4 mt-4 p-4 bg-blue-50 rounded-xl border-2 border-blue-200">
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-sm text-blue-600 font-medium">🎤 Voice Card Created</div>
+              <button 
+                onClick={() => handleVoiceApproval(false)}
+                className="text-gray-600 hover:text-gray-900"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="bg-white rounded-lg p-3 mb-3">
+              <h4 className="font-semibold text-gray-900 mb-1 text-sm">
+                {currentVoiceCard.title}
+              </h4>
+              <p className="text-xs text-gray-600">
+                {currentVoiceCard.proof}
+              </p>
+            </div>
+
+            <p className="text-center text-xs text-gray-600 mb-3">
+              Is this experience accurate?<br />
+              Can you help individuals with this?
+            </p>
+
+            <div className="flex gap-2">
+              <button 
+                onClick={() => handleVoiceApproval(true)}
+                className="flex-1 bg-green-600 text-white py-2 rounded-lg font-semibold hover:bg-green-700 transition-colors text-sm"
+              >
+                YES
+              </button>
+              <button 
+                onClick={() => handleVoiceApproval(false)}
+                className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg font-semibold hover:bg-gray-400 transition-colors text-sm"
+              >
+                NO
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Resume Y/N Validation */}
+        {showResumeValidation && currentResumeCard && (
+          <div className="mx-4 mt-4 p-4 bg-purple-50 rounded-xl border-2 border-purple-200">
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-sm text-purple-600 font-medium">✨ AI Recommendations</div>
+              <div className="text-sm text-gray-500">{cardsAccepted}/5 ⭐</div>
+              <button 
+                onClick={() => setShowResumeValidation(false)}
+                className="text-gray-600 hover:text-gray-900"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="text-center mb-3">
+              <div className="text-lg mb-1">🤔</div>
+              <h4 className="font-bold text-gray-900 text-sm">Can you help with this?</h4>
+            </div>
+
+            <div className="bg-white rounded-lg p-3 mb-3">
+              <h4 className="font-semibold text-gray-900 mb-1 text-sm">
+                {currentResumeCard.title}
+              </h4>
+              <p className="text-xs text-gray-600">
+                {currentResumeCard.proof}
+              </p>
+            </div>
+
+            <p className="text-center text-xs text-gray-600 mb-3">
+              Is this experience accurate?<br />
+              Can you help individuals with this?
+            </p>
+
+            <div className="flex gap-2">
+              <button 
+                onClick={() => handleResumeApproval(true)}
+                className="flex-1 bg-green-600 text-white py-2 rounded-lg font-semibold hover:bg-green-700 transition-colors text-sm"
+              >
+                YES, I can help
+              </button>
+              <button 
+                onClick={() => handleResumeApproval(false)}
+                className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg font-semibold hover:bg-gray-400 transition-colors text-sm"
+              >
+                NO, not really
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Problems You Can Solve - Clean List */}
+        <div className="p-4">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-base font-semibold text-gray-900">Problems you can solve</h2>
           </div>
 
-          {/* Simple Problem List with Edit/Delete */}
-          <div className="space-y-6">
+          {/* Problem Cards */}
+          <div className="space-y-3">
             {userProblems.map((problem) => (
               <div
                 key={problem.id}
-                className="p-6 bg-white rounded-2xl shadow-sm hover:shadow-md transition-all"
+                className="p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-100"
               >
-                {/* Status Badge and Edit/Delete Buttons */}
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className={`inline-flex items-center text-xs font-semibold px-2 py-1 rounded-full ${
+                {/* Status Badge and Actions */}
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <div className={`inline-flex items-center text-xs font-medium px-2 py-1 rounded-full ${
                       problem.verified 
                         ? 'bg-green-100 text-green-700' 
                         : problem.ai_generated
@@ -1476,63 +1460,59 @@ const OneGoodIntroMobile = () => {
                     </div>
                     {problem.helped_count > 0 && (
                       <div className="text-xs text-gray-500">
-                        Helped {problem.helped_count} {problem.helped_count === 1 ? 'person' : 'people'}
+                        Helped {problem.helped_count}
                       </div>
                     )}
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-1">
                     <button 
                       onClick={() => handleEditProblem(problem)}
-                      className="text-blue-600 text-sm hover:bg-blue-50 p-2 rounded transition-colors"
+                      className="text-blue-600 hover:bg-blue-50 p-1.5 rounded transition-colors"
                       title="Edit card"
                     >
-                      <Edit className="h-4 w-4" />
+                      <Edit className="h-3 w-3" />
                     </button>
                     <button 
                       onClick={() => handleDeleteProblem(problem.id)}
-                      className="text-red-600 text-sm hover:bg-red-50 p-2 rounded transition-colors"
+                      className="text-red-600 hover:bg-red-50 p-1.5 rounded transition-colors"
                       title="Delete card"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="h-3 w-3" />
                     </button>
                   </div>
                 </div>
 
-                {/* Problem Title and Proof - Editable */}
+                {/* Problem Content - Editable */}
                 {editingProblem === problem.id ? (
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Problem Title:
-                      </label>
                       <input
                         type="text"
                         value={editingProblemData.title}
                         onChange={(e) => setEditingProblemData(prev => ({ ...prev, title: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                        className="w-full px-2 py-1 border border-gray-300 rounded text-sm font-medium focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Problem title..."
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Why you can help:
-                      </label>
                       <textarea
                         value={editingProblemData.proof}
                         onChange={(e) => setEditingProblemData(prev => ({ ...prev, proof: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm resize-none"
-                        rows={3}
+                        className="w-full px-2 py-1 border border-gray-300 rounded text-xs resize-none focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                        rows={2}
+                        placeholder="Why you can help..."
                       />
                     </div>
-                    <div className="flex gap-3">
+                    <div className="flex gap-2">
                       <button
                         onClick={() => handleSaveProblem(problem.id)}
-                        className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700"
+                        className="bg-blue-600 text-white px-3 py-1 rounded text-xs font-medium hover:bg-blue-700"
                       >
-                        Save Changes
+                        Save
                       </button>
                       <button
                         onClick={() => setEditingProblem(null)}
-                        className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-300"
+                        className="bg-gray-200 text-gray-700 px-3 py-1 rounded text-xs font-medium hover:bg-gray-300"
                       >
                         Cancel
                       </button>
@@ -1540,10 +1520,10 @@ const OneGoodIntroMobile = () => {
                   </div>
                 ) : (
                   <>
-                    <h3 className="text-base font-semibold text-gray-900 mb-2 leading-snug">
+                    <h3 className="text-sm font-semibold text-gray-900 mb-1 leading-tight">
                       {problem.title}
                     </h3>
-                    <p className="text-sm text-gray-600 leading-relaxed">
+                    <p className="text-xs text-gray-600 leading-relaxed">
                       {problem.proof}
                     </p>
                   </>
@@ -1552,13 +1532,13 @@ const OneGoodIntroMobile = () => {
             ))}
           </div>
 
-          {/* Bottom Add Button */}
-          <div className="text-center">
+          {/* Bottom Add Button - Subtle */}
+          <div className="text-center mt-6">
             <button 
               onClick={handleVoiceStart}
-              className="w-12 h-12 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center text-gray-600 transition-colors"
+              className="w-10 h-10 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center text-gray-600 transition-colors"
             >
-              <Plus className="h-6 w-6" />
+              <Plus className="h-5 w-5" />
             </button>
           </div>
         </div>
@@ -1569,15 +1549,363 @@ const OneGoodIntroMobile = () => {
   // Keep existing render functions for other views (renderNewGetHelp, etc.)
   const renderNewGetHelp = () => (
     <div className="min-h-screen bg-white pb-20">
-      {/* Existing help request view - keeping original code */}
-      <div>Help Request View - Keep existing implementation</div>
+      <div className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md px-5 py-4 flex items-center justify-between border-b border-gray-100">
+        <button 
+          onClick={() => setCurrentView('full-profile')}
+          className="text-gray-900 text-lg hover:text-gray-700 hover:bg-gray-100 transition-all px-3 py-2 rounded-lg"
+        >
+          ←
+        </button>
+        <div className="text-lg font-semibold text-gray-900">Your Requests</div>
+        <button 
+          onClick={() => setShowBottomSheet(true)}
+          className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-semibold"
+        >
+          New
+        </button>
+      </div>
+
+      <div className="pt-20">
+        <div className="px-5 py-10 text-center bg-white">
+          <h1 className="text-2xl font-bold text-gray-900 mb-3">What help do you need?</h1>
+          <p className="text-gray-600 mb-4">Weekly matching • Keep 2-3 requests active for best matches</p>
+          <p className="mb-8"><span className="text-green-600">✓ Peer advice & insights</span> • <span className="text-green-600">✓ Professional introductions</span> • <span className="text-red-600">✗ Sales & recruiting</span></p>
+          
+          <div className="flex justify-center gap-8 p-5 bg-white rounded-2xl shadow-sm">
+            <div className="text-center">
+              <span className="text-2xl font-bold text-gray-900 block">{userRequests.filter(r => r.status === 'active').length}</span>
+              <div className="text-xs text-gray-600 uppercase tracking-wide">Active Requests</div>
+            </div>
+            <div className="text-center">
+              <span className="text-2xl font-bold text-gray-900 block">5</span>
+              <div className="text-xs text-gray-600 uppercase tracking-wide">People Helped</div>
+            </div>
+            <div className="text-center">
+              <span className="text-2xl font-bold text-gray-900 block">12</span>
+              <div className="text-xs text-gray-600 uppercase tracking-wide">Introductions Made</div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="px-5 space-y-8">
+          <div className="flex items-center justify-between mb-5">
+            <div className="text-lg font-semibold text-gray-900">Your Requests</div>
+            <div className="flex bg-gray-50 rounded-full p-1">
+              <button className="bg-gray-900 text-white px-4 py-2 rounded-full text-xs font-semibold">All</button>
+              <button className="text-gray-600 px-4 py-2 rounded-full text-xs font-semibold">Active</button>
+            </div>
+          </div>
+          
+          <div className="space-y-6">
+            {loadingRequests ? (
+              <div className="text-center py-8">
+                <div className="w-6 h-6 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin mx-auto mb-2"></div>
+                <p className="text-gray-500">Loading your requests...</p>
+              </div>
+            ) : userRequests.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-gray-500 mb-4">No requests yet</p>
+                <button 
+                  onClick={() => setShowBottomSheet(true)}
+                  className="text-blue-600 font-medium"
+                >
+                  Create your first request
+                </button>
+              </div>
+            ) : (
+              userRequests.map(request => (
+                <div 
+                  key={request.id}
+                  className={`bg-white rounded-2xl shadow-sm cursor-pointer transition-all duration-300 overflow-hidden hover:shadow-md ${
+                    expandedCard === request.id ? 'transform -translate-y-1 shadow-lg' : ''
+                  }`}
+                  onClick={() => setExpandedCard(expandedCard === request.id ? null : request.id)}
+                >
+                  <div className="p-5 relative">
+                    <div className={`absolute top-4 right-4 text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wide ${
+                      request.status === 'active' ? 'bg-green-500 text-white' :
+                      request.status === 'paused' ? 'bg-gray-200 text-gray-600' :
+                      'bg-gray-900 text-white'
+                    }`}>
+                      {request.status}
+                    </div>
+                    <div className="text-sm font-semibold text-gray-900 mb-3 mr-20 leading-tight">
+                      "{request.challenge}"
+                    </div>
+                    <div className="text-xs text-gray-600 flex items-center gap-2">
+                      <span>{timeAgo(request.created_at)}</span>
+                      <div className="w-1 h-1 bg-current rounded-full"></div>
+                      <span>{request.status_text}</span>
+                    </div>
+                  </div>
+                  {expandedCard === request.id && (
+                    <div className="px-5 pb-5 transition-all duration-300">
+                      <div className="mb-3">
+                        <div className="text-xs font-bold uppercase tracking-wide text-gray-600 mb-1">Context</div>
+                        <div className="text-sm text-gray-900 leading-relaxed">{request.reason}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold uppercase tracking-wide text-gray-600 mb-1">Looking for</div>
+                        <div className="text-sm text-gray-900 leading-relaxed">{request.help_type}</div>
+                      </div>
+                      <div className="mt-3">
+                        <div className="text-xs font-bold uppercase tracking-wide text-gray-600 mb-1">Timeline</div>
+                        <div className="text-sm text-gray-900">{request.timeline}</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+            
+            <div 
+              className="bg-white rounded-2xl shadow-sm p-10 text-center cursor-pointer transition-all duration-300 hover:shadow-md hover:transform hover:-translate-y-0.5"
+              onClick={() => setShowBottomSheet(true)}
+            >
+              <div className="text-3xl mb-3 text-gray-600">+</div>
+              <div className="text-sm font-semibold mb-1 text-gray-900">New request</div>
+              <div className="text-xs text-gray-600">What help do you need?</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom Sheet */}
+      {showBottomSheet && (
+        <>
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-40 z-50"
+            onClick={() => setShowBottomSheet(false)}
+          ></div>
+          <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl z-50 max-h-[85vh] overflow-y-auto shadow-2xl">
+            {/* Header */}
+            <div className="p-5 text-center relative">
+              <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-4"></div>
+              <div className="text-lg font-bold text-gray-900">What help do you need?</div>
+              <button 
+                className="absolute top-4 right-4 text-gray-600 text-2xl hover:bg-gray-100 transition-all w-10 h-10 rounded-full flex items-center justify-center"
+                onClick={() => setShowBottomSheet(false)}
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="p-5">
+              {/* Example Section */}
+              <div className="p-4 bg-blue-50 rounded-2xl shadow-sm mb-6">
+                <div className="text-sm font-semibold text-blue-900 mb-2">💡 Here's how others ask:</div>
+                <div className="text-sm text-blue-800 italic leading-relaxed">
+                  "I need help with choosing between two job offers because both have pros and cons. 
+                  I'd like to be introduced to someone who can share career decision frameworks within 1 week."
+                </div>
+              </div>
+
+              {/* Flowing Paragraph */}
+              <div className="bg-white rounded-2xl shadow-sm p-6 mb-6 text-base leading-relaxed">
+                <div className="text-gray-900">
+                  I need help with{' '}
+                  <span 
+                    className={`inline-block min-w-[120px] px-3 py-1 rounded cursor-pointer transition-all ${
+                      helpForm.challenge 
+                        ? 'bg-blue-100 text-blue-900 border border-blue-200' 
+                        : 'bg-gray-200 text-gray-600 border border-gray-300 hover:bg-gray-300'
+                    }`}
+                    onClick={() => handleFieldClick('challenge')}
+                  >
+                    {getDisplayText('challenge', 'your challenge')}
+                  </span>{' '}
+                  because{' '}
+                  <span 
+                    className={`inline-block min-w-[120px] px-3 py-1 rounded cursor-pointer transition-all ${
+                      helpForm.reason 
+                        ? 'bg-blue-100 text-blue-900 border border-blue-200' 
+                        : 'bg-gray-200 text-gray-600 border border-gray-300 hover:bg-gray-300'
+                    }`}
+                    onClick={() => handleFieldClick('reason')}
+                  >
+                    {getDisplayText('reason', 'why it matters')}
+                  </span>.
+                </div>
+                
+                <div className="text-gray-900 mt-3">
+                  I'd like to be introduced to someone who can{' '}
+                  <span 
+                    className={`inline-block min-w-[120px] px-3 py-1 rounded cursor-pointer transition-all ${
+                      helpForm.helpType 
+                        ? 'bg-blue-100 text-blue-900 border border-blue-200' 
+                        : 'bg-gray-200 text-gray-600 border border-gray-300 hover:bg-gray-300'
+                    }`}
+                    onClick={() => handleFieldClick('helpType')}
+                  >
+                    {getDisplayText('helpType', 'help me with')}
+                  </span>{' '}
+                  within{' '}
+                  <span 
+                    className={`inline-block min-w-[80px] px-3 py-1 rounded cursor-pointer transition-all ${
+                      selectedTimeline 
+                        ? 'bg-blue-100 text-blue-900 border border-blue-200' 
+                        : 'bg-gray-200 text-gray-600 border border-gray-300 hover:bg-gray-300'
+                    }`}
+                    onClick={handleTimelineClick}
+                  >
+                    {getTimelineDisplay()}
+                  </span>.
+                </div>
+              </div>
+
+              {/* Inline Input Field */}
+              {activeField && (
+                <div className="mb-4">
+                  <div className="text-sm font-medium text-gray-700 mb-2">
+                    {activeField === 'challenge' && 'What do you need help with?'}
+                    {activeField === 'reason' && 'Why does this matter to you?'}
+                    {activeField === 'helpType' && 'What kind of help would be most valuable?'}
+                  </div>
+                  <div className="relative">
+                    <input
+                      ref={inputRefs[activeField]}
+                      type="text"
+                      value={activeField && (activeField === 'challenge' || activeField === 'reason' || activeField === 'helpType') ? helpForm[activeField] : ''}
+                      onChange={(e) => handleInputChange(activeField || '', e.target.value)}
+                      onBlur={handleInputBlur}
+                      className="w-full border border-gray-300 rounded-lg p-3 text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder={
+                        activeField === 'challenge' ? 'relocating to Edinburgh for this role' :
+                        activeField === 'reason' ? 'it\'s a great opportunity but I\'m concerned about work-life balance' :
+                        'share insights about working in Scotland'
+                      }
+                      maxLength={activeField === 'challenge' ? 80 : activeField === 'reason' ? 100 : 60}
+                    />
+                    <button 
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-green-600 hover:text-green-700"
+                      onClick={() => setActiveField(null)}
+                    >
+                      ✓
+                    </button>
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {activeField && (activeField === 'challenge' || activeField === 'reason' || activeField === 'helpType') 
+                      ? (helpForm[activeField]?.length || 0) 
+                      : 0} / {activeField === 'challenge' ? 80 : activeField === 'reason' ? 100 : 60} characters
+                  </div>
+                </div>
+              )}
+
+              {/* Timeline Chips */}
+              {showTimelineChips && (
+                <div className="mb-4">
+                  <div className="text-sm font-medium text-gray-700 mb-2">When do you need this?</div>
+                  <div className="grid grid-cols-3 gap-3">
+                    {[
+                      { value: '1 week', label: '1 week', desc: 'ASAP' },
+                      { value: '2 weeks', label: '2 weeks', desc: 'Soon' },
+                      { value: 'flexible', label: 'Flexible', desc: 'This month' }
+                    ].map((timeline) => (
+                      <div
+                        key={timeline.value}
+                        className="border rounded-lg p-3 text-center cursor-pointer transition-all border-gray-300 hover:border-gray-900 hover:bg-gray-50"
+                        onClick={() => handleTimelineSelect(timeline.value)}
+                      >
+                        <div className="text-sm font-semibold mb-1">{timeline.label}</div>
+                        <div className="text-xs text-gray-600">{timeline.desc}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="p-5">
+              <button
+                className={`w-full py-4 rounded-lg text-base font-semibold transition-all ${
+                  validateHelpForm()
+                    ? 'bg-gray-900 text-white hover:bg-black'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
+                disabled={!validateHelpForm()}
+                onClick={submitHelpRequest}
+              >
+                Add Request
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 
   const renderPublicBoard = () => (
     <div className="min-h-screen bg-white pb-20">
-      {/* Existing public board view - keeping original code */}
-      <div>Public Board View - Keep existing implementation</div>
+      <div className="px-5 py-4">
+        <div className="flex items-center justify-between">
+          <button 
+            onClick={() => setCurrentView('full-profile')}
+            className="text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-all px-3 py-2 rounded-lg"
+          >
+            ← Back
+          </button>
+          <h1 className="text-lg font-semibold text-gray-900">Help Others</h1>
+          <div className="w-5"></div>
+        </div>
+      </div>
+
+      <div className="p-5">
+        <div className="text-center mb-8">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">People you can help</h2>
+          <p className="text-gray-600">Requests matched to your experience</p>
+        </div>
+
+        <div className="space-y-6">
+          {helpRequests.map(request => (
+            <div 
+              key={request.id} 
+              className="bg-white rounded-2xl shadow-sm p-5 hover:shadow-md transition-all"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-sm font-semibold text-gray-600">
+                  {request.avatar}
+                </div>
+                <div>
+                  <p className="text-base font-semibold text-gray-900">{request.person}</p>
+                  <p className="text-sm text-gray-600">{request.title} at {request.company}</p>
+                </div>
+              </div>
+
+              <h3 className="text-lg font-medium text-gray-900 mb-3 leading-snug">
+                "{request.text}"
+              </h3>
+
+              <p className="text-sm text-gray-700 mb-4 leading-relaxed">
+                {request.context}
+              </p>
+
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => {
+                    showSuccessModal('help');  
+                  }}
+                  className="bg-gray-900 text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-black transition-colors"
+                >
+                  I can help
+                </button>
+                <button className="text-gray-500 text-sm font-medium hover:text-gray-700 hover:bg-gray-100 transition-all py-3 px-4 rounded-lg">
+                  Skip
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-8 p-4 bg-white rounded-2xl shadow-sm text-center">
+          <h3 className="text-base font-semibold text-gray-900 mb-1">That's this week's selection</h3>
+          <p className="text-gray-600 text-sm mb-3">
+            New requests appear throughout the week, filtered to areas where you have relevant experience.
+          </p>
+          <button className="text-blue-600 text-sm font-semibold hover:text-blue-700 transition-colors">
+            See more requests
+          </button>
+        </div>
+      </div>
     </div>
   );
 
