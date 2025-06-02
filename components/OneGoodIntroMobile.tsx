@@ -510,7 +510,7 @@ const OneGoodIntroMobile = () => {
   };
 
   // Define proper types
-  type ActiveFieldType = 'challenge' | 'reason' | 'helpType' | 'about' | 'linkedin' | null;
+  type ActiveFieldType = 'challenge' | 'reason' | 'helpType' | 'about' | 'linkedin' | 'name' | null;
   type ModalIconType = 'handshake' | 'check' | 'heart';
 
   // State management
@@ -569,7 +569,8 @@ const OneGoodIntroMobile = () => {
     reason: useRef<HTMLInputElement>(null),
     helpType: useRef<HTMLInputElement>(null),
     about: useRef<HTMLInputElement>(null),
-    linkedin: useRef<HTMLInputElement>(null)
+    linkedin: useRef<HTMLInputElement>(null),
+    name: useRef<HTMLInputElement>(null)
   };
 
   // Skip simulated auth flow, go straight to profile if signed in
@@ -767,7 +768,9 @@ const OneGoodIntroMobile = () => {
     if (fieldName === 'about') {
       const combinedText = `${profileData.current} ${profileData.background} ${profileData.personal}`.trim();
       setFieldValues({ ...fieldValues, about: combinedText });
-    } else if (fieldName && fieldName !== 'challenge' && fieldName !== 'reason' && fieldName !== 'helpType' && fieldName !== 'linkedin' && fieldName !== 'about') {
+    } else if (fieldName === 'name') {
+      setFieldValues({ ...fieldValues, name: profileData.name });
+    } else if (fieldName && fieldName !== 'challenge' && fieldName !== 'reason' && fieldName !== 'helpType' && fieldName !== 'linkedin' && fieldName !== 'about' && fieldName !== 'name') {
       setFieldValues({ ...fieldValues, [fieldName]: profileData[fieldName as keyof typeof profileData] });
     }
     setTimeout(() => {
@@ -810,6 +813,15 @@ const OneGoodIntroMobile = () => {
             background: '',
             personal: ''
           }));
+        }
+      } else if (fieldName === 'name') {
+        const { error } = await supabase
+          .from('users')
+          .update({ name: value })
+          .eq('email', session.user.email!);
+
+        if (!error) {
+          setProfileData(prev => ({ ...prev, name: value }));
         }
       } else {
         const dbField = fieldName === 'current' ? 'current_focus' : 
@@ -1193,140 +1205,159 @@ const OneGoodIntroMobile = () => {
     <div className="min-h-screen bg-white pb-20">
       <div className="max-w-2xl mx-auto bg-white">
         
-        {/* Compact Header - Instagram Style */}
-        <div className="p-4 border-b border-gray-100">
-          <div className="flex items-center gap-3 mb-3">
-            {/* Small Avatar */}
-            <div className="relative w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center text-lg font-semibold text-gray-500 flex-shrink-0">
-              CA
-              <button className="absolute -bottom-1 -right-1 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-medium hover:bg-blue-700 transition-colors">
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                </svg>
-              </button>
-            </div>
-            
-            {/* Profile Info - Left Aligned */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <h1 className="text-lg font-bold text-gray-900">{profileData.name || 'Chip Alexandru'}</h1>
-                <button className="text-blue-600 hover:text-blue-700 transition-colors">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                  </svg>
-                </button>
+        {/* Updated Profile Header */}
+        <div className="p-8 text-center border-b border-gray-100">
+          {/* Larger Avatar */}
+          <div className="relative w-40 h-40 rounded-full bg-gray-100 flex items-center justify-center text-4xl font-semibold text-gray-500 mx-auto mb-6">
+            CA
+            <button className="absolute -bottom-2 -right-2 w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-medium hover:bg-blue-700 transition-colors">
+              <Edit className="w-5 h-5" />
+            </button>
+          </div>
+          
+          {/* Larger Name + Working Edit */}
+          <div className="flex items-center justify-center gap-3 mb-4">
+            {editingField === 'name' ? (
+              <input
+                ref={inputRefs.name}
+                type="text"
+                value={fieldValues.name || ''}
+                onChange={(e) => handleProfileFieldChange('name', e.target.value)}
+                onBlur={() => handleProfileFieldBlur('name')}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    inputRefs.name.current?.blur();
+                  }
+                }}
+                className="text-3xl font-bold text-gray-900 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center"
+                placeholder="Your name"
+              />
+            ) : (
+              <h1 
+                onClick={() => handleProfileFieldClick('name')}
+                className="text-3xl font-bold text-gray-900 cursor-pointer hover:bg-gray-50 px-3 py-2 rounded transition-colors"
+              >
+                {profileData.name || 'User'}
+              </h1>
+            )}
+            <button 
+              onClick={() => handleProfileFieldClick('name')}
+              className="text-blue-600 hover:text-blue-700 transition-colors"
+            >
+              <Edit className="w-6 h-6" />
+            </button>
+            {savingField === 'name_success' && <Check className="h-6 w-6 text-green-600 animate-pulse" />}
+            {savingField === 'name' && <div className="w-5 h-5 border border-gray-400 border-t-transparent rounded-full animate-spin" />}
+          </div>
+
+          {/* Larger, Editable About Section */}
+          <div className="max-w-lg mx-auto mb-6">
+            {editingField === 'about' ? (
+              <div className="space-y-2">
+                <textarea
+                  ref={aboutRef}
+                  value={fieldValues.about || ''}
+                  onChange={(e) => handleProfileFieldChange('about', e.target.value)}
+                  onBlur={() => handleProfileFieldBlur('about')}
+                  className="w-full px-4 py-3 text-gray-900 bg-blue-50 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-base"
+                  rows={4}
+                  placeholder="AI founder in Zurich with BCG/PwC background. Led €90M+ deals, interim CEO experience. Originally from Romania, now Swiss-based."
+                />
+                <p className="text-xs text-gray-500">Press Cmd+Enter to save</p>
               </div>
-              
-              {/* About Text - Compact */}
-              {editingField === 'about' ? (
-                <div className="space-y-2">
-                  <textarea
-                    ref={aboutRef}
-                    value={fieldValues.about || ''}
-                    onChange={(e) => handleProfileFieldChange('about', e.target.value)}
-                    onBlur={() => handleProfileFieldBlur('about')}
-                    className="w-full px-2 py-1 text-sm text-gray-900 bg-blue-50 border border-blue-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
-                    rows={3}
-                    placeholder="AI founder in Zurich with BCG/PwC background..."
-                  />
-                  <p className="text-xs text-gray-500">Press Enter to save</p>
-                </div>
-              ) : (
-                <p className="text-sm text-gray-700 leading-relaxed mb-2">
-                  <span
-                    onClick={() => handleProfileFieldClick('about')}
-                    className="cursor-pointer hover:bg-gray-50 px-1 py-0.5 rounded transition-colors"
-                  >
-                    {profileData.current && profileData.background && profileData.personal
-                      ? `${profileData.current} ${profileData.background} ${profileData.personal}`
-                      : 'AI founder in Zurich with BCG/PwC background. Led €90M+ deals, interim CEO experience.'}
-                  </span>
-                  <button 
-                    onClick={() => handleProfileFieldClick('about')}
-                    className="text-blue-600 text-xs font-medium hover:text-blue-700 ml-1"
-                  >
-                    [Edit]
-                  </button>
-                  {savingField === 'about_success' && <Check className="inline h-3 w-3 text-green-600 animate-pulse ml-1" />}
-                  {savingField === 'about' && <div className="inline-block w-2 h-2 border border-gray-400 border-t-transparent rounded-full animate-spin ml-1" />}
+            ) : (
+              <div className="flex items-start justify-between">
+                <p 
+                  onClick={() => handleProfileFieldClick('about')}
+                  className="text-base text-gray-700 leading-relaxed cursor-pointer hover:bg-gray-50 px-3 py-2 rounded transition-colors flex-1 text-center"
+                >
+                  {profileData.current && profileData.background && profileData.personal
+                    ? `${profileData.current} ${profileData.background} ${profileData.personal}`
+                    : 'AI founder in Zurich with BCG/PwC background. Led €90M+ deals, interim CEO experience. Originally from Romania, now Swiss-based.'}
                 </p>
-              )}
-              
-              {/* Status Line - LinkedIn + Resume */}
-              <div className="flex items-center gap-3 text-xs text-gray-600">
-                {/* LinkedIn Status */}
-                {!linkedinUrl && !editingLinkedin ? (
-                  <button 
-                    onClick={() => setEditingLinkedin(true)}
-                    className="text-blue-600 hover:text-blue-700 transition-colors"
-                  >
-                    + LinkedIn
-                  </button>
-                ) : editingLinkedin ? (
-                  <div className="flex items-center gap-1">
-                    <input
-                      type="text"
-                      value={linkedinUrl}
-                      onChange={(e) => setLinkedinUrl(e.target.value)}
-                      placeholder="linkedin.com/in/yourname"
-                      className="text-xs px-2 py-1 border border-gray-300 rounded w-32 focus:ring-1 focus:ring-blue-500 focus:border-transparent"
-                    />
-                    <button 
-                      onClick={handleLinkedinSave}
-                      className="text-green-600 text-xs"
-                    >
-                      ✓
-                    </button>
-                    <button 
-                      onClick={() => {setEditingLinkedin(false); setLinkedinUrl('');}}
-                      className="text-gray-600 text-xs"
-                    >
-                      ✗
-                    </button>
-                  </div>
-                ) : (
-                  <button 
-                    onClick={handleLinkedinClick}
-                    className="flex items-center gap-1 text-blue-600 hover:text-blue-700 transition-colors"
-                  >
-                    <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0013 14.19a.66.66 0 000 .14V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.55 0 3.36.86 3.36 3.66z"/>
-                    </svg>
-                    LinkedIn
-                  </button>
-                )}
-                
-                {/* Resume Status */}
-                {resumeState === 'complete' ? (
-                  <span className="flex items-center gap-1 text-green-600">
-                    📄 Resume ✓
-                  </span>
-                ) : (
-                  <button 
-                    onClick={handleResumeStart}
-                    className="text-gray-600 hover:text-gray-700 transition-colors"
-                  >
-                    📄 Add Resume
-                  </button>
-                )}
+                <button 
+                  onClick={() => handleProfileFieldClick('about')}
+                  className="text-blue-600 text-sm font-medium hover:text-blue-700 hover:bg-blue-50 transition-all px-3 py-2 rounded-lg ml-3"
+                >
+                  [Edit]
+                </button>
+                {savingField === 'about_success' && <Check className="h-5 w-5 text-green-600 animate-pulse ml-2" />}
+                {savingField === 'about' && <div className="w-4 h-4 border border-gray-400 border-t-transparent rounded-full animate-spin ml-2" />}
               </div>
-            </div>
+            )}
           </div>
         </div>
 
-        {/* LinkedIn Profile Section - RESTORED EDITING */}
-        <div className="max-w-lg mx-auto mb-6 px-8">
-          {!linkedinUrl && !editingLinkedin ? (
-            <div className="flex items-center justify-center">
-              <button 
-                onClick={() => setEditingLinkedin(true)}
-                className="text-blue-600 text-sm font-medium hover:text-blue-700 hover:bg-blue-50 transition-all px-3 py-2 rounded-lg"
-              >
-                + Add LinkedIn Profile
-              </button>
-            </div>
-          ) : editingLinkedin ? (
+        {/* LinkedIn + Resume Status Section */}
+        <div className="px-8 py-4 border-b border-gray-100">
+          <div className="flex items-center justify-center gap-8 max-w-lg mx-auto">
+            {/* LinkedIn */}
             <div className="flex items-center gap-2">
+              {linkedinUrl ? (
+                <>
+                  <button 
+                    onClick={handleLinkedinClick}
+                    className="flex items-center gap-2 text-blue-600 hover:text-blue-700 transition-colors"
+                  >
+                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0013 14.19a.66.66 0 000 .14V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.55 0 3.36.86 3.36 3.66z"/>
+                    </svg>
+                    <span className="text-base">LinkedIn connected</span>
+                  </button>
+                  <button 
+                    onClick={() => setEditingLinkedin(true)}
+                    className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 p-1 rounded"
+                  >
+                    <Edit className="h-4 w-4" />
+                  </button>
+                </>
+              ) : (
+                <button 
+                  onClick={() => setEditingLinkedin(true)}
+                  className="flex items-center gap-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-all px-3 py-2 rounded-lg"
+                >
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0013 14.19a.66.66 0 000 .14V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.55 0 3.36.86 3.36 3.66z"/>
+                  </svg>
+                  <span className="text-base">Add LinkedIn</span>
+                </button>
+              )}
+            </div>
+
+            {/* Resume */}
+            <div className="flex items-center gap-2">
+              {resumeState === 'complete' ? (
+                <>
+                  <span className="flex items-center gap-2 text-gray-700">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <span className="text-base">Resume uploaded</span>
+                  </span>
+                  <button 
+                    onClick={handleResumeStart}
+                    className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 p-1 rounded"
+                  >
+                    <Edit className="h-4 w-4" />
+                  </button>
+                </>
+              ) : (
+                <button 
+                  onClick={handleResumeStart}
+                  className="flex items-center gap-2 text-gray-600 hover:text-gray-700 hover:bg-gray-50 transition-all px-3 py-2 rounded-lg"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <span className="text-base">Add Resume</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* LinkedIn Editing Form */}
+          {editingLinkedin && (
+            <div className="flex items-center gap-2 max-w-lg mx-auto mt-4">
               <input
                 type="text"
                 value={linkedinUrl}
@@ -1336,7 +1367,7 @@ const OneGoodIntroMobile = () => {
               />
               <button 
                 onClick={handleLinkedinSave}
-                className="bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-blue-700"
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700"
               >
                 Save
               </button>
@@ -1347,52 +1378,17 @@ const OneGoodIntroMobile = () => {
                 <X className="h-4 w-4" />
               </button>
             </div>
-          ) : (
-            <div className="flex items-center justify-center gap-2">
-              <button 
-                onClick={handleLinkedinClick}
-                className="flex items-center gap-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-all px-3 py-2 rounded-lg"
-              >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0013 14.19a.66.66 0 000 .14V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.55 0 3.36.86 3.36 3.66z"/>
-                </svg>
-                LinkedIn Profile
-                <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                </svg>
-              </button>
-              <button 
-                onClick={() => setEditingLinkedin(true)}
-                className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 p-1 rounded"
-              >
-                <Edit className="h-3 w-3" />
-              </button>
-            </div>
           )}
         </div>
 
-        {/* Resume Upload Section - UPDATED BUTTON */}
-        <div className="max-w-lg mx-auto mb-6 px-8">
-          <div className="flex items-center justify-center">
-            <button 
-              onClick={handleResumeStart}
-              className="flex items-center gap-2 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
-            >
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-              </svg>
-              {resumeState === 'complete' ? 'Update Resume for better matching' : 'Add Resume for better matching'}
-              {resumeState === 'complete' && <span className="ml-1 text-xs">✓</span>}
-            </button>
-          </div>
-        </div>
-
-        {/* Simple Action Stats */}
-        <div className="px-8 py-6 text-center border-t border-gray-100">
-          <p className="text-gray-600 mb-2">Ready to help others with your experience</p>
-          <div className="text-sm text-gray-500">
-            <span className="font-semibold text-gray-900">{userProblems.reduce((acc, p) => acc + p.helped_count, 0)}</span> people helped • 
-            <span className="font-semibold text-gray-900 ml-1">{userProblems.length}</span> experience areas
+        {/* Stats with Lines */}
+        <div className="border-t border-gray-100">
+          <div className="px-8 py-6 text-center border-b border-gray-100">
+            <p className="text-gray-600 mb-2">Ready to help others with your experience</p>
+            <div className="text-sm text-gray-500">
+              <span className="font-semibold text-gray-900">{userProblems.reduce((acc, p) => acc + p.helped_count, 0)}</span> people helped • 
+              <span className="font-semibold text-gray-900 ml-1">{userProblems.length}</span> experience areas
+            </div>
           </div>
         </div>
 
@@ -1413,104 +1409,22 @@ const OneGoodIntroMobile = () => {
           </div>
         </div>
 
-        {/* Voice Y/N Validation */}
-        {showVoiceValidation && currentVoiceCard && (
-          <div className="mx-4 mt-4 p-4 bg-blue-50 rounded-xl border-2 border-blue-200">
-            <div className="flex items-center justify-between mb-3">
-              <div className="text-sm text-blue-600 font-medium">🎤 Voice Card Created</div>
-              <button 
-                onClick={() => handleVoiceApproval(false)}
-                className="text-gray-600 hover:text-gray-900"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="bg-white rounded-lg p-3 mb-3">
-              <h4 className="font-semibold text-gray-900 mb-1 text-sm">
-                {currentVoiceCard.title}
-              </h4>
-              <p className="text-xs text-gray-600">
-                {currentVoiceCard.proof}
-              </p>
-            </div>
-
-            <p className="text-center text-xs text-gray-600 mb-3">
-              Is this experience accurate?<br />
-              Can you help individuals with this?
-            </p>
-
-            <div className="flex gap-2">
-              <button 
-                onClick={() => handleVoiceApproval(true)}
-                className="flex-1 bg-green-600 text-white py-2 rounded-lg font-semibold hover:bg-green-700 transition-colors text-sm"
-              >
-                YES
-              </button>
-              <button 
-                onClick={() => handleVoiceApproval(false)}
-                className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg font-semibold hover:bg-gray-400 transition-colors text-sm"
-              >
-                NO
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Resume Y/N Validation */}
-        {showResumeValidation && currentResumeCard && (
-          <div className="mx-4 mt-4 p-4 bg-purple-50 rounded-xl border-2 border-purple-200">
-            <div className="flex items-center justify-between mb-3">
-              <div className="text-sm text-purple-600 font-medium">✨ AI Recommendations</div>
-              <div className="text-sm text-gray-500">{cardsAccepted}/5 ⭐</div>
-              <button 
-                onClick={() => setShowResumeValidation(false)}
-                className="text-gray-600 hover:text-gray-900"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="text-center mb-3">
-              <div className="text-lg mb-1">🤔</div>
-              <h4 className="font-bold text-gray-900 text-sm">Can you help with this?</h4>
-            </div>
-
-            <div className="bg-white rounded-lg p-3 mb-3">
-              <h4 className="font-semibold text-gray-900 mb-1 text-sm">
-                {currentResumeCard.title}
-              </h4>
-              <p className="text-xs text-gray-600">
-                {currentResumeCard.proof}
-              </p>
-            </div>
-
-            <p className="text-center text-xs text-gray-600 mb-3">
-              Is this experience accurate?<br />
-              Can you help individuals with this?
-            </p>
-
-            <div className="flex gap-2">
-              <button 
-                onClick={() => handleResumeApproval(true)}
-                className="flex-1 bg-green-600 text-white py-2 rounded-lg font-semibold hover:bg-green-700 transition-colors text-sm"
-              >
-                YES, I can help
-              </button>
-              <button 
-                onClick={() => handleResumeApproval(false)}
-                className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg font-semibold hover:bg-gray-400 transition-colors text-sm"
-              >
-                NO, not really
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Experience Areas - Clean List */}
-        <div className="p-4">
-          <div className="flex justify-between items-center mb-4">
+        {/* Voice Section - Aligned with Experience Header */}
+        <div className="px-8 py-6">
+          <div className="flex items-center justify-between mb-8">
             <h2 className="text-lg font-semibold text-gray-900">Experience</h2>
+            <div className="flex items-center gap-4">
+              <div className="text-right">
+                <p className="text-sm font-medium text-gray-900">Add your experience to connect with others</p>
+                <p className="text-xs text-gray-500">Record and have AI review it</p>
+              </div>
+              <button 
+                onClick={handleVoiceStart}
+                className="text-2xl hover:scale-110 transition-transform"
+              >
+                📞
+              </button>
+            </div>
           </div>
 
           {/* Experience Cards */}
@@ -1616,6 +1530,88 @@ const OneGoodIntroMobile = () => {
             >
               <Plus className="h-5 w-5" />
             </button>
+          </div>
+        </div>
+
+        {/* LinkedIn Profile Section - RESTORED EDITING */}
+        <div className="max-w-lg mx-auto mb-6 px-8">
+          {!linkedinUrl && !editingLinkedin ? (
+            <div className="flex items-center justify-center">
+              <button 
+                onClick={() => setEditingLinkedin(true)}
+                className="text-blue-600 text-sm font-medium hover:text-blue-700 hover:bg-blue-50 transition-all px-3 py-2 rounded-lg"
+              >
+                + Add LinkedIn Profile
+              </button>
+            </div>
+          ) : editingLinkedin ? (
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={linkedinUrl}
+                onChange={(e) => setLinkedinUrl(e.target.value)}
+                placeholder="linkedin.com/in/yourname"
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              />
+              <button 
+                onClick={handleLinkedinSave}
+                className="bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-blue-700"
+              >
+                Save
+              </button>
+              <button 
+                onClick={() => {setEditingLinkedin(false); setLinkedinUrl('');}}
+                className="text-gray-600 hover:text-gray-900"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center gap-2">
+              <button 
+                onClick={handleLinkedinClick}
+                className="flex items-center gap-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-all px-3 py-2 rounded-lg"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0013 14.19a.66.66 0 000 .14V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.55 0 3.36.86 3.36 3.66z"/>
+                </svg>
+                LinkedIn Profile
+                <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+              </button>
+              <button 
+                onClick={() => setEditingLinkedin(true)}
+                className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 p-1 rounded"
+              >
+                <Edit className="h-3 w-3" />
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Resume Upload Section - UPDATED BUTTON */}
+        <div className="max-w-lg mx-auto mb-6 px-8">
+          <div className="flex items-center justify-center">
+            <button 
+              onClick={handleResumeStart}
+              className="flex items-center gap-2 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              {resumeState === 'complete' ? 'Update Resume for better matching' : 'Add Resume for better matching'}
+              {resumeState === 'complete' && <span className="ml-1 text-xs">✓</span>}
+            </button>
+          </div>
+        </div>
+
+        {/* Simple Action Stats */}
+        <div className="px-8 py-6 text-center border-t border-gray-100">
+          <p className="text-gray-600 mb-2">Ready to help others with your experience</p>
+          <div className="text-sm text-gray-500">
+            <span className="font-semibold text-gray-900">{userProblems.reduce((acc, p) => acc + p.helped_count, 0)}</span> people helped • 
+            <span className="font-semibold text-gray-900 ml-1">{userProblems.length}</span> experience areas
           </div>
         </div>
       </div>
