@@ -1312,16 +1312,92 @@ const OneGoodIntroMobile = () => {
               </div>
             </div>
           </div>
-          
-          {/* Stats - Compact */}
-          <div className="text-sm text-gray-500 text-center">
-            <span className="font-semibold text-gray-900">{userProblems.reduce((acc, p) => acc + p.helped_count, 0)}</span> people helped • 
-            <span className="font-semibold text-gray-900 ml-1">{userProblems.length}</span> problem areas
+        </div>
+
+        {/* LinkedIn Profile Section - RESTORED EDITING */}
+        <div className="max-w-lg mx-auto mb-6 px-8">
+          {!linkedinUrl && !editingLinkedin ? (
+            <div className="flex items-center justify-center">
+              <button 
+                onClick={() => setEditingLinkedin(true)}
+                className="text-blue-600 text-sm font-medium hover:text-blue-700 hover:bg-blue-50 transition-all px-3 py-2 rounded-lg"
+              >
+                + Add LinkedIn Profile
+              </button>
+            </div>
+          ) : editingLinkedin ? (
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={linkedinUrl}
+                onChange={(e) => setLinkedinUrl(e.target.value)}
+                placeholder="linkedin.com/in/yourname"
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              />
+              <button 
+                onClick={handleLinkedinSave}
+                className="bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-blue-700"
+              >
+                Save
+              </button>
+              <button 
+                onClick={() => {setEditingLinkedin(false); setLinkedinUrl('');}}
+                className="text-gray-600 hover:text-gray-900"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center gap-2">
+              <button 
+                onClick={handleLinkedinClick}
+                className="flex items-center gap-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-all px-3 py-2 rounded-lg"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0013 14.19a.66.66 0 000 .14V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.55 0 3.36.86 3.36 3.66z"/>
+                </svg>
+                LinkedIn Profile
+                <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+              </button>
+              <button 
+                onClick={() => setEditingLinkedin(true)}
+                className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 p-1 rounded"
+              >
+                <Edit className="h-3 w-3" />
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Resume Upload Section - UPDATED BUTTON */}
+        <div className="max-w-lg mx-auto mb-6 px-8">
+          <div className="flex items-center justify-center">
+            <button 
+              onClick={handleResumeStart}
+              className="flex items-center gap-2 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              {resumeState === 'complete' ? 'Update Resume for better matching' : 'Add Resume for better matching'}
+              {resumeState === 'complete' && <span className="ml-1 text-xs">✓</span>}
+            </button>
           </div>
         </div>
 
-        {/* Voice Section - Replace existing action buttons */}
-        <div className="px-8 py-4">
+        {/* Simple Action Stats */}
+        <div className="px-8 py-6 text-center border-t border-gray-100">
+          <p className="text-gray-600 mb-2">Ready to help others with your experience</p>
+          <div className="text-sm text-gray-500">
+            <span className="font-semibold text-gray-900">{userProblems.reduce((acc, p) => acc + p.helped_count, 0)}</span> people helped • 
+            <span className="font-semibold text-gray-900 ml-1">{userProblems.length}</span> experience areas
+          </div>
+        </div>
+
+        {/* Voice Section with Border */}
+        <div className="px-8 py-6 border border-gray-200 rounded-lg mx-8 mb-6">
           <div className="flex items-center justify-between max-w-lg mx-auto">
             <div className="flex-1">
               <p className="text-gray-900 font-medium">
@@ -1431,18 +1507,18 @@ const OneGoodIntroMobile = () => {
           </div>
         )}
 
-        {/* Problems You Can Solve - Clean List */}
+        {/* Experience Areas - Clean List */}
         <div className="p-4">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-base font-semibold text-gray-900">Problems you can solve</h2>
+            <h2 className="text-lg font-semibold text-gray-900">Experience</h2>
           </div>
 
-          {/* Problem Cards */}
-          <div className="space-y-3">
+          {/* Experience Cards */}
+          <div className="space-y-8">
             {userProblems.map((problem) => (
               <div
                 key={problem.id}
-                className="p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-100"
+                className="p-6 bg-white rounded-2xl shadow-sm hover:shadow-md transition-all"
               >
                 {/* Status Badge and Actions */}
                 <div className="flex items-start justify-between mb-3">
@@ -1491,7 +1567,7 @@ const OneGoodIntroMobile = () => {
                         value={editingProblemData.title}
                         onChange={(e) => setEditingProblemData(prev => ({ ...prev, title: e.target.value }))}
                         className="w-full px-2 py-1 border border-gray-300 rounded text-sm font-medium focus:ring-1 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="Problem title..."
+                        placeholder="Experience title..."
                       />
                     </div>
                     <div>
