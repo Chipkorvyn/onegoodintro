@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useRef, useEffect } from 'react';
-import { User, CheckCircle, Users, Plus, Zap, Target, Heart, Network, Handshake, MessageCircle, Check, MapPin, Building2, X, Edit, Trash2, Mic, Brain } from 'lucide-react';
+import { User, CheckCircle, Users, Plus, Zap, Target, Heart, Network, Handshake, MessageCircle, Check, MapPin, Building2, X, Edit, Trash2, Mic, Brain, ArrowRight, TrendingUp } from 'lucide-react';
 import { useSession, signIn, signOut } from 'next-auth/react'
 import { supabase, type User as DbUser, type UserProblem, type HelpRequest, timeAgo } from '@/lib/supabase'
 
@@ -905,7 +905,7 @@ const OneGoodIntroMobile = () => {
     return (
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1">
-          <p className="text-sm text-gray-700 leading-relaxed">
+          <p className="text-sm text-gray-300 leading-relaxed">
             <span className="font-semibold">{label}:</span>{' '}
             {isEditing ? (
               <input
@@ -919,12 +919,12 @@ const OneGoodIntroMobile = () => {
                     inputRefs[fieldName as keyof typeof inputRefs].current?.blur();
                   }
                 }}
-                className="inline-block w-full max-w-md px-2 py-1 text-gray-900 bg-blue-50 border border-blue-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="inline-block w-full max-w-md px-2 py-1 text-white bg-gray-700 border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
               />
             ) : (
               <span
                 onClick={() => handleProfileFieldClick(fieldName as ActiveFieldType)}
-                className="cursor-pointer text-gray-900 hover:bg-gray-50 px-2 py-1 rounded transition-colors"
+                className="cursor-pointer text-white hover:bg-gray-700 px-2 py-1 rounded transition-colors"
               >
                 {value}
               </span>
@@ -932,11 +932,11 @@ const OneGoodIntroMobile = () => {
           </p>
         </div>
         <div className="flex items-center gap-2 ml-3 flex-shrink-0">
-          {showSuccess && <Check className="h-4 w-4 text-green-600 animate-pulse" />}
+          {showSuccess && <Check className="h-4 w-4 text-teal-400 animate-pulse" />}
           {isSaving && <div className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin" />}
           <button 
             onClick={() => handleProfileFieldClick(fieldName as ActiveFieldType)}
-            className="text-blue-600 text-sm font-medium hover:text-blue-700 hover:bg-blue-50 transition-all px-3 py-2 rounded-lg"
+            className="text-teal-400 text-sm font-medium hover:text-teal-300 hover:bg-gray-700 transition-all px-3 py-2 rounded-lg"
           >
             [Edit]
           </button>
@@ -968,16 +968,16 @@ const OneGoodIntroMobile = () => {
 
   // Show loading screen while checking auth
   if (status === 'loading') {
-    return <div className="min-h-screen bg-white flex items-center justify-center">Loading...</div>
+    return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">Loading...</div>
   }
 
   // Voice recording popup
   const renderVoicePopup = () => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full max-h-[85vh] overflow-y-auto">
+      <div className="bg-gray-800 rounded-2xl shadow-2xl max-w-sm w-full max-h-[85vh] overflow-y-auto border border-gray-700">
         <button 
           onClick={() => setCurrentView('full-profile')}
-          className="absolute top-4 right-4 text-gray-600 hover:text-gray-900 z-10"
+          className="absolute top-4 right-4 text-gray-400 hover:text-white z-10"
         >
           <X className="h-5 w-5" />
         </button>
@@ -986,28 +986,28 @@ const OneGoodIntroMobile = () => {
           <>
             {/* Header */}
             <div className="p-5 text-center relative">
-              <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-4"></div>
-              <div className="text-lg font-bold text-gray-900">Describe your experience</div>
+              <div className="w-10 h-1 bg-gray-600 rounded-full mx-auto mb-4"></div>
+              <div className="text-lg font-bold text-white">Describe your experience</div>
             </div>
             
             <div className="p-5">
               {/* Example Section */}
-              <div className="p-4 bg-blue-50 rounded-2xl shadow-sm mb-6">
-                <div className="text-sm font-semibold text-blue-900 mb-2">💡 Here's how to share:</div>
-                <div className="text-sm text-blue-800 italic leading-relaxed">
+              <div className="p-4 bg-gray-700 rounded-2xl shadow-sm mb-6 border border-gray-600">
+                <div className="text-sm font-semibold text-teal-400 mb-2">💡 Here's how to share:</div>
+                <div className="text-sm text-gray-300 italic leading-relaxed">
                   "I can help with managing remote teams because I led 15 people across 4 countries for 3 years."
                 </div>
               </div>
 
               {/* Template Paragraph */}
-              <div className="bg-white rounded-2xl shadow-sm p-6 mb-6 text-base leading-relaxed">
-                <div className="text-gray-900">
+              <div className="bg-gray-700 rounded-2xl shadow-sm p-6 mb-6 text-base leading-relaxed border border-gray-600">
+                <div className="text-white">
                   I can help with{' '}
-                  <span className="inline-block min-w-[120px] px-3 py-1 rounded bg-gray-200 text-gray-600 border border-gray-300">
+                  <span className="inline-block min-w-[120px] px-3 py-1 rounded bg-gray-600 text-gray-300 border border-gray-500">
                     managing remote teams
                   </span>{' '}
                   because{' '}
-                  <span className="inline-block min-w-[120px] px-3 py-1 rounded bg-gray-200 text-gray-600 border border-gray-300">
+                  <span className="inline-block min-w-[120px] px-3 py-1 rounded bg-gray-600 text-gray-300 border border-gray-500">
                     I led 15 people across 4 countries for 3 years
                   </span>.
                 </div>
@@ -1027,7 +1027,7 @@ const OneGoodIntroMobile = () => {
                 </button>
               </div>
               
-              <p className="text-center text-sm text-gray-600">
+              <p className="text-center text-sm text-gray-400">
                 Hold to record your experience
               </p>
             </div>
@@ -1039,11 +1039,11 @@ const OneGoodIntroMobile = () => {
             <div className="w-20 h-20 bg-red-500 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
               <div className="w-6 h-6 bg-white rounded-full"></div>
             </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-4">Recording...</h3>
-            <div className="text-3xl font-mono text-gray-600 mb-6">⏱️ {formatTime(recordingTime)}</div>
+            <h3 className="text-xl font-bold text-white mb-4">Recording...</h3>
+            <div className="text-3xl font-mono text-gray-300 mb-6">⏱️ {formatTime(recordingTime)}</div>
             <button 
               onClick={handleVoiceStop}
-              className="bg-gray-900 text-white px-8 py-3 rounded-lg hover:bg-black transition-colors font-semibold"
+              className="bg-gray-700 text-white px-8 py-3 rounded-lg hover:bg-gray-600 transition-colors font-semibold border border-gray-600"
             >
               Stop Recording
             </button>
@@ -1052,14 +1052,14 @@ const OneGoodIntroMobile = () => {
 
         {voiceState === 'processing' && (
           <div className="p-8 text-center">
-            <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-16 h-16 bg-purple-600/20 rounded-full flex items-center justify-center mx-auto mb-6">
+              <svg className="w-8 h-8 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
               </svg>
             </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-4">Creating your experience card...</h3>
+            <h3 className="text-xl font-bold text-white mb-4">Creating your experience card...</h3>
             <div className="flex justify-center">
-              <div className="w-8 h-8 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
+              <div className="w-8 h-8 border-2 border-purple-400 border-t-transparent rounded-full animate-spin"></div>
             </div>
           </div>
         )}
@@ -1070,28 +1070,28 @@ const OneGoodIntroMobile = () => {
   // Resume upload popup
   const renderResumePopup = () => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center">
+      <div className="bg-gray-800 rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center border border-gray-700">
         <button 
           onClick={() => setCurrentView('full-profile')}
-          className="absolute top-4 right-4 text-gray-600 hover:text-gray-900"
+          className="absolute top-4 right-4 text-gray-400 hover:text-white"
         >
           <X className="h-5 w-5" />
         </button>
 
         {resumeState === 'initial' && (
           <>
-            <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="w-12 h-12 bg-teal-500 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-3">Upload Resume</h3>
-            <p className="text-gray-600 mb-6 text-sm leading-relaxed">
+            <h3 className="text-xl font-bold text-white mb-3">Upload Resume</h3>
+            <p className="text-gray-400 mb-6 text-sm leading-relaxed">
               We'll find areas where you can help others based on your experience
             </p>
             <button 
               onClick={handleResumeUpload}
-              className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors mb-4"
+              className="w-full bg-teal-500 text-white py-3 rounded-lg font-semibold hover:bg-teal-600 transition-colors mb-4"
             >
               Choose File
             </button>
@@ -1101,49 +1101,106 @@ const OneGoodIntroMobile = () => {
 
         {resumeState === 'processing' && (
           <>
-            <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="w-12 h-12 bg-teal-500 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-3">Processing resume...</h3>
-            <p className="text-gray-600 mb-4">Marketing_Resume.pdf</p>
-            <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
+            <h3 className="text-xl font-bold text-white mb-3">Processing resume...</h3>
+            <p className="text-gray-400 mb-4">Marketing_Resume.pdf</p>
+            <div className="w-full bg-gray-700 rounded-full h-2 mb-4">
               <div 
-                className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                className="bg-teal-500 h-2 rounded-full transition-all duration-300" 
                 style={{ width: `${resumeProgress}%` }}
               ></div>
             </div>
-            <p className="text-sm text-gray-600">Looking for 5 areas you can help</p>
+            <p className="text-sm text-gray-400">Looking for 5 areas you can help</p>
           </>
         )}
       </div>
     </div>
   );
 
+  // Status Badge Component
+  const StatusBadge = ({ status, helpedCount }: { status: string, helpedCount: number }) => {
+    const config = {
+      verified: { bg: 'bg-teal-500', text: 'text-white', label: '✓ Verified' },
+      'ai-generated': { bg: 'bg-gray-700', text: 'text-teal-400', label: '🎤 AI Generated' },
+      default: { bg: 'bg-gray-700', text: 'text-gray-300', label: 'Added by you' }
+    };
+    
+    const style = config[status as keyof typeof config] || config.default;
+    
+    return (
+      <div className="flex items-center gap-2">
+        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${style.bg} ${style.text}`}>
+          {style.label}
+        </span>
+        {helpedCount > 0 && (
+          <span className="text-xs text-gray-400 font-medium">
+            Helped {helpedCount}
+          </span>
+        )}
+      </div>
+    );
+  };
+
   // Main render functions
   const renderAuth = () => (
-    <div className="min-h-screen bg-white">
-      <div className="max-w-2xl mx-auto bg-white">
-        <div className="flex flex-col min-h-screen">
-          <div className="flex-1 flex flex-col justify-center px-8 py-12">
-            <div className="text-center mb-12">
-              <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-8">
-                <Zap className="h-12 w-12 text-blue-600" />
-              </div>
-              <h1 className="text-4xl font-light text-gray-900 mb-3 leading-tight">
-                OneGoodIntro
-              </h1>
-              <p className="text-gray-600 text-base leading-relaxed max-w-sm mx-auto">
-                One good professional introduction every week
-              </p>
-            </div>
+    <div className="min-h-screen bg-gray-900 flex flex-col">
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col justify-center px-8 py-12">
+        
+        {/* Logo & Brand */}
+        <div className="text-center mb-12">
+          <div className="w-24 h-24 bg-gradient-to-br from-red-400 to-orange-400 rounded-full flex items-center justify-center mx-auto mb-8 shadow-2xl ring-4 ring-red-400/20">
+            <Zap className="h-12 w-12 text-white" />
+          </div>
+          <h1 className="text-4xl font-bold text-white mb-3 leading-tight">
+            OneGoodIntro
+          </h1>
+          <p className="text-gray-300 text-lg leading-relaxed max-w-sm mx-auto">
+            Professional introductions when you need them
+          </p>
+        </div>
 
-            <div className="space-y-6">
-              <button
-                onClick={handleGoogleSignIn}
-                className="w-full bg-white border-2 border-gray-300 text-gray-700 py-4 px-6 rounded-lg font-semibold text-base hover:border-gray-400 hover:shadow-sm transition-all duration-200 flex items-center justify-center space-x-3"
-              >
+        {/* Value Proposition */}
+        <div className="bg-gray-800 rounded-2xl p-6 mb-8 border border-gray-700">
+          <div className="grid grid-cols-1 gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-teal-500 rounded-full flex items-center justify-center flex-shrink-0">
+                <Users className="h-5 w-5 text-white" />
+              </div>
+              <p className="text-white font-semibold">Quality introductions</p>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-teal-500 rounded-full flex items-center justify-center flex-shrink-0">
+                <CheckCircle className="h-5 w-5 text-white" />
+              </div>
+              <p className="text-white font-semibold">Real people</p>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-teal-500 rounded-full flex items-center justify-center flex-shrink-0">
+                <TrendingUp className="h-5 w-5 text-white" />
+              </div>
+              <p className="text-white font-semibold">Learn from experience</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Sign In Section */}
+        <div className="space-y-6">
+          <button
+            onClick={handleGoogleSignIn}
+            disabled={isLoading}
+            className="w-full bg-gray-800 border-2 border-gray-600 text-white py-4 px-6 rounded-xl font-semibold text-base hover:border-teal-400 hover:bg-gray-700 transition-all duration-200 flex items-center justify-center space-x-3 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isLoading ? (
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            ) : (
+              <>
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                   <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -1151,48 +1208,45 @@ const OneGoodIntroMobile = () => {
                   <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                 </svg>
                 <span>Continue with Google</span>
-              </button>
-              
-              <div className="text-center">
-                <p className="text-xs text-gray-500 leading-relaxed max-w-sm mx-auto">
-                  By continuing, you agree to our Terms of Service and Privacy Policy
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="px-8 pb-8 border-t border-gray-100">
-            <div className="flex justify-center gap-10 py-6 text-center">
-              <div>
-                <span className="text-lg font-semibold text-gray-900 block">2.5K+</span>
-                <div className="text-sm text-gray-600 mt-1">professionals</div>
-              </div>
-              <div>
-                <span className="text-lg font-semibold text-gray-900 block">15K+</span>
-                <div className="text-sm text-gray-600 mt-1">connections</div>
-              </div>
-              <div>
-                <span className="text-lg font-semibold text-gray-900 block">98%</span>
-                <div className="text-sm text-gray-600 mt-1">success rate</div>
-              </div>
-            </div>
+                <ArrowRight className="w-5 h-5" />
+              </>
+            )}
+          </button>
+          
+          <div className="text-center">
+            <p className="text-xs text-gray-500 leading-relaxed max-w-sm mx-auto">
+              By continuing, you agree to our Terms of Service and Privacy Policy
+            </p>
           </div>
         </div>
       </div>
+
+      {/* Loading Overlay */}
+      {isLoading && (
+        <div className="fixed inset-0 bg-gray-900/80 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-2xl p-8 text-center border border-gray-700">
+            <div className="w-16 h-16 bg-gradient-to-br from-red-400 to-orange-400 rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            </div>
+            <h3 className="text-xl font-bold text-white mb-2">Setting up your profile...</h3>
+            <p className="text-gray-400">This will only take a moment</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 
   const renderFullProfile = () => (
-    <div className="min-h-screen bg-white pb-20">
-      <div className="max-w-2xl mx-auto bg-white">
+    <div className="min-h-screen bg-gray-900 pb-20">
+      <div className="max-w-2xl mx-auto bg-gray-900">
         
-        {/* Updated Profile Header - Left Aligned */}
-        <div className="p-8 border-b border-gray-100">
-          {/* Avatar - Left aligned like Instagram */}
-          <div className="flex items-start gap-6 mb-6">
-            <div className="relative w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center text-xl font-semibold text-gray-500 flex-shrink-0">
+        {/* Profile Header - Dark Theme */}
+        <div className="p-8 pb-2">
+          {/* Avatar - Left aligned */}
+          <div className="flex items-start gap-6 mb-3">
+            <div className="relative w-20 h-20 rounded-full bg-gradient-to-br from-red-400 to-orange-400 flex items-center justify-center text-xl font-semibold text-white flex-shrink-0">
               {profileData.name ? profileData.name.split(' ').map(n => n[0]).join('').toUpperCase() : 'CA'}
-              <button className="absolute -bottom-1 -right-1 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-medium hover:bg-blue-700 transition-colors">
+              <button className="absolute -bottom-1 -right-1 w-7 h-7 bg-gradient-to-r from-red-500 to-orange-500 text-white rounded-full flex items-center justify-center hover:from-red-600 hover:to-orange-600 transition-all">
                 <Edit className="w-3 h-3" />
               </button>
             </div>
@@ -1212,24 +1266,17 @@ const OneGoodIntroMobile = () => {
                         inputRefs.name.current?.blur();
                       }
                     }}
-                    className="text-2xl font-bold text-gray-900 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="text-2xl font-bold text-white bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                     placeholder="Your name"
                   />
                 ) : (
                   <h1 
                     onClick={() => handleProfileFieldClick('name')}
-                    className="text-2xl font-bold text-gray-900 cursor-pointer hover:bg-gray-50 px-2 py-1 rounded transition-colors"
+                    className="text-2xl font-bold text-white cursor-pointer hover:bg-gray-700 px-2 py-1 rounded transition-colors"
                   >
                     {profileData.name || 'Chip Alexandru'}
                   </h1>
                 )}
-                <button 
-                  onClick={() => handleProfileFieldClick('name')}
-                  className="text-blue-600 hover:text-blue-700 transition-colors"
-                >
-                  <Edit className="w-5 h-5" />
-                </button>
-                {savingField === 'name_success' && <Check className="h-5 w-5 text-green-600 animate-pulse" />}
                 {savingField === 'name' && <div className="w-4 h-4 border border-gray-400 border-t-transparent rounded-full animate-spin" />}
               </div>
               
@@ -1248,7 +1295,7 @@ const OneGoodIntroMobile = () => {
                           handleProfileFieldSave('about');
                         }
                       }}
-                      className="w-full px-3 py-2 text-gray-900 bg-blue-50 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-base"
+                      className="w-full px-3 py-2 text-white bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent resize-none text-base"
                       rows={3}
                       placeholder="AI founder in Zurich with BCG/PwC background. Led €90M+ deals, interim CEO experience."
                     />
@@ -1258,37 +1305,31 @@ const OneGoodIntroMobile = () => {
                   <div className="flex items-start justify-between">
                     <p 
                       onClick={() => handleProfileFieldClick('about')}
-                      className="text-gray-600 font-medium leading-relaxed cursor-pointer hover:bg-gray-50 px-2 py-1 rounded transition-colors flex-1"
+                      className="text-sm text-gray-300 leading-relaxed cursor-pointer hover:bg-gray-700 px-2 py-1 rounded transition-colors flex-1"
                     >
-                      {profileData.current || 'AI founder in Zurich with BCG/PwC background. Led €90M+ deals, interim CEO experience.'}
+                      {profileData.current || 'I am just a guy 2 fjfjnf frjorndf rn'}
                     </p>
-                    <button 
-                      onClick={() => handleProfileFieldClick('about')}
-                      className="text-blue-600 hover:text-blue-700 transition-colors ml-2"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </button>
-                    {savingField === 'about_success' && <Check className="h-4 w-4 text-green-600 animate-pulse ml-2" />}
                     {savingField === 'about' && <div className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin ml-2" />}
                   </div>
                 )}
 
-                {/* LinkedIn Section */}
-                <div className="px-2">
+                {/* LinkedIn and Resume Section - Combined */}
+                <div className="space-y-2">
+                  {/* LinkedIn Section */}
                   {linkedinUrl ? (
                     <div className="flex items-center gap-2">
                       <button 
                         onClick={handleLinkedinClick}
-                        className="flex items-center gap-2 text-blue-600 hover:text-blue-700 transition-colors"
+                        className="flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors px-2 py-1 rounded-lg"
                       >
                         <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                           <path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0013 14.19a.66.66 0 000 .14V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.55 0 3.36.86 3.36 3.66z"/>
                         </svg>
-                        <span className="text-sm">LinkedIn connected</span>
+                        <span className="text-sm font-medium">LinkedIn connected</span>
                       </button>
                       <button 
                         onClick={() => setEditingLinkedin(true)}
-                        className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 p-1 rounded"
+                        className="text-gray-400 hover:text-white hover:bg-gray-700 p-1 rounded"
                       >
                         <Edit className="h-3 w-3" />
                       </button>
@@ -1296,7 +1337,7 @@ const OneGoodIntroMobile = () => {
                   ) : (
                     <button 
                       onClick={() => setEditingLinkedin(true)}
-                      className="flex items-center gap-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-all px-2 py-1 rounded-lg"
+                      className="flex items-center gap-2 text-blue-400 hover:text-blue-300 hover:bg-gray-700 transition-all px-2 py-1 rounded-lg"
                     >
                       <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0013 14.19a.66.66 0 000 .14V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.55 0 3.36.86 3.36 3.66z"/>
@@ -1313,29 +1354,27 @@ const OneGoodIntroMobile = () => {
                         value={linkedinUrl}
                         onChange={(e) => setLinkedinUrl(e.target.value)}
                         placeholder="linkedin.com/in/yourname"
-                        className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                        className="flex-1 px-2 py-1 bg-gray-700 border border-gray-600 rounded text-sm focus:ring-1 focus:ring-teal-500 focus:border-transparent text-white"
                       />
                       <button 
                         onClick={handleLinkedinSave}
-                        className="bg-blue-600 text-white px-2 py-1 rounded text-xs font-medium hover:bg-blue-700"
+                        className="bg-teal-500 text-white px-2 py-1 rounded text-xs font-medium hover:bg-teal-600"
                       >
                         Save
                       </button>
                       <button 
                         onClick={() => {setEditingLinkedin(false); setLinkedinUrl('');}}
-                        className="text-gray-600 hover:text-gray-900"
+                        className="text-gray-400 hover:text-white"
                       >
                         <X className="h-3 w-3" />
                       </button>
                     </div>
                   )}
-                </div>
 
-                {/* Resume Section */}
-                <div className="px-2">
+                  {/* Resume Section */}
                   {resumeState === 'complete' ? (
                     <div className="flex items-center gap-2">
-                      <span className="flex items-center gap-2 text-gray-700">
+                      <span className="flex items-center gap-2 text-gray-300">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
@@ -1343,7 +1382,7 @@ const OneGoodIntroMobile = () => {
                       </span>
                       <button 
                         onClick={handleResumeStart}
-                        className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 p-1 rounded"
+                        className="text-gray-400 hover:text-white hover:bg-gray-700 p-1 rounded"
                       >
                         <Edit className="h-3 w-3" />
                       </button>
@@ -1351,7 +1390,7 @@ const OneGoodIntroMobile = () => {
                   ) : (
                     <button 
                       onClick={handleResumeStart}
-                      className="flex items-center gap-2 text-gray-600 hover:text-gray-700 hover:bg-gray-50 transition-all px-2 py-1 rounded-lg"
+                      className="flex items-center gap-2 text-teal-400 hover:text-teal-300 hover:bg-gray-700 transition-all px-2 py-1 rounded-lg"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -1360,33 +1399,31 @@ const OneGoodIntroMobile = () => {
                     </button>
                   )}
                 </div>
-
-                {/* Stats Section - Full width edge to edge */}
-                <div className="w-full bg-white py-4">
-                  {/* Top line */}
-                  <div className="w-full h-px bg-gray-300 mb-3"></div>
-                  
-                  <div className="text-center text-base text-gray-700">
-                    <span className="font-semibold text-gray-900">{userProblems.reduce((acc, p) => acc + p.helped_count, 0)}</span> people helped • 
-                    <span className="font-semibold text-gray-900 ml-1">{userProblems.length}</span> experience areas
-                  </div>
-                  
-                  {/* Bottom line */}
-                  <div className="w-full h-px bg-gray-300 mt-3"></div>
-                </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Voice Section - Aligned with Experience Header */}
+        {/* Stats Section - Dark Surface Box */}
+        <div className="flex justify-center gap-8 p-4 bg-gray-800 rounded-2xl shadow-sm border border-gray-700 mx-8 mb-6">
+          <div className="text-center">
+            <span className="text-2xl font-bold text-white block">{userProblems.reduce((acc, p) => acc + p.helped_count, 0)}</span>
+            <div className="text-xs text-gray-400 uppercase tracking-wide font-medium">People Helped</div>
+          </div>
+          <div className="text-center">
+            <span className="text-2xl font-bold text-white block">{userProblems.length}</span>
+            <div className="text-xs text-gray-400 uppercase tracking-wide font-medium">Experience Areas</div>
+          </div>
+        </div>
+
+        {/* Experience Section */}
         <div className="px-8 py-6">
           <div className="flex items-center justify-between mb-8">
-            <h2 className="text-lg font-semibold text-gray-900">Experience</h2>
+            <h2 className="text-lg font-semibold text-white">Experience</h2>
             <div className="flex items-center gap-4">
               <div className="text-right">
-                <p className="text-sm font-medium text-gray-900">Add your experience to connect with others</p>
-                <p className="text-xs text-gray-500">Record and have AI review it</p>
+                <p className="text-sm font-semibold text-white">Add your experience to connect with others</p>
+                <p className="text-xs text-teal-400">Record and have AI review it</p>
               </div>
               <button 
                 onClick={handleVoiceStart}
@@ -1397,44 +1434,30 @@ const OneGoodIntroMobile = () => {
             </div>
           </div>
 
-          {/* Experience Cards */}
+          {/* Experience Cards - Dark Surface Boxes */}
           <div className="space-y-8">
             {userProblems.map((problem) => (
               <div
                 key={problem.id}
-                className="p-6 bg-white rounded-2xl shadow-sm hover:shadow-md transition-all"
+                className="p-6 bg-gray-800 rounded-2xl shadow-sm hover:shadow-md transition-all border border-gray-700"
               >
                 {/* Status Badge and Actions */}
                 <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <div className={`inline-flex items-center text-xs font-medium px-2 py-1 rounded-full ${
-                      problem.verified 
-                        ? 'bg-green-100 text-green-700' 
-                        : problem.ai_generated
-                        ? 'bg-purple-100 text-purple-700'
-                        : 'bg-gray-100 text-gray-600'
-                    }`}>
-                      {problem.verified ? '✓ Verified' : 
-                       problem.ai_generated ? '🎤 AI Generated' : 
-                       'Added by you'}
-                    </div>
-                    {problem.helped_count > 0 && (
-                      <div className="text-xs text-gray-500">
-                        Helped {problem.helped_count}
-                      </div>
-                    )}
-                  </div>
+                  <StatusBadge 
+                    status={problem.verified ? 'verified' : problem.ai_generated ? 'ai-generated' : 'default'} 
+                    helpedCount={problem.helped_count} 
+                  />
                   <div className="flex gap-1">
                     <button 
                       onClick={() => handleEditProblem(problem)}
-                      className="text-blue-600 hover:bg-blue-50 p-1.5 rounded transition-colors"
+                      className="text-teal-400 hover:bg-gray-700 p-1.5 rounded transition-colors"
                       title="Edit card"
                     >
                       <Edit className="h-3 w-3" />
                     </button>
                     <button 
                       onClick={() => handleDeleteProblem(problem.id)}
-                      className="text-red-600 hover:bg-red-50 p-1.5 rounded transition-colors"
+                      className="text-teal-400 hover:bg-gray-700 p-1.5 rounded transition-colors"
                       title="Delete card"
                     >
                       <Trash2 className="h-3 w-3" />
@@ -1450,7 +1473,7 @@ const OneGoodIntroMobile = () => {
                         type="text"
                         value={editingProblemData.title}
                         onChange={(e) => setEditingProblemData(prev => ({ ...prev, title: e.target.value }))}
-                        className="w-full px-2 py-1 border border-gray-300 rounded text-sm font-medium focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-sm font-medium focus:ring-1 focus:ring-teal-500 focus:border-transparent text-white"
                         placeholder="Experience title..."
                       />
                     </div>
@@ -1458,7 +1481,7 @@ const OneGoodIntroMobile = () => {
                       <textarea
                         value={editingProblemData.proof}
                         onChange={(e) => setEditingProblemData(prev => ({ ...prev, proof: e.target.value }))}
-                        className="w-full px-2 py-1 border border-gray-300 rounded text-xs resize-none focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-xs resize-none focus:ring-1 focus:ring-teal-500 focus:border-transparent text-white"
                         rows={2}
                         placeholder="Why you can help..."
                       />
@@ -1466,13 +1489,13 @@ const OneGoodIntroMobile = () => {
                     <div className="flex gap-2">
                       <button
                         onClick={() => handleSaveProblem(problem.id)}
-                        className="bg-blue-600 text-white px-3 py-1 rounded text-xs font-medium hover:bg-blue-700"
+                        className="bg-teal-500 text-white px-3 py-1 rounded text-xs font-medium hover:bg-teal-600"
                       >
                         Save
                       </button>
                       <button
                         onClick={() => setEditingProblem(null)}
-                        className="bg-gray-200 text-gray-700 px-3 py-1 rounded text-xs font-medium hover:bg-gray-300"
+                        className="bg-gray-600 text-gray-300 px-3 py-1 rounded text-xs font-medium hover:bg-gray-500"
                       >
                         Cancel
                       </button>
@@ -1480,10 +1503,10 @@ const OneGoodIntroMobile = () => {
                   </div>
                 ) : (
                   <>
-                    <h3 className="text-sm font-semibold text-gray-900 mb-1 leading-tight">
+                    <h3 className="text-sm font-semibold text-white mb-1 leading-tight">
                       {problem.title}
                     </h3>
-                    <p className="text-xs text-gray-600 leading-relaxed">
+                    <p className="text-sm text-gray-300 leading-relaxed">
                       {problem.proof}
                     </p>
                   </>
@@ -1492,11 +1515,11 @@ const OneGoodIntroMobile = () => {
             ))}
           </div>
 
-          {/* Bottom Add Button - Subtle */}
+          {/* Add Button */}
           <div className="text-center mt-6">
             <button 
               onClick={handleVoiceStart}
-              className="w-10 h-10 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center text-gray-600 transition-colors"
+              className="w-10 h-10 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 rounded-full flex items-center justify-center text-white transition-all"
             >
               <Plus className="h-5 w-5" />
             </button>
@@ -1509,7 +1532,7 @@ const OneGoodIntroMobile = () => {
             <div className="flex items-center justify-center">
               <button 
                 onClick={() => setEditingLinkedin(true)}
-                className="text-blue-600 text-sm font-medium hover:text-blue-700 hover:bg-blue-50 transition-all px-3 py-2 rounded-lg"
+                className="text-teal-400 text-sm font-medium hover:text-teal-300 hover:bg-gray-800 transition-all px-3 py-2 rounded-lg"
               >
                 + Add LinkedIn Profile
               </button>
@@ -1521,17 +1544,17 @@ const OneGoodIntroMobile = () => {
                 value={linkedinUrl}
                 onChange={(e) => setLinkedinUrl(e.target.value)}
                 placeholder="linkedin.com/in/yourname"
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm text-white"
               />
               <button 
                 onClick={handleLinkedinSave}
-                className="bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-blue-700"
+                className="bg-teal-500 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-teal-600"
               >
                 Save
               </button>
               <button 
                 onClick={() => {setEditingLinkedin(false); setLinkedinUrl('');}}
-                className="text-gray-600 hover:text-gray-900"
+                className="text-gray-400 hover:text-white"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -1540,7 +1563,7 @@ const OneGoodIntroMobile = () => {
             <div className="flex items-center justify-center gap-2">
               <button 
                 onClick={handleLinkedinClick}
-                className="flex items-center gap-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-all px-3 py-2 rounded-lg"
+                className="flex items-center gap-2 text-blue-400 hover:text-blue-300 hover:bg-gray-800 transition-all px-3 py-2 rounded-lg"
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0013 14.19a.66.66 0 000 .14V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.55 0 3.36.86 3.36 3.66z"/>
@@ -1552,7 +1575,7 @@ const OneGoodIntroMobile = () => {
               </button>
               <button 
                 onClick={() => setEditingLinkedin(true)}
-                className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 p-1 rounded"
+                className="text-gray-400 hover:text-white hover:bg-gray-700 p-1 rounded"
               >
                 <Edit className="h-3 w-3" />
               </button>
@@ -1565,7 +1588,7 @@ const OneGoodIntroMobile = () => {
           <div className="flex items-center justify-center">
             <button 
               onClick={handleResumeStart}
-              className="flex items-center gap-2 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+              className="flex items-center gap-2 bg-gray-700 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors border border-gray-600"
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
@@ -1579,60 +1602,60 @@ const OneGoodIntroMobile = () => {
     </div>
   );
 
-  // Keep existing render functions for other views (renderNewGetHelp, etc.)
+  // Keep existing render functions for other views (renderNewGetHelp, etc.) but update their backgrounds
   const renderNewGetHelp = () => (
-    <div className="min-h-screen bg-white pb-20">
-      <div className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md px-5 py-4 flex items-center justify-between border-b border-gray-100">
+    <div className="min-h-screen bg-gray-900 pb-20">
+      <div className="fixed top-0 left-0 right-0 z-50 bg-gray-800/90 backdrop-blur-md px-5 py-4 flex items-center justify-between border-b border-gray-700">
         <button 
           onClick={() => setCurrentView('full-profile')}
-          className="text-gray-900 text-lg hover:text-gray-700 hover:bg-gray-100 transition-all px-3 py-2 rounded-lg"
+          className="text-white text-lg hover:text-gray-300 hover:bg-gray-700 transition-all px-3 py-2 rounded-lg"
         >
           ←
         </button>
-        <div className="text-lg font-semibold text-gray-900">Your Requests</div>
+        <div className="text-lg font-semibold text-white">Your Requests</div>
         <button 
           onClick={() => setShowBottomSheet(true)}
-          className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-semibold"
+          className="bg-teal-500 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-teal-600"
         >
           New
         </button>
       </div>
 
       <div className="pt-20">
-        <div className="px-5 py-10 text-center bg-white">
-          <h1 className="text-2xl font-bold text-gray-900 mb-3">What help do you need?</h1>
-          <p className="text-gray-600 mb-4">Weekly matching • Keep 2-3 requests active for best matches</p>
-          <p className="mb-8"><span className="text-green-600">✓ Peer advice & insights</span> • <span className="text-green-600">✓ Professional introductions</span> • <span className="text-red-600">✗ Sales & recruiting</span></p>
+        <div className="px-5 py-10 text-center bg-gray-900">
+          <h1 className="text-2xl font-bold text-white mb-3">What help do you need?</h1>
+          <p className="text-gray-400 mb-4">Weekly matching • Keep 2-3 requests active for best matches</p>
+          <p className="mb-8"><span className="text-teal-400">✓ Peer advice & insights</span> • <span className="text-teal-400">✓ Professional introductions</span> • <span className="text-red-400">✗ Sales & recruiting</span></p>
           
-          <div className="flex justify-center gap-8 p-5 bg-white rounded-2xl shadow-sm">
+          <div className="flex justify-center gap-8 p-5 bg-gray-800 rounded-2xl shadow-sm border border-gray-700">
             <div className="text-center">
-              <span className="text-2xl font-bold text-gray-900 block">{userRequests.filter(r => r.status === 'active').length}</span>
-              <div className="text-xs text-gray-600 uppercase tracking-wide">Active Requests</div>
+              <span className="text-2xl font-bold text-white block">{userRequests.filter(r => r.status === 'active').length}</span>
+              <div className="text-xs text-gray-400 uppercase tracking-wide">Active Requests</div>
             </div>
             <div className="text-center">
-              <span className="text-2xl font-bold text-gray-900 block">5</span>
-              <div className="text-xs text-gray-600 uppercase tracking-wide">People Helped</div>
+              <span className="text-2xl font-bold text-white block">5</span>
+              <div className="text-xs text-gray-400 uppercase tracking-wide">People Helped</div>
             </div>
             <div className="text-center">
-              <span className="text-2xl font-bold text-gray-900 block">12</span>
-              <div className="text-xs text-gray-600 uppercase tracking-wide">Introductions Made</div>
+              <span className="text-2xl font-bold text-white block">12</span>
+              <div className="text-xs text-gray-400 uppercase tracking-wide">Introductions Made</div>
             </div>
           </div>
         </div>
         
         <div className="px-5 space-y-8">
           <div className="flex items-center justify-between mb-5">
-            <div className="text-lg font-semibold text-gray-900">Your Requests</div>
-            <div className="flex bg-gray-50 rounded-full p-1">
-              <button className="bg-gray-900 text-white px-4 py-2 rounded-full text-xs font-semibold">All</button>
-              <button className="text-gray-600 px-4 py-2 rounded-full text-xs font-semibold">Active</button>
+            <div className="text-lg font-semibold text-white">Your Requests</div>
+            <div className="flex bg-gray-800 rounded-full p-1 border border-gray-700">
+              <button className="bg-teal-500 text-white px-4 py-2 rounded-full text-xs font-semibold">All</button>
+              <button className="text-gray-400 px-4 py-2 rounded-full text-xs font-semibold">Active</button>
             </div>
           </div>
           
           <div className="space-y-6">
             {loadingRequests ? (
               <div className="text-center py-8">
-                <div className="w-6 h-6 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin mx-auto mb-2"></div>
+                <div className="w-6 h-6 border-2 border-gray-600 border-t-teal-400 rounded-full animate-spin mx-auto mb-2"></div>
                 <p className="text-gray-500">Loading your requests...</p>
               </div>
             ) : userRequests.length === 0 ? (
@@ -1640,7 +1663,7 @@ const OneGoodIntroMobile = () => {
                 <p className="text-gray-500 mb-4">No requests yet</p>
                 <button 
                   onClick={() => setShowBottomSheet(true)}
-                  className="text-blue-600 font-medium"
+                  className="text-teal-400 font-medium"
                 >
                   Create your first request
                 </button>
@@ -1649,23 +1672,23 @@ const OneGoodIntroMobile = () => {
               userRequests.map(request => (
                 <div 
                   key={request.id}
-                  className={`bg-white rounded-2xl shadow-sm cursor-pointer transition-all duration-300 overflow-hidden hover:shadow-md ${
+                  className={`bg-gray-800 rounded-2xl shadow-sm cursor-pointer transition-all duration-300 overflow-hidden hover:shadow-md border border-gray-700 ${
                     expandedCard === request.id ? 'transform -translate-y-1 shadow-lg' : ''
                   }`}
                   onClick={() => setExpandedCard(expandedCard === request.id ? null : request.id)}
                 >
                   <div className="p-5 relative">
                     <div className={`absolute top-4 right-4 text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wide ${
-                      request.status === 'active' ? 'bg-green-500 text-white' :
-                      request.status === 'paused' ? 'bg-gray-200 text-gray-600' :
-                      'bg-gray-900 text-white'
+                      request.status === 'active' ? 'bg-teal-500 text-white' :
+                      request.status === 'paused' ? 'bg-gray-600 text-gray-300' :
+                      'bg-gray-700 text-white'
                     }`}>
                       {request.status}
                     </div>
-                    <div className="text-sm font-semibold text-gray-900 mb-3 mr-20 leading-tight">
+                    <div className="text-sm font-semibold text-white mb-3 mr-20 leading-tight">
                       "{request.challenge}"
                     </div>
-                    <div className="text-xs text-gray-600 flex items-center gap-2">
+                    <div className="text-xs text-gray-400 flex items-center gap-2">
                       <span>{timeAgo(request.created_at)}</span>
                       <div className="w-1 h-1 bg-current rounded-full"></div>
                       <span>{request.status_text}</span>
@@ -1674,16 +1697,16 @@ const OneGoodIntroMobile = () => {
                   {expandedCard === request.id && (
                     <div className="px-5 pb-5 transition-all duration-300">
                       <div className="mb-3">
-                        <div className="text-xs font-bold uppercase tracking-wide text-gray-600 mb-1">Context</div>
-                        <div className="text-sm text-gray-900 leading-relaxed">{request.reason}</div>
+                        <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-1">Context</div>
+                        <div className="text-sm text-gray-300 leading-relaxed">{request.reason}</div>
                       </div>
                       <div>
-                        <div className="text-xs font-bold uppercase tracking-wide text-gray-600 mb-1">Looking for</div>
-                        <div className="text-sm text-gray-900 leading-relaxed">{request.help_type}</div>
+                        <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-1">Looking for</div>
+                        <div className="text-sm text-gray-300 leading-relaxed">{request.help_type}</div>
                       </div>
                       <div className="mt-3">
-                        <div className="text-xs font-bold uppercase tracking-wide text-gray-600 mb-1">Timeline</div>
-                        <div className="text-sm text-gray-900">{request.timeline}</div>
+                        <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-1">Timeline</div>
+                        <div className="text-sm text-gray-300">{request.timeline}</div>
                       </div>
                     </div>
                   )}
@@ -1692,31 +1715,31 @@ const OneGoodIntroMobile = () => {
             )}
             
             <div 
-              className="bg-white rounded-2xl shadow-sm p-10 text-center cursor-pointer transition-all duration-300 hover:shadow-md hover:transform hover:-translate-y-0.5"
+              className="bg-gray-800 rounded-2xl shadow-sm p-10 text-center cursor-pointer transition-all duration-300 hover:shadow-md hover:transform hover:-translate-y-0.5 border border-gray-700"
               onClick={() => setShowBottomSheet(true)}
             >
-              <div className="text-3xl mb-3 text-gray-600">+</div>
-              <div className="text-sm font-semibold mb-1 text-gray-900">New request</div>
-              <div className="text-xs text-gray-600">What help do you need?</div>
+              <div className="text-3xl mb-3 text-gray-400">+</div>
+              <div className="text-sm font-semibold mb-1 text-white">New request</div>
+              <div className="text-xs text-gray-400">What help do you need?</div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Bottom Sheet */}
+      {/* Bottom Sheet - Dark Theme */}
       {showBottomSheet && (
         <>
           <div 
             className="fixed inset-0 bg-black bg-opacity-40 z-50"
             onClick={() => setShowBottomSheet(false)}
           ></div>
-          <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl z-50 max-h-[85vh] overflow-y-auto shadow-2xl">
+          <div className="fixed bottom-0 left-0 right-0 bg-gray-800 rounded-t-2xl z-50 max-h-[85vh] overflow-y-auto shadow-2xl border-t border-gray-700">
             {/* Header */}
             <div className="p-5 text-center relative">
-              <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-4"></div>
-              <div className="text-lg font-bold text-gray-900">What help do you need?</div>
+              <div className="w-10 h-1 bg-gray-600 rounded-full mx-auto mb-4"></div>
+              <div className="text-lg font-bold text-white">What help do you need?</div>
               <button 
-                className="absolute top-4 right-4 text-gray-600 text-2xl hover:bg-gray-100 transition-all w-10 h-10 rounded-full flex items-center justify-center"
+                className="absolute top-4 right-4 text-gray-400 text-2xl hover:bg-gray-700 transition-all w-10 h-10 rounded-full flex items-center justify-center"
                 onClick={() => setShowBottomSheet(false)}
               >
                 ×
@@ -1725,23 +1748,23 @@ const OneGoodIntroMobile = () => {
             
             <div className="p-5">
               {/* Example Section */}
-              <div className="p-4 bg-blue-50 rounded-2xl shadow-sm mb-6">
-                <div className="text-sm font-semibold text-blue-900 mb-2">💡 Here's how others ask:</div>
-                <div className="text-sm text-blue-800 italic leading-relaxed">
+              <div className="p-4 bg-gray-700 rounded-2xl shadow-sm mb-6 border border-gray-600">
+                <div className="text-sm font-semibold text-teal-400 mb-2">💡 Here's how others ask:</div>
+                <div className="text-sm text-gray-300 italic leading-relaxed">
                   "I need help with choosing between two job offers because both have pros and cons. 
                   I'd like to be introduced to someone who can share career decision frameworks within 1 week."
                 </div>
               </div>
 
               {/* Flowing Paragraph */}
-              <div className="bg-white rounded-2xl shadow-sm p-6 mb-6 text-base leading-relaxed">
-                <div className="text-gray-900">
+              <div className="bg-gray-700 rounded-2xl shadow-sm p-6 mb-6 text-base leading-relaxed border border-gray-600">
+                <div className="text-white">
                   I need help with{' '}
                   <span 
                     className={`inline-block min-w-[120px] px-3 py-1 rounded cursor-pointer transition-all ${
                       helpForm.challenge 
-                        ? 'bg-blue-100 text-blue-900 border border-blue-200' 
-                        : 'bg-gray-200 text-gray-600 border border-gray-300 hover:bg-gray-300'
+                        ? 'bg-teal-500/20 text-teal-300 border border-teal-500' 
+                        : 'bg-gray-600 text-gray-400 border border-gray-500 hover:bg-gray-500'
                     }`}
                     onClick={() => handleFieldClick('challenge')}
                   >
@@ -1751,8 +1774,8 @@ const OneGoodIntroMobile = () => {
                   <span 
                     className={`inline-block min-w-[120px] px-3 py-1 rounded cursor-pointer transition-all ${
                       helpForm.reason 
-                        ? 'bg-blue-100 text-blue-900 border border-blue-200' 
-                        : 'bg-gray-200 text-gray-600 border border-gray-300 hover:bg-gray-300'
+                        ? 'bg-teal-500/20 text-teal-300 border border-teal-500' 
+                        : 'bg-gray-600 text-gray-400 border border-gray-500 hover:bg-gray-500'
                     }`}
                     onClick={() => handleFieldClick('reason')}
                   >
@@ -1760,13 +1783,13 @@ const OneGoodIntroMobile = () => {
                   </span>.
                 </div>
                 
-                <div className="text-gray-900 mt-3">
+                <div className="text-white mt-3">
                   I'd like to be introduced to someone who can{' '}
                   <span 
                     className={`inline-block min-w-[120px] px-3 py-1 rounded cursor-pointer transition-all ${
                       helpForm.helpType 
-                        ? 'bg-blue-100 text-blue-900 border border-blue-200' 
-                        : 'bg-gray-200 text-gray-600 border border-gray-300 hover:bg-gray-300'
+                        ? 'bg-teal-500/20 text-teal-300 border border-teal-500' 
+                        : 'bg-gray-600 text-gray-400 border border-gray-500 hover:bg-gray-500'
                     }`}
                     onClick={() => handleFieldClick('helpType')}
                   >
@@ -1776,8 +1799,8 @@ const OneGoodIntroMobile = () => {
                   <span 
                     className={`inline-block min-w-[80px] px-3 py-1 rounded cursor-pointer transition-all ${
                       selectedTimeline 
-                        ? 'bg-blue-100 text-blue-900 border border-blue-200' 
-                        : 'bg-gray-200 text-gray-600 border border-gray-300 hover:bg-gray-300'
+                        ? 'bg-teal-500/20 text-teal-300 border border-teal-500' 
+                        : 'bg-gray-600 text-gray-400 border border-gray-500 hover:bg-gray-500'
                     }`}
                     onClick={handleTimelineClick}
                   >
@@ -1789,7 +1812,7 @@ const OneGoodIntroMobile = () => {
               {/* Inline Input Field */}
               {activeField && (
                 <div className="mb-4">
-                  <div className="text-sm font-medium text-gray-700 mb-2">
+                  <div className="text-sm font-medium text-gray-300 mb-2">
                     {activeField === 'challenge' && 'What do you need help with?'}
                     {activeField === 'reason' && 'Why does this matter to you?'}
                     {activeField === 'helpType' && 'What kind of help would be most valuable?'}
@@ -1801,7 +1824,7 @@ const OneGoodIntroMobile = () => {
                       value={activeField && (activeField === 'challenge' || activeField === 'reason' || activeField === 'helpType') ? helpForm[activeField] : ''}
                       onChange={(e) => handleInputChange(activeField || '', e.target.value)}
                       onBlur={handleInputBlur}
-                      className="w-full border border-gray-300 rounded-lg p-3 text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full bg-gray-700 border border-gray-600 rounded-lg p-3 text-base focus:ring-2 focus:ring-teal-500 focus:border-transparent text-white"
                       placeholder={
                         activeField === 'challenge' ? 'relocating to Edinburgh for this role' :
                         activeField === 'reason' ? 'it\'s a great opportunity but I\'m concerned about work-life balance' :
@@ -1810,7 +1833,7 @@ const OneGoodIntroMobile = () => {
                       maxLength={activeField === 'challenge' ? 80 : activeField === 'reason' ? 100 : 60}
                     />
                     <button 
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-green-600 hover:text-green-700"
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-teal-400 hover:text-teal-300"
                       onClick={() => setActiveField(null)}
                     >
                       ✓
@@ -1827,7 +1850,7 @@ const OneGoodIntroMobile = () => {
               {/* Timeline Chips */}
               {showTimelineChips && (
                 <div className="mb-4">
-                  <div className="text-sm font-medium text-gray-700 mb-2">When do you need this?</div>
+                  <div className="text-sm font-medium text-gray-300 mb-2">When do you need this?</div>
                   <div className="grid grid-cols-3 gap-3">
                     {[
                       { value: '1 week', label: '1 week', desc: 'ASAP' },
@@ -1836,11 +1859,11 @@ const OneGoodIntroMobile = () => {
                     ].map((timeline) => (
                       <div
                         key={timeline.value}
-                        className="border rounded-lg p-3 text-center cursor-pointer transition-all border-gray-300 hover:border-gray-900 hover:bg-gray-50"
+                        className="border bg-gray-700 rounded-lg p-3 text-center cursor-pointer transition-all border-gray-600 hover:border-teal-400 hover:bg-gray-600"
                         onClick={() => handleTimelineSelect(timeline.value)}
                       >
-                        <div className="text-sm font-semibold mb-1">{timeline.label}</div>
-                        <div className="text-xs text-gray-600">{timeline.desc}</div>
+                        <div className="text-sm font-semibold mb-1 text-white">{timeline.label}</div>
+                        <div className="text-xs text-gray-400">{timeline.desc}</div>
                       </div>
                     ))}
                   </div>
@@ -1852,8 +1875,8 @@ const OneGoodIntroMobile = () => {
               <button
                 className={`w-full py-4 rounded-lg text-base font-semibold transition-all ${
                   validateHelpForm()
-                    ? 'bg-gray-900 text-white hover:bg-black'
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    ? 'bg-teal-500 text-white hover:bg-teal-600'
+                    : 'bg-gray-600 text-gray-400 cursor-not-allowed'
                 }`}
                 disabled={!validateHelpForm()}
                 onClick={submitHelpRequest}
@@ -1868,47 +1891,47 @@ const OneGoodIntroMobile = () => {
   );
 
   const renderPublicBoard = () => (
-    <div className="min-h-screen bg-white pb-20">
+    <div className="min-h-screen bg-gray-900 pb-20">
       <div className="px-5 py-4">
         <div className="flex items-center justify-between">
           <button 
             onClick={() => setCurrentView('full-profile')}
-            className="text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-all px-3 py-2 rounded-lg"
+            className="text-gray-300 hover:text-white hover:bg-gray-800 transition-all px-3 py-2 rounded-lg"
           >
             ← Back
           </button>
-          <h1 className="text-lg font-semibold text-gray-900">Help Others</h1>
+          <h1 className="text-lg font-semibold text-white">Help Others</h1>
           <div className="w-5"></div>
         </div>
       </div>
 
       <div className="p-5">
         <div className="text-center mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">People you can help</h2>
-          <p className="text-gray-600">Requests matched to your experience</p>
+          <h2 className="text-2xl font-bold text-white mb-2">People you can help</h2>
+          <p className="text-gray-400">Requests matched to your experience</p>
         </div>
 
         <div className="space-y-6">
           {helpRequests.map(request => (
             <div 
               key={request.id} 
-              className="bg-white rounded-2xl shadow-sm p-5 hover:shadow-md transition-all"
+              className="bg-gray-800 rounded-2xl shadow-sm p-5 hover:shadow-md transition-all border border-gray-700"
             >
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-sm font-semibold text-gray-600">
+                <div className="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center text-sm font-semibold text-gray-300">
                   {request.avatar}
                 </div>
                 <div>
-                  <p className="text-base font-semibold text-gray-900">{request.person}</p>
-                  <p className="text-sm text-gray-600">{request.title} at {request.company}</p>
+                  <p className="text-base font-semibold text-white">{request.person}</p>
+                  <p className="text-sm text-gray-400">{request.title} at {request.company}</p>
                 </div>
               </div>
 
-              <h3 className="text-lg font-medium text-gray-900 mb-3 leading-snug">
+              <h3 className="text-lg font-medium text-white mb-3 leading-snug">
                 "{request.text}"
               </h3>
 
-              <p className="text-sm text-gray-700 mb-4 leading-relaxed">
+              <p className="text-sm text-gray-300 mb-4 leading-relaxed">
                 {request.context}
               </p>
 
@@ -1917,11 +1940,11 @@ const OneGoodIntroMobile = () => {
                   onClick={() => {
                     showSuccessModal('help');  
                   }}
-                  className="bg-gray-900 text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-black transition-colors"
+                  className="bg-teal-500 text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-teal-600 transition-colors"
                 >
                   I can help
                 </button>
-                <button className="text-gray-500 text-sm font-medium hover:text-gray-700 hover:bg-gray-100 transition-all py-3 px-4 rounded-lg">
+                <button className="text-gray-400 text-sm font-medium hover:text-gray-300 hover:bg-gray-700 transition-all py-3 px-4 rounded-lg">
                   Skip
                 </button>
               </div>
@@ -1929,12 +1952,12 @@ const OneGoodIntroMobile = () => {
           ))}
         </div>
 
-        <div className="mt-8 p-4 bg-white rounded-2xl shadow-sm text-center">
-          <h3 className="text-base font-semibold text-gray-900 mb-1">That's this week's selection</h3>
-          <p className="text-gray-600 text-sm mb-3">
+        <div className="mt-8 p-4 bg-gray-800 rounded-2xl shadow-sm text-center border border-gray-700">
+          <h3 className="text-base font-semibold text-white mb-1">That's this week's selection</h3>
+          <p className="text-gray-400 text-sm mb-3">
             New requests appear throughout the week, filtered to areas where you have relevant experience.
           </p>
-          <button className="text-blue-600 text-sm font-semibold hover:text-blue-700 transition-colors">
+          <button className="text-teal-400 text-sm font-semibold hover:text-teal-300 transition-colors">
             See more requests
           </button>
         </div>
@@ -1943,22 +1966,22 @@ const OneGoodIntroMobile = () => {
   );
 
   const renderMatchConnection = () => (
-    <div className="min-h-screen bg-white pb-20">
-      <div className="bg-white px-4 py-4 sticky top-0 z-10 border-b border-gray-100">
+    <div className="min-h-screen bg-gray-900 pb-20">
+      <div className="bg-gray-800 px-4 py-4 sticky top-0 z-10 border-b border-gray-700">
         <div className="flex items-center justify-between">
           <button 
-            className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-all px-3 py-2 rounded-lg"
+            className="text-gray-400 hover:text-white hover:bg-gray-700 transition-all px-3 py-2 rounded-lg"
             onClick={() => setCurrentView('match-found')}
           >
             ← Back
           </button>
           <div className="flex items-center space-x-2">
-            <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center">
+            <div className="w-6 h-6 bg-teal-500 rounded flex items-center justify-center">
               <Zap className="h-4 w-4 text-white" />
             </div>
             <div>
-              <h1 className="font-bold text-gray-900">OneGoodIntro</h1>
-              <p className="text-xs text-gray-600">Introduction Request</p>
+              <h1 className="font-bold text-white">OneGoodIntro</h1>
+              <p className="text-xs text-gray-400">Introduction Request</p>
             </div>
           </div>
           <div className="w-12"></div>
@@ -1966,28 +1989,28 @@ const OneGoodIntroMobile = () => {
       </div>
 
       <div className="px-4 py-8">
-        <div className="bg-white rounded-2xl shadow-sm p-8 text-center">
-          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle className="h-10 w-10 text-green-600" />
+        <div className="bg-gray-800 rounded-2xl shadow-sm p-8 text-center border border-gray-700">
+          <div className="w-20 h-20 bg-teal-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+            <CheckCircle className="h-10 w-10 text-teal-400" />
           </div>
 
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Confirmed Your Interest!</h2>
+          <h2 className="text-2xl font-bold text-white mb-6">Confirmed Your Interest!</h2>
 
           <div className="mb-6">
-            <p className="text-gray-700 text-base leading-relaxed">
+            <p className="text-gray-300 text-base leading-relaxed">
               Sarah also received this match. When you both confirm, we'll send introduction emails.
             </p>
           </div>
 
           <div className="mb-8">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-400">
               Most matches connect within 2–3 days.
             </p>
           </div>
 
           <button 
             onClick={() => setCurrentView('match-found')}
-            className="w-full bg-gray-900 text-white py-4 rounded-2xl font-semibold hover:bg-gray-800 transition-colors"
+            className="w-full bg-teal-500 text-white py-4 rounded-2xl font-semibold hover:bg-teal-600 transition-colors"
           >
             OK, Got It
           </button>
@@ -1997,24 +2020,24 @@ const OneGoodIntroMobile = () => {
   );
 
   const renderMatchFound = () => (
-    <div className="min-h-screen bg-white pb-20">
-      <div className="bg-white px-4 py-4 sticky top-0 z-10 border-b border-gray-100">
+    <div className="min-h-screen bg-gray-900 pb-20">
+      <div className="bg-gray-800 px-4 py-4 sticky top-0 z-10 border-b border-gray-700">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <button 
-              className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-all px-3 py-2 rounded-lg"
+              className="text-gray-400 hover:text-white hover:bg-gray-700 transition-all px-3 py-2 rounded-lg"
               onClick={() => setCurrentView('new-get-help')}
             >
               ← Back
             </button>
           </div>
           <div className="flex items-center space-x-2">
-            <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center">
+            <div className="w-6 h-6 bg-teal-500 rounded flex items-center justify-center">
               <Zap className="h-4 w-4 text-white" />
             </div>
             <div>
-              <h1 className="font-bold text-gray-900">OneGoodIntro</h1>
-              <p className="text-xs text-gray-600">Weekly Match</p>
+              <h1 className="font-bold text-white">OneGoodIntro</h1>
+              <p className="text-xs text-gray-400">Weekly Match</p>
             </div>
           </div>
           <div className="w-12"></div>
@@ -2023,34 +2046,34 @@ const OneGoodIntroMobile = () => {
 
       <div className="px-4 py-6">
         <div className="space-y-8">
-          <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl shadow-sm p-5 text-center">
+          <div className="bg-gradient-to-r from-teal-500/20 to-blue-500/20 rounded-2xl shadow-sm p-5 text-center border border-teal-500/30">
             <div className="flex items-center justify-center space-x-2 mb-3">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-              <span className="text-sm font-medium text-gray-700">This Week's Match</span>
+              <div className="w-2 h-2 bg-teal-400 rounded-full animate-pulse"></div>
+              <span className="text-sm font-medium text-gray-300">This Week's Match</span>
             </div>
-            <h2 className="text-xl font-bold text-gray-900">You've been matched with Sarah</h2>
+            <h2 className="text-xl font-bold text-white">You've been matched with Sarah</h2>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-sm p-6">
+          <div className="bg-gray-800 rounded-2xl shadow-sm p-6 border border-gray-700">
             <div className="flex items-center space-x-4 mb-6">
               <div className="relative">
                 <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-xl">
                   {matchedPerson.avatar}
                 </div>
                 {matchedPerson.verified && (
-                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-teal-500 rounded-full flex items-center justify-center">
                     <Check className="h-3 w-3 text-white" />
                   </div>
                 )}
               </div>
               <div className="flex-1">
                 <div className="flex items-center space-x-2 mb-1">
-                  <h2 className="text-lg font-bold text-gray-900">{matchedPerson.name}</h2>
-                  <svg className="w-4 h-4 text-blue-600" viewBox="0 0 24 24" fill="currentColor">
+                  <h2 className="text-lg font-bold text-white">{matchedPerson.name}</h2>
+                  <svg className="w-4 h-4 text-blue-400" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0013 14.19a.66.66 0 000 .14V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.55 0 3.36.86 3.36 3.66z"/>
                   </svg>
                 </div>
-                <p className="text-gray-600 font-medium">{matchedPerson.title}</p>
+                <p className="text-gray-400 font-medium">{matchedPerson.title}</p>
                 <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
                   <div className="flex items-center space-x-1">
                     <Building2 className="h-3 w-3" />
@@ -2067,7 +2090,7 @@ const OneGoodIntroMobile = () => {
             <div className="mt-4">
               <div className="flex flex-wrap gap-2">
                 {matchedPerson.expertise.map((skill: string) => (
-                  <span key={skill} className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-xs font-medium">
+                  <span key={skill} className="bg-gray-700 text-gray-300 px-3 py-1 rounded-full text-xs font-medium border border-gray-600">
                     {skill}
                   </span>
                 ))}
@@ -2075,38 +2098,38 @@ const OneGoodIntroMobile = () => {
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-sm p-5">
+          <div className="bg-gray-800 rounded-2xl shadow-sm p-5 border border-gray-700">
             <div className="mb-4">
-              <h3 className="font-semibold text-gray-900 text-sm flex items-center">
-                <div className="w-2 h-2 bg-blue-600 rounded-full mr-2"></div>
+              <h3 className="font-semibold text-white text-sm flex items-center">
+                <div className="w-2 h-2 bg-teal-400 rounded-full mr-2"></div>
                 Strong Match
               </h3>
             </div>
             
             <div className="space-y-6">
               <div className="flex items-start space-x-3">
-                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <CheckCircle className="h-4 w-4 text-green-600" />
+                <div className="w-8 h-8 bg-teal-500/20 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <CheckCircle className="h-4 w-4 text-teal-400" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900">
-                    Sarah might help with: <span className="text-green-700">"Navigate promotion to senior PM level"</span>
+                  <p className="text-sm font-medium text-white">
+                    Sarah might help with: <span className="text-teal-400">"Navigate promotion to senior PM level"</span>
                   </p>
-                  <p className="text-gray-600 text-xs mt-1">From your active requests • Based on her experience with similar career transitions</p>
+                  <p className="text-gray-400 text-xs mt-1">From your active requests • Based on her experience with similar career transitions</p>
                 </div>
               </div>
 
-              <div className="border-t border-gray-100"></div>
+              <div className="border-t border-gray-700"></div>
 
               <div className="flex items-start space-x-3">
-                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <User className="h-4 w-4 text-blue-600" />
+                <div className="w-8 h-8 bg-blue-500/20 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <User className="h-4 w-4 text-blue-400" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900">
-                    You might help with: <span className="text-blue-700">"Get insights on scaling product teams effectively"</span>
+                  <p className="text-sm font-medium text-white">
+                    You might help with: <span className="text-blue-400">"Get insights on scaling product teams effectively"</span>
                   </p>
-                  <p className="text-gray-600 text-xs mt-1">Her current need • Your consulting and strategy expertise is highly relevant</p>
+                  <p className="text-gray-400 text-xs mt-1">Her current need • Your consulting and strategy expertise is highly relevant</p>
                 </div>
               </div>
             </div>
@@ -2115,11 +2138,11 @@ const OneGoodIntroMobile = () => {
           <div className="space-y-3 pt-2">
             <button 
               onClick={() => setCurrentView('match-connection')}
-              className="w-full bg-gray-900 text-white py-4 rounded-2xl font-semibold hover:bg-gray-800 transition-colors"
+              className="w-full bg-teal-500 text-white py-4 rounded-2xl font-semibold hover:bg-teal-600 transition-colors"
             >
               Arrange Introduction
             </button>
-            <button className="w-full bg-gray-100 text-gray-700 py-4 rounded-2xl font-semibold hover:bg-gray-200 transition-colors">
+            <button className="w-full bg-gray-700 text-gray-300 py-4 rounded-2xl font-semibold hover:bg-gray-600 transition-colors border border-gray-600">
               Try again next week
             </button>
           </div>
@@ -2210,22 +2233,22 @@ const OneGoodIntroMobile = () => {
     });
 
     return (
-      <div className="min-h-screen bg-white pb-20">
+      <div className="min-h-screen bg-gray-900 pb-20">
         <div className="px-5 py-4">
           <div className="flex items-center justify-between">
             <button 
               onClick={() => setCurrentView('full-profile')}
-              className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-all px-3 py-2 rounded-lg"
+              className="text-gray-400 hover:text-white hover:bg-gray-800 transition-all px-3 py-2 rounded-lg"
             >
               ← Back
             </button>
             <div className="flex items-center space-x-2">
-              <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center">
+              <div className="w-6 h-6 bg-teal-500 rounded flex items-center justify-center">
                 <Zap className="h-4 w-4 text-white" />
               </div>
               <div>
-                <h1 className="font-bold text-gray-900">OneGoodIntro</h1>
-                <p className="text-xs text-gray-600">Your Network</p>
+                <h1 className="font-bold text-white">OneGoodIntro</h1>
+                <p className="text-xs text-gray-400">Your Network</p>
               </div>
             </div>
             <div className="w-5"></div>
@@ -2234,8 +2257,8 @@ const OneGoodIntroMobile = () => {
 
         <div className="p-5">
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Your Network</h2>
-            <p className="text-gray-600 mb-1">People you've connected with through OneGoodIntro</p>
+            <h2 className="text-2xl font-bold text-white mb-2">Your Network</h2>
+            <p className="text-gray-400 mb-1">People you've connected with through OneGoodIntro</p>
             <p className="text-sm text-gray-500">{networkConnectionsImproved.length} connections</p>
           </div>
 
@@ -2251,37 +2274,37 @@ const OneGoodIntroMobile = () => {
               placeholder="Search your network..."
               value={searchTerm}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
-              className="w-full pl-12 pr-4 py-4 bg-gray-50 rounded-2xl border-0 focus:bg-white focus:ring-2 focus:ring-gray-900 focus:outline-none text-base transition-all"
+              className="w-full pl-12 pr-4 py-4 bg-gray-800 rounded-2xl border border-gray-700 focus:bg-gray-700 focus:ring-2 focus:ring-teal-500 focus:outline-none text-base transition-all text-white"
             />
           </div>
 
           <div className="space-y-6">
             {filteredConnections.map((connection: NetworkConnection) => (
-              <div key={connection.id} className="bg-white rounded-2xl shadow-sm p-4 hover:shadow-md transition-all">
+              <div key={connection.id} className="bg-gray-800 rounded-2xl shadow-sm p-4 hover:shadow-md transition-all border border-gray-700">
                 <div className="flex items-start space-x-4">
-                  <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center text-gray-600 font-bold text-lg flex-shrink-0">
+                  <div className="w-14 h-14 bg-gray-700 rounded-full flex items-center justify-center text-gray-300 font-bold text-lg flex-shrink-0">
                     {connection.avatar}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-gray-900 text-lg">{connection.name}</h3>
-                    <p className="text-gray-600 mb-2">{connection.company}</p>
+                    <h3 className="font-bold text-white text-lg">{connection.name}</h3>
+                    <p className="text-gray-400 mb-2">{connection.company}</p>
                     
                     <div className="mb-3">
                       <p className="text-sm text-gray-500 mb-1">How you connected:</p>
-                      <p className="text-sm text-gray-700">{connection.connectionContext}</p>
+                      <p className="text-sm text-gray-300">{connection.connectionContext}</p>
                     </div>
                     
                     <div>
                       <p className="text-sm text-gray-500 mb-1">Current activity:</p>
                       <p className={`text-sm font-medium ${
-                        connection.currentStatus.type === 'looking_for' ? 'text-blue-600' : 'text-green-600'
+                        connection.currentStatus.type === 'looking_for' ? 'text-teal-400' : 'text-blue-400'
                       }`}>
                         {connection.currentStatus.text}
                       </p>
                     </div>
                   </div>
-                  <button className="p-4 hover:bg-gray-100 rounded-xl transition-all flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center">
-                    <MessageCircle className="h-5 w-5 text-gray-600" />
+                  <button className="p-4 hover:bg-gray-700 rounded-xl transition-all flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center">
+                    <MessageCircle className="h-5 w-5 text-gray-400" />
                   </button>
                 </div>
               </div>
@@ -2296,11 +2319,11 @@ const OneGoodIntroMobile = () => {
 
           {networkConnectionsImproved.length === 0 && (
             <div className="text-center py-12">
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <MessageCircle className="h-8 w-8 text-gray-400" />
+              <div className="w-16 h-16 bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                <MessageCircle className="h-8 w-8 text-gray-500" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">No connections yet</h3>
-              <p className="text-gray-600">Your successful introductions will appear here</p>
+              <h3 className="text-lg font-semibold text-white mb-2">No connections yet</h3>
+              <p className="text-gray-400">Your successful introductions will appear here</p>
             </div>
           )}
         </div>
@@ -2314,29 +2337,29 @@ const OneGoodIntroMobile = () => {
     const getIcon = () => {
       switch (modalContent.icon) {
         case 'handshake':
-          return <Handshake className="h-12 w-12 text-green-600 mx-auto" />;
+          return <Handshake className="h-12 w-12 text-teal-400 mx-auto" />;
         case 'check':
-          return <CheckCircle className="h-12 w-12 text-green-600 mx-auto" />;
+          return <CheckCircle className="h-12 w-12 text-teal-400 mx-auto" />;
         case 'heart':
-          return <Heart className="h-12 w-12 text-purple-600 mx-auto" />;
+          return <Heart className="h-12 w-12 text-purple-400 mx-auto" />;
         default:
-          return <CheckCircle className="h-12 w-12 text-green-600 mx-auto" />;
+          return <CheckCircle className="h-12 w-12 text-teal-400 mx-auto" />;
       }
     };
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center">
+        <div className="bg-gray-800 rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center border border-gray-700">
           <div className="mb-4">
             {getIcon()}
           </div>
-          <h3 className="text-xl font-bold text-gray-900 mb-3">{modalContent.title}</h3>
-          <p className="text-gray-600 mb-6 text-sm leading-relaxed">
+          <h3 className="text-xl font-bold text-white mb-3">{modalContent.title}</h3>
+          <p className="text-gray-400 mb-6 text-sm leading-relaxed">
             {modalContent.message}
           </p>
           <button 
             onClick={() => setShowModal(false)}
-            className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-semibold"
+            className="w-full bg-teal-500 text-white px-6 py-3 rounded-lg hover:bg-teal-600 font-semibold"
           >
             Got it
           </button>
@@ -2346,12 +2369,14 @@ const OneGoodIntroMobile = () => {
   };
 
   const renderBottomNav = () => (
-    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-2 py-2 z-40">
+    <div className="fixed bottom-0 left-0 right-0 bg-gray-800 border-t border-gray-700 px-2 py-2 z-40">
       <div className="flex justify-around">
         <button 
           onClick={() => setCurrentView('full-profile')}
           className={`flex flex-col items-center space-y-1 px-4 py-3 rounded-lg min-h-[44px] ${
-            currentView === 'full-profile' ? 'bg-purple-100 text-purple-700' : 'text-gray-600'
+            currentView === 'full-profile' 
+              ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white' 
+              : 'text-gray-400 hover:bg-red-900/30 hover:text-red-400 transition-all'
           }`}
         >
           <User className="h-5 w-5" />
@@ -2359,8 +2384,10 @@ const OneGoodIntroMobile = () => {
         </button>
         <button 
           onClick={() => setCurrentView('new-get-help')}
-          className={`flex flex-col items-center space-y-1 px-4 py-3 rounded-lg min-h-[44px] ${
-            currentView === 'new-get-help' ? 'bg-blue-100 text-blue-700' : 'text-gray-600'
+          className={`flex flex-col items-center space-y-1 px-4 py-3 rounded-xl min-h-[44px] ${
+            currentView === 'new-get-help' 
+              ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white' 
+              : 'text-gray-400 hover:bg-red-900/30 hover:text-red-400 transition-all'
           }`}
         >
           <Target className="h-5 w-5" />
@@ -2368,8 +2395,10 @@ const OneGoodIntroMobile = () => {
         </button>
         <button 
           onClick={() => setCurrentView('match-found')}
-          className={`flex flex-col items-center space-y-1 px-4 py-3 rounded-lg min-h-[44px] ${
-            currentView === 'match-found' ? 'bg-green-100 text-green-700' : 'text-gray-600'
+          className={`flex flex-col items-center space-y-1 px-4 py-3 rounded-xl min-h-[44px] ${
+            currentView === 'match-found' 
+              ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white' 
+              : 'text-gray-400 hover:bg-red-900/30 hover:text-red-400 transition-all'
           }`}
         >
           <Users className="h-5 w-5" />
@@ -2377,8 +2406,10 @@ const OneGoodIntroMobile = () => {
         </button>
         <button 
           onClick={() => setCurrentView('public-board')}
-          className={`flex flex-col items-center space-y-1 px-4 py-3 rounded-lg min-h-[44px] ${
-            currentView === 'public-board' ? 'bg-orange-100 text-orange-700' : 'text-gray-600'
+          className={`flex flex-col items-center space-y-1 px-4 py-3 rounded-xl min-h-[44px] ${
+            currentView === 'public-board' 
+              ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white' 
+              : 'text-gray-400 hover:bg-red-900/30 hover:text-red-400 transition-all'
           }`}
         >
           <Heart className="h-5 w-5" />
@@ -2386,8 +2417,10 @@ const OneGoodIntroMobile = () => {
         </button>
         <button 
           onClick={() => setCurrentView('network')}
-          className={`flex flex-col items-center space-y-1 px-4 py-3 rounded-lg min-h-[44px] ${
-            currentView === 'network' ? 'bg-green-100 text-green-700' : 'text-gray-600'
+          className={`flex flex-col items-center space-y-1 px-4 py-3 rounded-xl min-h-[44px] ${
+            currentView === 'network' 
+              ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white' 
+              : 'text-gray-400 hover:bg-red-900/30 hover:text-red-400 transition-all'
           }`}
         >
           <Network className="h-5 w-5" />
@@ -2413,24 +2446,24 @@ const OneGoodIntroMobile = () => {
 
       {showVoiceValidation && currentVoiceCard && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6">
-            <h3 className="text-xl font-bold text-gray-900 mb-4 text-center">Review Your Experience</h3>
+          <div className="bg-gray-800 rounded-2xl shadow-2xl max-w-sm w-full p-6 border border-gray-700">
+            <h3 className="text-xl font-bold text-white mb-4 text-center">Review Your Experience</h3>
             
-            <div className="bg-gray-50 rounded-lg p-4 mb-6">
-              <h4 className="font-semibold text-gray-900 mb-2">{currentVoiceCard.title}</h4>
-              <p className="text-sm text-gray-700">{currentVoiceCard.proof}</p>
+            <div className="bg-gray-700 rounded-lg p-4 mb-6 border border-gray-600">
+              <h4 className="font-semibold text-white mb-2">{currentVoiceCard.title}</h4>
+              <p className="text-sm text-gray-300">{currentVoiceCard.proof}</p>
             </div>
 
             <div className="space-y-3">
               <button 
                 onClick={() => handleVoiceApproval(true)}
-                className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700"
+                className="w-full bg-teal-500 text-white py-3 rounded-lg font-semibold hover:bg-teal-600"
               >
                 Add to Profile
               </button>
               <button 
                 onClick={() => handleVoiceApproval(false)}
-                className="w-full bg-gray-200 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-300"
+                className="w-full bg-gray-600 text-gray-300 py-3 rounded-lg font-semibold hover:bg-gray-500"
               >
                 Try Different Recording
               </button>
@@ -2442,29 +2475,29 @@ const OneGoodIntroMobile = () => {
       {/* Resume Validation UI */}
       {showResumeValidation && currentResumeCard && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6">
+          <div className="bg-gray-800 rounded-2xl shadow-2xl max-w-sm w-full p-6 border border-gray-700">
             <div className="text-center mb-4">
-              <h3 className="text-xl font-bold text-gray-900 mb-2">AI found this experience</h3>
-              <p className="text-sm text-gray-600">
+              <h3 className="text-xl font-bold text-white mb-2">AI found this experience</h3>
+              <p className="text-sm text-gray-400">
                 Card {cardsAccepted + 1} of 5 • {totalAttempts + 1} attempts made
               </p>
             </div>
             
-            <div className="bg-gray-50 rounded-lg p-4 mb-6">
-              <h4 className="font-semibold text-gray-900 mb-2">{currentResumeCard.title}</h4>
-              <p className="text-sm text-gray-700">{currentResumeCard.proof}</p>
+            <div className="bg-gray-700 rounded-lg p-4 mb-6 border border-gray-600">
+              <h4 className="font-semibold text-white mb-2">{currentResumeCard.title}</h4>
+              <p className="text-sm text-gray-300">{currentResumeCard.proof}</p>
             </div>
 
             <div className="space-y-3">
               <button 
                 onClick={() => handleResumeApproval(true)}
-                className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700"
+                className="w-full bg-teal-500 text-white py-3 rounded-lg font-semibold hover:bg-teal-600"
               >
                 ✓ Add to Profile
               </button>
               <button 
                 onClick={() => handleResumeApproval(false)}
-                className="w-full bg-gray-200 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-300"
+                className="w-full bg-gray-600 text-gray-300 py-3 rounded-lg font-semibold hover:bg-gray-500"
               >
                 ✗ Try Again
               </button>
