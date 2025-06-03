@@ -373,60 +373,32 @@ const OneGoodIntroMobile = () => {
       return;
     }
 
-    try {
-      const textToProcess = resumeText || "Marketing Manager with 5 years experience at TechCorp. Led team of 8 people, increased conversion rates by 45%, managed $2M budget. Previously at StartupCo, grew user base from 10K to 100K users. MBA from Business School.";
-      
-      const response = await fetch('/api/process-resume', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          resumeText: textToProcess,
-          conversationHistory: resumeConversationHistory // Use your conversation tracking
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Resume processing failed');
+    // Mock sample cards - no API call
+    const sampleCards = [
+      {
+        title: 'Digital marketing strategy for B2B SaaS',
+        proof: 'You led growth at TechCorp increasing leads 300% in 1 year'
+      },
+      {
+        title: 'Team leadership in fast-growing startups',
+        proof: 'You built engineering team from 3 to 15 people at StartupCo'
+      },
+      {
+        title: 'Product launch coordination',
+        proof: 'You managed 3 major product launches generating $2M+ revenue'
+      },
+      {
+        title: 'Customer acquisition in competitive markets',
+        proof: 'You developed acquisition strategy that reduced CAC by 40%'
       }
+    ];
 
-      const cardData = await response.json();
-
-      setCurrentResumeCard({
-        title: cardData.title,
-        proof: cardData.proof
-      });
-      setShowResumeValidation(true);
-    } catch (error) {
-      console.error('Error generating resume card:', error);
-      // Your fallback logic
-      const sampleCards = [
-        {
-          title: 'Digital marketing strategy for B2B SaaS',
-          proof: 'You led growth at TechCorp increasing leads 300% in 1 year'
-        },
-        {
-          title: 'Team leadership in fast-growing startups',
-          proof: 'You built engineering team from 3 to 15 people at StartupCo'
-        },
-        {
-          title: 'Product launch coordination',
-          proof: 'You managed 3 major product launches generating $2M+ revenue'
-        },
-        {
-          title: 'Customer acquisition in competitive markets',
-          proof: 'You developed acquisition strategy that reduced CAC by 40%'
-        }
-      ];
-
-      const card = sampleCards[totalAttempts % sampleCards.length];
-      setCurrentResumeCard({
-        title: card.title,
-        proof: card.proof
-      });
-      setShowResumeValidation(true);
-    }
+    const card = sampleCards[totalAttempts % sampleCards.length];
+    setCurrentResumeCard({
+      title: card.title,
+      proof: card.proof
+    });
+    setShowResumeValidation(true);
   };
 
   const handleResumeApproval = async (approved: boolean) => {
@@ -2438,6 +2410,74 @@ const OneGoodIntroMobile = () => {
       {currentView === 'network' && renderNetwork()}
       {renderModal()}
       {currentView !== 'auth' && renderBottomNav()}
+
+      {showVoiceValidation && currentVoiceCard && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6">
+            <h3 className="text-xl font-bold text-gray-900 mb-4 text-center">Review Your Experience</h3>
+            
+            <div className="bg-gray-50 rounded-lg p-4 mb-6">
+              <h4 className="font-semibold text-gray-900 mb-2">{currentVoiceCard.title}</h4>
+              <p className="text-sm text-gray-700">{currentVoiceCard.proof}</p>
+            </div>
+
+            <div className="space-y-3">
+              <button 
+                onClick={() => handleVoiceApproval(true)}
+                className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700"
+              >
+                Add to Profile
+              </button>
+              <button 
+                onClick={() => handleVoiceApproval(false)}
+                className="w-full bg-gray-200 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-300"
+              >
+                Try Different Recording
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Resume Validation UI */}
+      {showResumeValidation && currentResumeCard && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6">
+            <div className="text-center mb-4">
+              <h3 className="text-xl font-bold text-gray-900 mb-2">AI found this experience</h3>
+              <p className="text-sm text-gray-600">
+                Card {cardsAccepted + 1} of 5 • {totalAttempts + 1} attempts made
+              </p>
+            </div>
+            
+            <div className="bg-gray-50 rounded-lg p-4 mb-6">
+              <h4 className="font-semibold text-gray-900 mb-2">{currentResumeCard.title}</h4>
+              <p className="text-sm text-gray-700">{currentResumeCard.proof}</p>
+            </div>
+
+            <div className="space-y-3">
+              <button 
+                onClick={() => handleResumeApproval(true)}
+                className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700"
+              >
+                ✓ Add to Profile
+              </button>
+              <button 
+                onClick={() => handleResumeApproval(false)}
+                className="w-full bg-gray-200 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-300"
+              >
+                ✗ Try Again
+              </button>
+            </div>
+
+            {cardsAccepted >= 4 && (
+              <p className="text-center text-xs text-gray-500 mt-4">
+                Almost done! 1 more card to go.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
