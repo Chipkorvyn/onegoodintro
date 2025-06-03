@@ -1411,31 +1411,32 @@ const OneGoodIntroMobile = () => {
             <div className="text-xs text-gray-400 uppercase tracking-wide font-medium">Experience Areas</div>
           </div>
         </div>
-
-        {/* Experience Section */}
-        <div className="px-8 py-6">
-          <div className="flex items-center justify-end mb-8">
-            <div className="text-right mr-4">
-              <p className="text-sm font-semibold text-white">Add your experience to connect with others</p>
-              <p className="text-xs text-teal-400">Record and have AI review it</p>
-            </div>
-            <button 
-              onClick={handleVoiceStart}
-              className="text-2xl hover:scale-110 transition-transform flex-shrink-0"
-            >
-              <div className="bg-gradient-to-r from-red-500 to-orange-500 p-1 rounded-lg">
-                <Phone className="w-6 h-6 text-white" strokeWidth={2.5} />
-              </div>
-            </button>
+      </div>
+      {/* Experience Section - moved outside */}
+      <div className="px-5 space-y-8">
+        <div className="flex items-center justify-end mb-8">
+          <div className="text-right mr-6">
+            <p className="text-lg font-bold text-white">Add your experience to connect with others</p>
+            <p className="text-base text-teal-400">Record and have AI review it</p>
           </div>
+          <button 
+            onClick={handleVoiceStart}
+            className="text-3xl hover:scale-110 transition-transform flex-shrink-0"
+          >
+            <div className="bg-gradient-to-r from-red-500 to-orange-500 p-2 rounded-xl">
+              <Phone className="w-8 h-8 text-white" strokeWidth={2.5} />
+            </div>
+          </button>
+        </div>
 
-          {/* Experience Cards - Dark Surface Boxes */}
-          <div className="space-y-8">
-            {userProblems.map((problem) => (
-              <div
-                key={problem.id}
-                className="p-6 bg-gray-800 rounded-2xl shadow-sm hover:shadow-md transition-all border border-gray-700"
-              >
+        {/* Experience Cards - Dark Surface Boxes */}
+        <div className="space-y-6">
+          {userProblems.map((problem) => (
+            <div
+              key={problem.id}
+              className="bg-gray-800 w-full rounded-2xl shadow-sm hover:shadow-md transition-all border border-gray-700"
+            >
+              <div className="p-5 relative">
                 {/* Status Badge and Actions */}
                 <div className="flex items-start justify-between mb-3">
                   <StatusBadge 
@@ -1507,91 +1508,89 @@ const OneGoodIntroMobile = () => {
                   </>
                 )}
               </div>
-            ))}
-          </div>
-
-          {/* Add Button */}
-          <div className="text-center mt-6">
-            <button 
-              onClick={handleVoiceStart}
-              className="w-10 h-10 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 rounded-full flex items-center justify-center text-white transition-all"
-            >
-              <Plus className="h-5 w-5" />
-            </button>
-          </div>
+            </div>
+          ))}
         </div>
 
-        {/* LinkedIn Profile Section - RESTORED EDITING */}
-        <div className="max-w-lg mx-auto mb-6 px-8">
-          {!linkedinUrl && !editingLinkedin ? (
-            <div className="flex items-center justify-center">
-              <button 
-                onClick={() => setEditingLinkedin(true)}
-                className="text-teal-400 text-sm font-medium hover:text-teal-300 hover:bg-gray-800 transition-all px-3 py-2 rounded-lg"
-              >
-                + Add LinkedIn Profile
-              </button>
-            </div>
-          ) : editingLinkedin ? (
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value={linkedinUrl}
-                onChange={(e) => setLinkedinUrl(e.target.value)}
-                placeholder="linkedin.com/in/yourname"
-                className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm text-white"
-              />
-              <button 
-                onClick={handleLinkedinSave}
-                className="bg-teal-500 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-teal-600"
-              >
-                Save
-              </button>
-              <button 
-                onClick={() => {setEditingLinkedin(false); setLinkedinUrl('');}}
-                className="text-gray-400 hover:text-white"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center justify-center gap-2">
-              <button 
-                onClick={handleLinkedinClick}
-                className="flex items-center gap-2 text-blue-400 hover:text-blue-300 hover:bg-gray-800 transition-all px-3 py-2 rounded-lg"
-              >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0013 14.19a.66.66 0 000 .14V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.55 0 3.36.86 3.36 3.66z"/>
-                </svg>
-                LinkedIn Profile
-                <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                </svg>
-              </button>
-              <button 
-                onClick={() => setEditingLinkedin(true)}
-                className="text-gray-400 hover:text-white hover:bg-gray-700 p-1 rounded"
-              >
-                <Edit className="h-3 w-3" />
-              </button>
-            </div>
-          )}
+        {/* Add Button */}
+        <div className="text-center mt-6">
+          <button 
+            onClick={handleVoiceStart}
+            className="w-10 h-10 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 rounded-full flex items-center justify-center text-white transition-all"
+          >
+            <Plus className="h-5 w-5" />
+          </button>
         </div>
-
-        {/* Resume Upload Section - UPDATED BUTTON */}
-        <div className="max-w-lg mx-auto mb-6 px-8">
+      </div>
+      {/* LinkedIn Profile Section - RESTORED EDITING */}
+      <div className="max-w-lg mx-auto mb-6 px-8">
+        {!linkedinUrl && !editingLinkedin ? (
           <div className="flex items-center justify-center">
             <button 
-              onClick={handleResumeStart}
-              className="flex items-center gap-2 bg-gray-700 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors border border-gray-600"
+              onClick={() => setEditingLinkedin(true)}
+              className="text-teal-400 text-sm font-medium hover:text-teal-300 hover:bg-gray-800 transition-all px-3 py-2 rounded-lg"
             >
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-              </svg>
-              {resumeState === 'complete' ? 'Update Resume for better matching' : 'Add Resume for better matching'}
-              {resumeState === 'complete' && <span className="ml-1 text-xs">✓</span>}
+              + Add LinkedIn Profile
             </button>
           </div>
+        ) : editingLinkedin ? (
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={linkedinUrl}
+              onChange={(e) => setLinkedinUrl(e.target.value)}
+              placeholder="linkedin.com/in/yourname"
+              className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm text-white"
+            />
+            <button 
+              onClick={handleLinkedinSave}
+              className="bg-teal-500 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-teal-600"
+            >
+              Save
+            </button>
+            <button 
+              onClick={() => {setEditingLinkedin(false); setLinkedinUrl('');}}
+              className="text-gray-400 hover:text-white"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center justify-center gap-2">
+            <button 
+              onClick={handleLinkedinClick}
+              className="flex items-center gap-2 text-blue-400 hover:text-blue-300 hover:bg-gray-800 transition-all px-3 py-2 rounded-lg"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0013 14.19a.66.66 0 000 .14V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.55 0 3.36.86 3.36 3.66z"/>
+              </svg>
+              LinkedIn Profile
+              <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+            </button>
+            <button 
+              onClick={() => setEditingLinkedin(true)}
+              className="text-gray-400 hover:text-white hover:bg-gray-700 p-1 rounded"
+            >
+              <Edit className="h-3 w-3" />
+            </button>
+          </div>
+        )}
+      </div>
+      {/* Resume Upload Section - UPDATED BUTTON */}
+      <div className="max-w-lg mx-auto mb-6 px-8">
+        <div className="flex items-center justify-center">
+          <button 
+            onClick={handleResumeStart}
+            className="flex items-center gap-2 bg-gray-700 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors border border-gray-600"
+          >
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
+            {resumeState === 'complete' ? 'Update Resume for better matching' : 'Add Resume for better matching'}
+            {resumeState === 'complete' && <span className="ml-1 text-xs">✓</span>}
+          </button>
         </div>
       </div>
     </div>
@@ -1617,7 +1616,7 @@ const OneGoodIntroMobile = () => {
       </div>
 
       <div className="pt-20">
-        <div className="px-5 py-10 text-center bg-gray-900">
+        <div className="max-w-2xl mx-auto px-5 py-10 text-center bg-gray-900">
           <h1 className="text-2xl font-bold text-white mb-3">What help do you need?</h1>
           <p className="text-gray-400 mb-4">Weekly matching • Keep 2-3 requests active for best matches</p>
           <p className="mb-8"><span className="text-teal-400">✓ Peer advice & insights</span> • <span className="text-teal-400">✓ Professional introductions</span> • <span className="text-red-400">✗ Sales & recruiting</span></p>
