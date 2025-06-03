@@ -29,6 +29,7 @@ const OneGoodIntroMobile = () => {
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
   const [voiceTranscript, setVoiceTranscript] = useState<string>('');
+  const [recordingType, setRecordingType] = useState<'profile' | 'request'>('profile');
 
   // Resume state
   const [resumeState, setResumeState] = useState<'initial' | 'processing' | 'complete'>('initial');
@@ -227,7 +228,8 @@ const OneGoodIntroMobile = () => {
   }
 
   // Voice recording handlers
-  const handleVoiceStart = () => {
+  const handleVoiceStart = (type: 'profile' | 'request') => {
+    setRecordingType(type);
     setCurrentView('voice');
     setVoiceState('initial');
   };
@@ -967,7 +969,7 @@ const OneGoodIntroMobile = () => {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-gray-800 rounded-2xl shadow-2xl max-w-sm w-full max-h-[85vh] overflow-y-auto border border-gray-700">
         <button 
-          onClick={() => setCurrentView('full-profile')}
+          onClick={() => setCurrentView(recordingType === 'profile' ? 'full-profile' : 'new-get-help')}
           className="absolute top-4 right-4 text-gray-400 hover:text-white z-10"
         >
           <X className="h-5 w-5" />
@@ -978,34 +980,67 @@ const OneGoodIntroMobile = () => {
             {/* Header */}
             <div className="p-5 text-center relative">
               <div className="w-10 h-1 bg-gray-600 rounded-full mx-auto mb-4"></div>
-              <div className="text-lg font-bold text-white">Describe your experience</div>
+              <div className="text-lg font-bold text-white">
+                {recordingType === 'profile' 
+                  ? 'Follow this template for a better profile'
+                  : 'Follow this template for better matching'}
+              </div>
             </div>
             
             <div className="p-5">
               {/* Template Paragraph */}
               <div className="bg-gray-700 rounded-2xl shadow-sm p-6 mb-6 text-base leading-relaxed border border-gray-600">
                 <div className="text-white">
-                  <div className="mb-2">
-                    I can help with{' '}
-                    <span className="inline-block min-w-[120px] px-3 py-1 rounded bg-gray-600 text-gray-300 border border-gray-500">
-                      managing remote teams
-                    </span>
-                  </div>
-                  <div>
-                    because{' '}
-                    <span className="inline-block min-w-[120px] px-3 py-1 rounded bg-gray-600 text-gray-300 border border-gray-500">
-                      I led 15 people across 4 countries for 3 years
-                    </span>.
-                  </div>
+                  {recordingType === 'profile' ? (
+                    <>
+                      <div className="mb-2">
+                        I can help with{' '}
+                        <span className="inline-block min-w-[120px] px-3 py-1 rounded bg-gray-600 text-gray-300 border border-gray-500">
+                          managing remote teams
+                        </span>
+                      </div>
+                      <div>
+                        because{' '}
+                        <span className="inline-block min-w-[120px] px-3 py-1 rounded bg-gray-600 text-gray-300 border border-gray-500">
+                          I led 15 people across 4 countries for 3 years
+                        </span>.
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="mb-2">
+                        I need help with{' '}
+                        <span className="inline-block min-w-[120px] px-3 py-1 rounded bg-gray-600 text-gray-300 border border-gray-500">
+                          finding a developer
+                        </span>
+                      </div>
+                      <div className="mb-2">
+                        because
+                      </div>
+                      <div className="mb-2">
+                        <span className="inline-block min-w-[120px] px-3 py-1 rounded bg-gray-600 text-gray-300 border border-gray-500">
+                          I am not technical myself
+                        </span>
+                      </div>
+                      <div>
+                        I'd like to talk to someone who{' '}
+                        <span className="inline-block min-w-[120px] px-3 py-1 rounded bg-gray-600 text-gray-300 border border-gray-500">
+                          has built a webcommerce website
+                        </span>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 
               {/* Record Button */}
               <div className="text-center mb-4">
                 <button 
-                  onMouseDown={handleVoiceRecord}
-                  onTouchStart={handleVoiceRecord}
-                  className="w-20 h-20 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 rounded-full flex items-center justify-center text-white font-semibold mx-auto transition-all shadow-lg"
+                  onClick={() => {
+                    // Placeholder for future functionality
+                    console.log('Voice recording button clicked');
+                  }}
+                  className="w-20 h-20 bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 rounded-full flex items-center justify-center text-white font-semibold mx-auto transition-all shadow-lg"
                 >
                   <div className="text-center">
                     <Mic className="w-8 h-8 mb-1" strokeWidth={2.5} />
@@ -1015,7 +1050,7 @@ const OneGoodIntroMobile = () => {
               </div>
               
               <p className="text-center text-sm text-gray-400">
-                Hold to record your experience
+                Hold to record your {recordingType === 'profile' ? 'experience' : 'request'}
               </p>
             </div>
           </>
@@ -1411,7 +1446,7 @@ const OneGoodIntroMobile = () => {
             <p className="text-base text-teal-400">Record and have AI review it</p>
           </div>
           <button 
-            onClick={handleVoiceStart}
+            onClick={() => handleVoiceStart('profile')}
             className="text-3xl hover:scale-110 transition-transform flex-shrink-0 mr-4"
           >
             <div className="bg-gradient-to-r from-red-500 to-orange-500 p-2 rounded-xl">
@@ -1619,7 +1654,7 @@ const OneGoodIntroMobile = () => {
               <p className="text-base text-teal-400">Record and have AI review it</p>
             </div>
             <button 
-              onClick={handleVoiceStart}
+              onClick={() => handleVoiceStart('request')}
               className="text-3xl hover:scale-110 transition-transform flex-shrink-0"
             >
               <div className="bg-teal-500 p-2 rounded-xl">
