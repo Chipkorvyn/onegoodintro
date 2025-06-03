@@ -766,8 +766,7 @@ const OneGoodIntroMobile = () => {
   const handleProfileFieldClick = (fieldName: ActiveFieldType) => {
     setEditingField(fieldName);
     if (fieldName === 'about') {
-      const combinedText = `${profileData.current} ${profileData.background} ${profileData.personal}`.trim();
-      setFieldValues({ ...fieldValues, about: combinedText });
+      setFieldValues({ ...fieldValues, about: profileData.current || '' });
     } else if (fieldName === 'name') {
       setFieldValues({ ...fieldValues, name: profileData.name });
     } else if (fieldName && fieldName !== 'challenge' && fieldName !== 'reason' && fieldName !== 'helpType' && fieldName !== 'linkedin' && fieldName !== 'about' && fieldName !== 'name') {
@@ -795,24 +794,14 @@ const OneGoodIntroMobile = () => {
     
     try {
       if (fieldName === 'about') {
-        // Save the combined text to all three fields for now
-        // You could also create a single 'about' field in the database
+        // Save to single field only
         const { error } = await supabase
           .from('users')
-          .update({ 
-            current_focus: value,
-            background: '',
-            personal_info: ''
-          })
+          .update({ current_focus: value })
           .eq('email', session.user.email!);
 
         if (!error) {
-          setProfileData(prev => ({ 
-            ...prev, 
-            current: value,
-            background: '',
-            personal: ''
-          }));
+          setProfileData(prev => ({ ...prev, current: value }));
         }
       } else if (fieldName === 'name') {
         const { error } = await supabase
@@ -822,19 +811,6 @@ const OneGoodIntroMobile = () => {
 
         if (!error) {
           setProfileData(prev => ({ ...prev, name: value }));
-        }
-      } else {
-        const dbField = fieldName === 'current' ? 'current_focus' : 
-                        fieldName === 'background' ? 'background' :
-                        fieldName === 'personal' ? 'personal_info' : fieldName;
-
-        const { error } = await supabase
-          .from('users')
-          .update({ [dbField]: value })
-          .eq('email', session.user.email!);
-
-        if (!error) {
-          setProfileData(prev => ({ ...prev, [fieldName]: value }));
         }
       }
       
@@ -1026,39 +1002,68 @@ const OneGoodIntroMobile = () => {
   // Voice recording popup
   const renderVoicePopup = () => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-8 text-center">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full max-h-[85vh] overflow-y-auto">
         <button 
           onClick={() => setCurrentView('full-profile')}
-          className="absolute top-4 right-4 text-gray-600 hover:text-gray-900"
+          className="absolute top-4 right-4 text-gray-600 hover:text-gray-900 z-10"
         >
           <X className="h-5 w-5" />
         </button>
 
         {voiceState === 'initial' && (
           <>
-            <p className="text-gray-700 mb-6 text-base leading-relaxed">
-              Share a skill and why you have it
-            </p>
+            {/* Header */}
+            <div className="p-5 text-center relative">
+              <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-4"></div>
+              <div className="text-lg font-bold text-gray-900">Describe your experience</div>
+            </div>
+            
+            <div className="p-5">
+              {/* Example Section */}
+              <div className="p-4 bg-blue-50 rounded-2xl shadow-sm mb-6">
+                <div className="text-sm font-semibold text-blue-900 mb-2">💡 Here's how to share:</div>
+                <div className="text-sm text-blue-800 italic leading-relaxed">
+                  "I can help with managing remote teams because I led 15 people across 4 countries for 3 years."
+                </div>
+              </div>
 
-            <div className="bg-gray-50 p-4 rounded-lg mb-8 text-left">
-              <p className="text-sm text-gray-600 mb-2">Example:</p>
-              <p className="text-sm text-gray-800">
-                "Managing remote teams because I led 15 people across 4 countries for 3 years"
+              {/* Template Paragraph */}
+              <div className="bg-white rounded-2xl shadow-sm p-6 mb-6 text-base leading-relaxed">
+                <div className="text-gray-900">
+                  I can help with{' '}
+                  <span className="inline-block min-w-[120px] px-3 py-1 rounded bg-gray-200 text-gray-600 border border-gray-300">
+                    managing remote teams
+                  </span>{' '}
+                  because{' '}
+                  <span className="inline-block min-w-[120px] px-3 py-1 rounded bg-gray-200 text-gray-600 border border-gray-300">
+                    I led 15 people across 4 countries for 3 years
+                  </span>.
+                </div>
+              </div>
+
+              {/* Record Button */}
+              <div className="text-center mb-4">
+                <button 
+                  onMouseDown={handleVoiceRecord}
+                  onTouchStart={handleVoiceRecord}
+                  className="w-20 h-20 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center text-white font-semibold mx-auto transition-colors shadow-lg"
+                >
+                  <div className="text-center">
+                    <div className="text-2xl mb-1">🔴</div>
+                    <div className="text-xs">Hold</div>
+                  </div>
+                </button>
+              </div>
+              
+              <p className="text-center text-sm text-gray-600">
+                Hold to record your experience
               </p>
             </div>
-
-            <button 
-              onMouseDown={handleVoiceRecord}
-              onTouchStart={handleVoiceRecord}
-              className="w-20 h-20 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center text-white font-semibold mx-auto transition-colors"
-            >
-              🔴 Hold
-            </button>
           </>
         )}
 
         {voiceState === 'recording' && (
-          <>
+          <div className="p-8 text-center">
             <div className="w-20 h-20 bg-red-500 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
               <div className="w-6 h-6 bg-white rounded-full"></div>
             </div>
@@ -1070,17 +1075,21 @@ const OneGoodIntroMobile = () => {
             >
               Stop Recording
             </button>
-          </>
+          </div>
         )}
 
         {voiceState === 'processing' && (
-          <>
-            <Brain className="h-16 w-16 text-purple-600 mx-auto mb-6" />
-            <h3 className="text-xl font-bold text-gray-900 mb-4">Creating your help card...</h3>
+          <div className="p-8 text-center">
+            <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 mb-4">Creating your experience card...</h3>
             <div className="flex justify-center">
               <div className="w-8 h-8 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
             </div>
-          </>
+          </div>
         )}
       </div>
     </div>
@@ -1205,207 +1214,196 @@ const OneGoodIntroMobile = () => {
     <div className="min-h-screen bg-white pb-20">
       <div className="max-w-2xl mx-auto bg-white">
         
-        {/* Updated Profile Header */}
-        <div className="p-8 text-center border-b border-gray-100">
-          {/* Larger Avatar */}
-          <div className="relative w-40 h-40 rounded-full bg-gray-100 flex items-center justify-center text-4xl font-semibold text-gray-500 mx-auto mb-6">
-            CA
-            <button className="absolute -bottom-2 -right-2 w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-medium hover:bg-blue-700 transition-colors">
-              <Edit className="w-5 h-5" />
-            </button>
-          </div>
-          
-          {/* Larger Name + Working Edit */}
-          <div className="flex items-center justify-center gap-3 mb-4">
-            {editingField === 'name' ? (
-              <input
-                ref={inputRefs.name}
-                type="text"
-                value={fieldValues.name || ''}
-                onChange={(e) => handleProfileFieldChange('name', e.target.value)}
-                onBlur={() => handleProfileFieldBlur('name')}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    inputRefs.name.current?.blur();
-                  }
-                }}
-                className="text-3xl font-bold text-gray-900 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center"
-                placeholder="Your name"
-              />
-            ) : (
-              <h1 
-                onClick={() => handleProfileFieldClick('name')}
-                className="text-3xl font-bold text-gray-900 cursor-pointer hover:bg-gray-50 px-3 py-2 rounded transition-colors"
-              >
-                {profileData.name || 'User'}
-              </h1>
-            )}
-            <button 
-              onClick={() => handleProfileFieldClick('name')}
-              className="text-blue-600 hover:text-blue-700 transition-colors"
-            >
-              <Edit className="w-6 h-6" />
-            </button>
-            {savingField === 'name_success' && <Check className="h-6 w-6 text-green-600 animate-pulse" />}
-            {savingField === 'name' && <div className="w-5 h-5 border border-gray-400 border-t-transparent rounded-full animate-spin" />}
-          </div>
-
-          {/* Larger, Editable About Section */}
-          <div className="max-w-lg mx-auto mb-6">
-            {editingField === 'about' ? (
-              <div className="space-y-2">
-                <textarea
-                  ref={aboutRef}
-                  value={fieldValues.about || ''}
-                  onChange={(e) => handleProfileFieldChange('about', e.target.value)}
-                  onBlur={() => handleProfileFieldBlur('about')}
-                  className="w-full px-4 py-3 text-gray-900 bg-blue-50 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-base"
-                  rows={4}
-                  placeholder="AI founder in Zurich with BCG/PwC background. Led €90M+ deals, interim CEO experience. Originally from Romania, now Swiss-based."
-                />
-                <p className="text-xs text-gray-500">Press Cmd+Enter to save</p>
-              </div>
-            ) : (
-              <div className="flex items-start justify-between">
-                <p 
-                  onClick={() => handleProfileFieldClick('about')}
-                  className="text-base text-gray-700 leading-relaxed cursor-pointer hover:bg-gray-50 px-3 py-2 rounded transition-colors flex-1 text-center"
-                >
-                  {profileData.current && profileData.background && profileData.personal
-                    ? `${profileData.current} ${profileData.background} ${profileData.personal}`
-                    : 'AI founder in Zurich with BCG/PwC background. Led €90M+ deals, interim CEO experience. Originally from Romania, now Swiss-based.'}
-                </p>
-                <button 
-                  onClick={() => handleProfileFieldClick('about')}
-                  className="text-blue-600 text-sm font-medium hover:text-blue-700 hover:bg-blue-50 transition-all px-3 py-2 rounded-lg ml-3"
-                >
-                  [Edit]
-                </button>
-                {savingField === 'about_success' && <Check className="h-5 w-5 text-green-600 animate-pulse ml-2" />}
-                {savingField === 'about' && <div className="w-4 h-4 border border-gray-400 border-t-transparent rounded-full animate-spin ml-2" />}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* LinkedIn + Resume Status Section */}
-        <div className="px-8 py-4 border-b border-gray-100">
-          <div className="flex items-center justify-center gap-8 max-w-lg mx-auto">
-            {/* LinkedIn */}
-            <div className="flex items-center gap-2">
-              {linkedinUrl ? (
-                <>
-                  <button 
-                    onClick={handleLinkedinClick}
-                    className="flex items-center gap-2 text-blue-600 hover:text-blue-700 transition-colors"
-                  >
-                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0013 14.19a.66.66 0 000 .14V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.55 0 3.36.86 3.36 3.66z"/>
-                    </svg>
-                    <span className="text-base">LinkedIn connected</span>
-                  </button>
-                  <button 
-                    onClick={() => setEditingLinkedin(true)}
-                    className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 p-1 rounded"
-                  >
-                    <Edit className="h-4 w-4" />
-                  </button>
-                </>
-              ) : (
-                <button 
-                  onClick={() => setEditingLinkedin(true)}
-                  className="flex items-center gap-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-all px-3 py-2 rounded-lg"
-                >
-                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0013 14.19a.66.66 0 000 .14V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.55 0 3.36.86 3.36 3.66z"/>
-                  </svg>
-                  <span className="text-base">Add LinkedIn</span>
-                </button>
-              )}
-            </div>
-
-            {/* Resume */}
-            <div className="flex items-center gap-2">
-              {resumeState === 'complete' ? (
-                <>
-                  <span className="flex items-center gap-2 text-gray-700">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <span className="text-base">Resume uploaded</span>
-                  </span>
-                  <button 
-                    onClick={handleResumeStart}
-                    className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 p-1 rounded"
-                  >
-                    <Edit className="h-4 w-4" />
-                  </button>
-                </>
-              ) : (
-                <button 
-                  onClick={handleResumeStart}
-                  className="flex items-center gap-2 text-gray-600 hover:text-gray-700 hover:bg-gray-50 transition-all px-3 py-2 rounded-lg"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  <span className="text-base">Add Resume</span>
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* LinkedIn Editing Form */}
-          {editingLinkedin && (
-            <div className="flex items-center gap-2 max-w-lg mx-auto mt-4">
-              <input
-                type="text"
-                value={linkedinUrl}
-                onChange={(e) => setLinkedinUrl(e.target.value)}
-                placeholder="linkedin.com/in/yourname"
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-              />
-              <button 
-                onClick={handleLinkedinSave}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700"
-              >
-                Save
-              </button>
-              <button 
-                onClick={() => {setEditingLinkedin(false); setLinkedinUrl('');}}
-                className="text-gray-600 hover:text-gray-900"
-              >
-                <X className="h-4 w-4" />
+        {/* Updated Profile Header - Left Aligned */}
+        <div className="p-8 border-b border-gray-100">
+          {/* Avatar - Left aligned like Instagram */}
+          <div className="flex items-start gap-6 mb-6">
+            <div className="relative w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center text-xl font-semibold text-gray-500 flex-shrink-0">
+              {profileData.name ? profileData.name.split(' ').map(n => n[0]).join('').toUpperCase() : 'CA'}
+              <button className="absolute -bottom-1 -right-1 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-medium hover:bg-blue-700 transition-colors">
+                <Edit className="w-3 h-3" />
               </button>
             </div>
-          )}
-        </div>
+            
+            {/* Name & Edit - Right of avatar */}
+            <div className="flex-1 pt-2">
+              <div className="flex items-center gap-3 mb-2">
+                {editingField === 'name' ? (
+                  <input
+                    ref={inputRefs.name}
+                    type="text"
+                    value={fieldValues.name || ''}
+                    onChange={(e) => handleProfileFieldChange('name', e.target.value)}
+                    onBlur={() => handleProfileFieldSave('name')}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        inputRefs.name.current?.blur();
+                      }
+                    }}
+                    className="text-2xl font-bold text-gray-900 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Your name"
+                  />
+                ) : (
+                  <h1 
+                    onClick={() => handleProfileFieldClick('name')}
+                    className="text-2xl font-bold text-gray-900 cursor-pointer hover:bg-gray-50 px-2 py-1 rounded transition-colors"
+                  >
+                    {profileData.name || 'Chip Alexandru'}
+                  </h1>
+                )}
+                <button 
+                  onClick={() => handleProfileFieldClick('name')}
+                  className="text-blue-600 hover:text-blue-700 transition-colors"
+                >
+                  <Edit className="w-5 h-5" />
+                </button>
+                {savingField === 'name_success' && <Check className="h-5 w-5 text-green-600 animate-pulse" />}
+                {savingField === 'name' && <div className="w-4 h-4 border border-gray-400 border-t-transparent rounded-full animate-spin" />}
+              </div>
+              
+              {/* Role/Title under name */}
+              <div className="space-y-3">
+                {editingField === 'about' ? (
+                  <div className="space-y-2">
+                    <textarea
+                      ref={aboutRef}
+                      value={fieldValues.about || ''}
+                      onChange={(e) => handleProfileFieldChange('about', e.target.value)}
+                      onBlur={() => handleProfileFieldSave('about')}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && e.metaKey) {
+                          e.preventDefault();
+                          handleProfileFieldSave('about');
+                        }
+                      }}
+                      className="w-full px-3 py-2 text-gray-900 bg-blue-50 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-base"
+                      rows={3}
+                      placeholder="AI founder in Zurich with BCG/PwC background. Led €90M+ deals, interim CEO experience."
+                    />
+                    <p className="text-xs text-gray-500">Press Cmd+Enter to save</p>
+                  </div>
+                ) : (
+                  <div className="flex items-start justify-between">
+                    <p 
+                      onClick={() => handleProfileFieldClick('about')}
+                      className="text-gray-600 font-medium leading-relaxed cursor-pointer hover:bg-gray-50 px-2 py-1 rounded transition-colors flex-1"
+                    >
+                      {profileData.current || 'AI founder in Zurich with BCG/PwC background. Led €90M+ deals, interim CEO experience.'}
+                    </p>
+                    <button 
+                      onClick={() => handleProfileFieldClick('about')}
+                      className="text-blue-600 hover:text-blue-700 transition-colors ml-2"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                    {savingField === 'about_success' && <Check className="h-4 w-4 text-green-600 animate-pulse ml-2" />}
+                    {savingField === 'about' && <div className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin ml-2" />}
+                  </div>
+                )}
 
-        {/* Stats with Lines */}
-        <div className="border-t border-gray-100">
-          <div className="px-8 py-6 text-center border-b border-gray-100">
-            <p className="text-gray-600 mb-2">Ready to help others with your experience</p>
-            <div className="text-sm text-gray-500">
-              <span className="font-semibold text-gray-900">{userProblems.reduce((acc, p) => acc + p.helped_count, 0)}</span> people helped • 
-              <span className="font-semibold text-gray-900 ml-1">{userProblems.length}</span> experience areas
-            </div>
-          </div>
-        </div>
+                {/* LinkedIn Section */}
+                <div className="px-2">
+                  {linkedinUrl ? (
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={handleLinkedinClick}
+                        className="flex items-center gap-2 text-blue-600 hover:text-blue-700 transition-colors"
+                      >
+                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0013 14.19a.66.66 0 000 .14V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.55 0 3.36.86 3.36 3.66z"/>
+                        </svg>
+                        <span className="text-sm">LinkedIn connected</span>
+                      </button>
+                      <button 
+                        onClick={() => setEditingLinkedin(true)}
+                        className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 p-1 rounded"
+                      >
+                        <Edit className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button 
+                      onClick={() => setEditingLinkedin(true)}
+                      className="flex items-center gap-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-all px-2 py-1 rounded-lg"
+                    >
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0013 14.19a.66.66 0 000 .14V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.55 0 3.36.86 3.36 3.66z"/>
+                      </svg>
+                      <span className="text-sm">Add LinkedIn</span>
+                    </button>
+                  )}
 
-        {/* Voice Section with Border */}
-        <div className="px-8 py-6 border border-gray-200 rounded-lg mx-8 mb-6">
-          <div className="flex items-center justify-between max-w-lg mx-auto">
-            <div className="flex-1">
-              <p className="text-gray-900 font-medium">
-                Share your experience, connect with others
-              </p>
+                  {/* LinkedIn Editing Form */}
+                  {editingLinkedin && (
+                    <div className="flex items-center gap-2 mt-2">
+                      <input
+                        type="text"
+                        value={linkedinUrl}
+                        onChange={(e) => setLinkedinUrl(e.target.value)}
+                        placeholder="linkedin.com/in/yourname"
+                        className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                      />
+                      <button 
+                        onClick={handleLinkedinSave}
+                        className="bg-blue-600 text-white px-2 py-1 rounded text-xs font-medium hover:bg-blue-700"
+                      >
+                        Save
+                      </button>
+                      <button 
+                        onClick={() => {setEditingLinkedin(false); setLinkedinUrl('');}}
+                        className="text-gray-600 hover:text-gray-900"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Resume Section */}
+                <div className="px-2">
+                  {resumeState === 'complete' ? (
+                    <div className="flex items-center gap-2">
+                      <span className="flex items-center gap-2 text-gray-700">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <span className="text-sm">Resume uploaded</span>
+                      </span>
+                      <button 
+                        onClick={handleResumeStart}
+                        className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 p-1 rounded"
+                      >
+                        <Edit className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button 
+                      onClick={handleResumeStart}
+                      className="flex items-center gap-2 text-gray-600 hover:text-gray-700 hover:bg-gray-50 transition-all px-2 py-1 rounded-lg"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <span className="text-sm">Add Resume</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Stats Section - Full width edge to edge */}
+                <div className="w-full bg-white py-4">
+                  {/* Top line */}
+                  <div className="w-full h-px bg-gray-300 mb-3"></div>
+                  
+                  <div className="text-center text-base text-gray-700">
+                    <span className="font-semibold text-gray-900">{userProblems.reduce((acc, p) => acc + p.helped_count, 0)}</span> people helped • 
+                    <span className="font-semibold text-gray-900 ml-1">{userProblems.length}</span> experience areas
+                  </div>
+                  
+                  {/* Bottom line */}
+                  <div className="w-full h-px bg-gray-300 mt-3"></div>
+                </div>
+              </div>
             </div>
-            <button 
-              onClick={handleVoiceStart}
-              className="text-2xl hover:scale-110 transition-transform ml-4"
-            >
-              📞
-            </button>
           </div>
         </div>
 
@@ -1603,15 +1601,6 @@ const OneGoodIntroMobile = () => {
               {resumeState === 'complete' ? 'Update Resume for better matching' : 'Add Resume for better matching'}
               {resumeState === 'complete' && <span className="ml-1 text-xs">✓</span>}
             </button>
-          </div>
-        </div>
-
-        {/* Simple Action Stats */}
-        <div className="px-8 py-6 text-center border-t border-gray-100">
-          <p className="text-gray-600 mb-2">Ready to help others with your experience</p>
-          <div className="text-sm text-gray-500">
-            <span className="font-semibold text-gray-900">{userProblems.reduce((acc, p) => acc + p.helped_count, 0)}</span> people helped • 
-            <span className="font-semibold text-gray-900 ml-1">{userProblems.length}</span> experience areas
           </div>
         </div>
       </div>
