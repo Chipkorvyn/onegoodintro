@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.52.0",
     "@auth/supabase-adapter": "^1.9.1",
     "@deepgram/sdk": "^4.2.0",
     "@supabase/supabase-js": "^2.49.8",

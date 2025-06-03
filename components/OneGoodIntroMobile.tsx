@@ -18,13 +18,27 @@ const OneGoodIntroMobile = () => {
   const [userRequests, setUserRequests] = useState<HelpRequest[]>([])
   const [loadingRequests, setLoadingRequests] = useState(false)
 
+  // Request editing state
+  const [editingRequest, setEditingRequest] = useState<string | null>(null);
+  const [editingRequestData, setEditingRequestData] = useState<{
+    challenge: string;
+    reason: string;
+    help_type: string;
+    timeline: 'standard' | 'urgent' | 'flexible';
+  }>({ challenge: '', reason: '', help_type: '', timeline: 'standard' });
+
   // Voice recording state
   const [voiceState, setVoiceState] = useState<'initial' | 'recording' | 'processing'>('initial');
   const [recordingTime, setRecordingTime] = useState<number>(0);
+  const [isRecordingLimitReached, setIsRecordingLimitReached] = useState<boolean>(false);
   const [showVoiceValidation, setShowVoiceValidation] = useState<boolean>(false);
+  const [showRequestValidation, setShowRequestValidation] = useState<boolean>(false);
   const [currentVoiceCard, setCurrentVoiceCard] = useState<{
     title: string;
     proof: string;
+  } | null>(null);
+  const [currentRequestData, setCurrentRequestData] = useState<{
+    formattedRequest: string;
   } | null>(null);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
@@ -106,15 +120,30 @@ const OneGoodIntroMobile = () => {
     let timer: NodeJS.Timeout;
     if (voiceState === 'recording') {
       timer = setInterval(() => {
-        setRecordingTime(prev => prev + 1);
+        setRecordingTime(prev => {
+          const newTime = prev + 1;
+          const currentLimit = getRecordingTimeLimit(); // Use dynamic limit
+          
+          // Auto-stop recording when limit reached
+          if (newTime >= currentLimit) {
+            setIsRecordingLimitReached(true);
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+              mediaRecorder.stop();
+            }
+            return currentLimit;
+          }
+          
+          return newTime;
+        });
       }, 1000);
     } else {
       setRecordingTime(0);
+      setIsRecordingLimitReached(false);
     }
     return () => {
       if (timer) clearInterval(timer);
     };
-  }, [voiceState]);
+  }, [voiceState, recordingType, mediaRecorder]); // Add recordingType as dependency
 
   // Format timer display
   const formatTime = (seconds: number): string => {
@@ -254,6 +283,7 @@ const OneGoodIntroMobile = () => {
       setAudioChunks(chunks);
       recorder.start();
       setVoiceState('recording');
+      setIsRecordingLimitReached(false);
     } catch (error) {
       console.error('Error starting recording:', error);
       alert('Unable to access microphone. Please check permissions.');
@@ -273,41 +303,69 @@ const OneGoodIntroMobile = () => {
       // Send audio to Deepgram for transcription
       const formData = new FormData();
       formData.append('audio', audioBlob, 'recording.webm');
-  
+
       const transcriptionResponse = await fetch('/api/transcribe', {
         method: 'POST',
         body: formData
       });
-  
+
       if (!transcriptionResponse.ok) {
         throw new Error('Transcription failed');
       }
-  
+
       const { transcript } = await transcriptionResponse.json();
       setVoiceTranscript(transcript);
-  
-      // Generate help card using Claude API
-      const cardResponse = await fetch('/api/generate-card', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ transcript })
-      });
-  
-      if (!cardResponse.ok) {
-        throw new Error('Card generation failed');
+
+      if (recordingType === 'profile') {
+        // Generate experience card using existing endpoint
+        const cardResponse = await fetch('/api/generate-card', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ transcript })
+        });
+
+        if (!cardResponse.ok) {
+          throw new Error('Card generation failed');
+        }
+
+        const cardData = await cardResponse.json();
+
+        setCurrentVoiceCard({
+          title: cardData.title,
+          proof: cardData.proof
+        });
+        
+        setVoiceState('initial');
+        setCurrentView('full-profile');
+        setShowVoiceValidation(true);
+      } else {
+        // Generate help request using Claude
+        const requestResponse = await fetch('/api/generate-request', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ transcript })
+        });
+
+        if (!requestResponse.ok) {
+          throw new Error('Request generation failed');
+        }
+
+        const requestData = await requestResponse.json();
+        console.log('🔍 Generated request:', requestData.formattedRequest);
+
+        // Store for validation (like profile flow)
+        setCurrentRequestData({
+          formattedRequest: requestData.formattedRequest
+        });
+
+        setVoiceState('initial');
+        setCurrentView('new-get-help');
+        setShowRequestValidation(true); // Show validation modal
       }
-  
-      const cardData = await cardResponse.json();
-  
-      setCurrentVoiceCard({
-        title: cardData.title,
-        proof: cardData.proof
-      });
-      setVoiceState('initial');
-      setCurrentView('full-profile');
-      setShowVoiceValidation(true);
     } catch (error) {
       console.error('Error processing voice recording:', error);
       alert('Error processing recording. Please try again.');
@@ -316,26 +374,46 @@ const OneGoodIntroMobile = () => {
   };
 
   const handleVoiceApproval = async (approved: boolean) => {
-    if (approved && currentVoiceCard) {
-      // Save to database
-      const { data, error } = await supabase
-        .from('user_problems')
-        .insert({
-          user_id: session?.user?.email || '',
-          title: currentVoiceCard.title,
-          proof: currentVoiceCard.proof,
-          verified: false,
-          helped_count: 0,
-          ai_generated: true
-        })
-        .select()
-        .single();
+    // Check if user is logged in
+    if (!session?.user?.email) {
+      alert('Please sign in to save your experience');
+      return;
+    }
 
-      if (!error && data) {
-        setUserProblems(prev => [data, ...prev]);
+    if (approved && currentVoiceCard) {
+      try {
+        // Save to database (removed ai_generated field since you dropped the column)
+        const { data, error } = await supabase
+          .from('user_problems')
+          .insert({
+            user_id: session.user.email,
+            title: currentVoiceCard.title,
+            proof: currentVoiceCard.proof,
+            verified: false,
+            helped_count: 0
+            // Removed ai_generated: true since column was dropped
+          })
+          .select()
+          .single();
+
+        if (error) {
+          console.error('Error saving experience:', error);
+          alert('Failed to save experience. Please try again.');
+          return;
+        }
+
+        if (data) {
+          setUserProblems(prev => [data, ...prev]);
+          console.log('✅ Experience saved successfully:', data);
+        }
+      } catch (error) {
+        console.error('Error saving experience:', error);
+        alert('Failed to save experience. Please try again.');
+        return;
       }
     }
     
+    // Reset validation state
     setShowVoiceValidation(false);
     setCurrentVoiceCard(null);
     setVoiceTranscript('');
@@ -499,7 +577,6 @@ const OneGoodIntroMobile = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [showBottomSheet, setShowBottomSheet] = useState<boolean>(false);
   const [matchingFrequency, setMatchingFrequency] = useState<'daily' | 'weekly' | 'off'>('daily');
-  const [editingRequest, setEditingRequest] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState<boolean>(false);
   const [newProblem, setNewProblem] = useState<Partial<HelpRequest>>({});
   const [showTimelineChips, setShowTimelineChips] = useState(false);
@@ -985,6 +1062,9 @@ const OneGoodIntroMobile = () => {
                   ? 'Follow this template for a better profile'
                   : 'Follow this template for better matching'}
               </div>
+              <div className="text-sm text-teal-400 mt-2">
+                Keep it under {getRecordingTimeLimit()} seconds
+              </div>
             </div>
             
             <div className="p-5">
@@ -1015,9 +1095,7 @@ const OneGoodIntroMobile = () => {
                         </span>
                       </div>
                       <div className="mb-2">
-                        because
-                      </div>
-                      <div className="mb-2">
+                        because{' '}
                         <span className="inline-block min-w-[120px] px-3 py-1 rounded bg-gray-600 text-gray-300 border border-gray-500">
                           I am not technical myself
                         </span>
@@ -1025,7 +1103,7 @@ const OneGoodIntroMobile = () => {
                       <div>
                         I'd like to talk to someone who{' '}
                         <span className="inline-block min-w-[120px] px-3 py-1 rounded bg-gray-600 text-gray-300 border border-gray-500">
-                          has built a webcommerce website
+                          has built an ecommerce website
                         </span>
                       </div>
                     </>
@@ -1036,10 +1114,7 @@ const OneGoodIntroMobile = () => {
               {/* Record Button */}
               <div className="text-center mb-4">
                 <button 
-                  onClick={() => {
-                    // Placeholder for future functionality
-                    console.log('Voice recording button clicked');
-                  }}
+                  onClick={handleVoiceRecord}
                   className="w-20 h-20 bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 rounded-full flex items-center justify-center text-white font-semibold mx-auto transition-all shadow-lg"
                 >
                   <div className="text-center">
@@ -1051,6 +1126,7 @@ const OneGoodIntroMobile = () => {
               
               <p className="text-center text-sm text-gray-400">
                 Hold to record your {recordingType === 'profile' ? 'experience' : 'request'}
+                {' '}(max {getRecordingTimeLimit()} seconds)
               </p>
             </div>
           </>
@@ -1062,13 +1138,21 @@ const OneGoodIntroMobile = () => {
               <div className="w-6 h-6 bg-white rounded-full"></div>
             </div>
             <h3 className="text-xl font-bold text-white mb-4">Recording...</h3>
-            <div className="text-3xl font-mono text-gray-300 mb-6">⏱️ {formatTime(recordingTime)}</div>
+            <div className="text-3xl font-mono text-gray-300 mb-2">⏱️ {formatTime(recordingTime)}</div>
+            <div className="text-sm text-gray-400 mb-4">
+              {getRecordingTimeLimit() - recordingTime}s remaining
+            </div>
             <button 
               onClick={handleVoiceStop}
               className="bg-gray-700 text-white px-8 py-3 rounded-lg hover:bg-gray-600 transition-colors font-semibold border border-gray-600"
             >
               Stop Recording
             </button>
+            {isRecordingLimitReached && (
+              <div className="text-red-400 text-sm mt-2">
+                Time limit reached - processing recording...
+              </div>
+            )}
           </div>
         )}
 
@@ -1079,7 +1163,9 @@ const OneGoodIntroMobile = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
               </svg>
             </div>
-            <h3 className="text-xl font-bold text-white mb-4">Creating your experience card...</h3>
+            <h3 className="text-xl font-bold text-white mb-4">
+              Creating your {recordingType === 'profile' ? 'experience card' : 'help request'}...
+            </h3>
             <div className="flex justify-center">
               <div className="w-8 h-8 border-2 border-purple-400 border-t-transparent rounded-full animate-spin"></div>
             </div>
@@ -1725,9 +1811,41 @@ const OneGoodIntroMobile = () => {
                       </div>
                     </div>
 
-                    <div className="text-sm font-semibold text-white mb-3 leading-tight">
-                      "{request.challenge}"
-                    </div>
+                    {/* Request Content - Show edit form if editing */}
+                    {editingRequest === request.id ? (
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-xs text-gray-400 uppercase tracking-wide">Request:</label>
+                          <textarea
+                            value={editingRequestData.challenge}
+                            onChange={(e) => setEditingRequestData(prev => ({ ...prev, challenge: e.target.value }))}
+                            className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-sm focus:ring-1 focus:ring-teal-500 focus:border-transparent text-white mt-1"
+                            rows={3}
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleSaveRequestEdit(request.id)}
+                            className="bg-teal-500 text-white px-3 py-1 rounded text-xs font-medium hover:bg-teal-600"
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={() => {
+                              setEditingRequest(null);
+                              setEditingRequestData({ challenge: '', reason: '', help_type: '', timeline: 'standard' });
+                            }}
+                            className="bg-gray-600 text-gray-300 px-3 py-1 rounded text-xs font-medium hover:bg-gray-500"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-sm font-semibold text-white mb-3 leading-tight">
+                        "{request.challenge || request.title}"
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -1760,48 +1878,38 @@ const OneGoodIntroMobile = () => {
             </div>
             
             <div className="space-y-6">
+              {/* Template reminder */}
+              <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                <p className="text-sm text-gray-400 mb-2">Follow this template:</p>
+                <p className="text-sm text-gray-300 italic">
+                  "I need help with [specific challenge] because [brief reason]. I'd like to talk to someone who [type of person/experience]."
+                </p>
+              </div>
+
+              {/* Single text area for formatted request */}
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-2">
-                  What help do you need?
+                  Your Request
                 </label>
                 <textarea
                   value={helpForm.challenge}
-                  onChange={(e) => setHelpForm(prev => ({ ...prev, challenge: e.target.value }))}
-                  placeholder="Describe what you're looking for help with..."
+                  onChange={(e) => setHelpForm(prev => ({ 
+                    ...prev, 
+                    challenge: e.target.value,
+                    reason: '', // Clear other fields since we're using one field
+                    helpType: ''
+                  }))}
+                  placeholder="I need help with finding a technical co-founder because I don't have a development background. I'd like to talk to someone who has built a SaaS product from scratch."
                   className="w-full bg-gray-800 text-white rounded-lg p-3 text-sm border border-gray-700 focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                  rows={3}
+                  rows={4}
                 />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-400 mb-2">
-                  Connection Frequency
-                </label>
-                <div className="flex">
-                  {(['daily', 'weekly', 'off'] as const).map((option, index) => (
-                    <button
-                      key={option}
-                      onClick={() => setMatchingFrequency(option)}
-                      className={`
-                        flex-1 px-3 py-2 text-sm font-medium transition-colors
-                        ${index === 0 ? 'rounded-l-md' : ''}
-                        ${index === 2 ? 'rounded-r-md' : ''}
-                        ${matchingFrequency === option 
-                          ? 'bg-teal-600 text-white' 
-                          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                        }
-                        border border-gray-600
-                        ${index > 0 ? 'border-l-0' : ''}
-                      `}
-                    >
-                      {option.charAt(0).toUpperCase() + option.slice(1)}
-                    </button>
-                  ))}
-                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Keep it concise and follow the template format
+                </p>
               </div>
               
               <button
-                onClick={() => handleSaveProblem(helpForm.challenge)}
+                onClick={() => handleManualRequestSubmit()}
                 disabled={!helpForm.challenge.trim()}
                 className={`w-full py-3 rounded-lg text-sm font-semibold ${
                   helpForm.challenge.trim()
@@ -2358,52 +2466,94 @@ const OneGoodIntroMobile = () => {
     </div>
   );
 
-  const handleDeleteRequest = (requestId: string) => {
-    setUserRequests(prev => prev.filter(req => req.id !== requestId));
+  const handleDeleteRequest = async (requestId: string) => {
+    if (!session?.user?.email) return;
+    
+    // Show confirmation dialog
+    if (!confirm('Are you sure you want to delete this request? This action cannot be undone.')) {
+      return;
+    }
+    
+    try {
+      const response = await fetch('/api/requests', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ id: requestId })
+      });
+
+      if (response.ok) {
+        console.log('✅ Request deleted successfully');
+        
+        // Update local state only after successful database deletion
+        setUserRequests(prev => prev.filter(req => req.id !== requestId));
+      } else {
+        const error = await response.json();
+        console.error('❌ Failed to delete request:', error);
+        alert('Failed to delete request. Please try again.');
+      }
+    } catch (error) {
+      console.error('❌ Network error deleting request:', error);
+      alert('Failed to delete request. Please try again.');
+    }
   };
 
   const handleEditRequest = (requestId: string) => {
-    setEditingRequest(requestId);
     const request = userRequests.find(req => req.id === requestId);
     if (request) {
-      setNewProblem({
-        id: request.id,
-        user_id: request.user_id,
-        title: request.title,
-        proof: request.proof,
-        help_type: request.help_type,
-        timeline: request.timeline,
-        status: request.status,
-        status_text: request.status_text,
-        views: request.views,
-        match_count: request.match_count,
-        created_at: request.created_at,
-        updated_at: request.updated_at
+      setEditingRequestData({
+        challenge: request.challenge || request.title || '', // Handle both field names
+        reason: request.reason || request.proof || '',
+        help_type: request.help_type || '',
+        timeline: request.timeline || 'standard'
       });
-      setShowAddForm(true);
+      setEditingRequest(requestId);
     }
   };
 
-  const handleSaveEdit = () => {
-    if (!newProblem.id || !newProblem.title || !newProblem.proof || !newProblem.help_type || !newProblem.timeline) {
-      return;
-    }
+  const handleSaveRequestEdit = async (requestId: string) => {
+    if (!session?.user?.email) return;
+    
+    try {
+      const response = await fetch('/api/requests', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: requestId,
+          title: editingRequestData.challenge,
+          proof: editingRequestData.reason,
+          help_type: editingRequestData.help_type,
+          timeline: editingRequestData.timeline
+        })
+      });
 
-    setUserRequests(prev => prev.map(req => 
-      req.id === newProblem.id 
-        ? {
-            ...req,
-            title: newProblem.title!,
-            proof: newProblem.proof!,
-            help_type: newProblem.help_type!,
-            timeline: newProblem.timeline!,
-            updated_at: new Date().toISOString()
-          }
-        : req
-    ));
-    setEditingRequest(null);
-    setNewProblem({});
-    setShowAddForm(false);
+      if (response.ok) {
+        // Update local state
+        setUserRequests(prev => prev.map(req => 
+          req.id === requestId 
+            ? {
+                ...req,
+                challenge: editingRequestData.challenge,
+                reason: editingRequestData.reason,
+                help_type: editingRequestData.help_type,
+                timeline: editingRequestData.timeline,
+                updated_at: new Date().toISOString()
+              } as HelpRequest
+            : req
+        ));
+        
+        setEditingRequest(null);
+        setEditingRequestData({ challenge: '', reason: '', help_type: '', timeline: 'standard' });
+      } else {
+        alert('Failed to update request. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error updating request:', error);
+      alert('Failed to update request. Please try again.');
+    }
   };
 
   const renderRequestsPage = () => {
@@ -2498,6 +2648,143 @@ const OneGoodIntroMobile = () => {
     );
   };
 
+  const handleRequestApproval = async (approved: boolean) => {
+    if (approved && currentRequestData && session?.user?.email) {
+      try {
+        // Save to database after approval
+        const requestPayload = {
+          title: currentRequestData.formattedRequest,
+          proof: 'Created via voice recording',
+          help_type: 'Voice request',
+          timeline: 'standard'
+        };
+
+        const saveResponse = await fetch('/api/requests', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestPayload)
+        });
+
+        if (saveResponse.ok) {
+          const newRequest = await saveResponse.json();
+          console.log('✅ Voice request saved successfully:', newRequest);
+          
+          // Refresh the requests list
+          await loadUserRequests();
+          
+          // Reset validation state
+          setShowRequestValidation(false);
+          setCurrentRequestData(null);
+          setVoiceTranscript('');
+          
+          // Go directly to requests page - no success popup
+          setCurrentView('new-get-help');
+          
+          return; // Exit early on success
+        } else {
+          const error = await saveResponse.json();
+          console.error('❌ Failed to save voice request:', error);
+          alert('Failed to save request. Please try again.');
+        }
+      } catch (error) {
+        console.error('❌ Network error saving voice request:', error);
+        alert('Failed to save request. Please try again.');
+      }
+    }
+    
+    // Reset validation state (for reject or error cases)
+    setShowRequestValidation(false);
+    setCurrentRequestData(null);
+    setVoiceTranscript('');
+  };
+
+  const renderRequestValidation = () => {
+    if (!showRequestValidation || !currentRequestData) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="bg-gray-800 rounded-2xl shadow-2xl max-w-sm w-full p-6 border border-gray-700">
+          <h3 className="text-xl font-bold text-white mb-4 text-center">Review Your Request</h3>
+          
+          <div className="bg-gray-700 rounded-lg p-4 mb-6 border border-gray-600">
+            <p className="text-sm text-white leading-relaxed">
+              {currentRequestData.formattedRequest}
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            <button 
+              onClick={() => handleRequestApproval(true)}
+              className="w-full bg-teal-500 text-white py-3 rounded-lg font-semibold hover:bg-teal-600"
+            >
+              Submit This Request
+            </button>
+            <button 
+              onClick={() => handleRequestApproval(false)}
+              className="w-full bg-gray-600 text-gray-300 py-3 rounded-lg font-semibold hover:bg-gray-500"
+            >
+              Try Different Recording
+            </button>
+          </div>
+          
+          <p className="text-center text-xs text-gray-500 mt-4">
+            Review the AI-generated request before submitting
+          </p>
+        </div>
+      </div>
+    );
+  };
+
+  const handleManualRequestSubmit = async () => {
+    if (!helpForm.challenge.trim() || !session?.user?.email) {
+      return;
+    }
+    
+    try {
+      const response = await fetch('/api/requests', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: helpForm.challenge.trim(),
+          proof: 'Manual request entry',
+          help_type: 'Manual request',
+          timeline: 'standard'
+        })
+      });
+
+      if (response.ok) {
+        const newRequest = await response.json();
+        console.log('✅ Manual request saved successfully:', newRequest);
+        
+        // Refresh requests list
+        await loadUserRequests();
+        
+        // Reset and close form
+        setShowBottomSheet(false);
+        setHelpForm({ challenge: '', reason: '', helpType: '' });
+        
+        // No popup - just go to requests page with new card visible
+        setCurrentView('new-get-help');
+      } else {
+        const error = await response.json();
+        console.error('❌ Failed to save manual request:', error);
+        alert('Failed to save request. Please try again.');
+      }
+    } catch (error) {
+      console.error('❌ Network error:', error);
+      alert('Network error. Please try again.');
+    }
+  };
+
+  // Add dynamic limit function
+  const getRecordingTimeLimit = () => {
+    return recordingType === 'request' ? 20 : 30; // 20s for requests, 30s for experience
+  };
+
   return (
     <div className="font-sans">
       {currentView === 'auth' && renderAuth()}
@@ -2511,6 +2798,7 @@ const OneGoodIntroMobile = () => {
       {currentView === 'network' && renderNetwork()}
       {renderModal()}
       {currentView !== 'auth' && renderBottomNav()}
+      {renderRequestValidation()}
 
       {showVoiceValidation && currentVoiceCard && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
