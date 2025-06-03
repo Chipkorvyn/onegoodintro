@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useRef, useEffect } from 'react';
-import { User, CheckCircle, Users, Plus, Zap, Target, Heart, Network, Handshake, MessageCircle, Check, MapPin, Building2, X, Edit, Trash2, Mic, Brain, ArrowRight, TrendingUp } from 'lucide-react';
+import { User, CheckCircle, Users, Plus, Zap, Target, Heart, Network, Handshake, MessageCircle, Check, MapPin, Building2, X, Edit, Trash2, Mic, Brain, ArrowRight, TrendingUp, Phone } from 'lucide-react';
 import { useSession, signIn, signOut } from 'next-auth/react'
 import { supabase, type User as DbUser, type UserProblem, type HelpRequest, timeAgo } from '@/lib/supabase'
 
@@ -991,25 +991,21 @@ const OneGoodIntroMobile = () => {
             </div>
             
             <div className="p-5">
-              {/* Example Section */}
-              <div className="p-4 bg-gray-700 rounded-2xl shadow-sm mb-6 border border-gray-600">
-                <div className="text-sm font-semibold text-teal-400 mb-2">💡 Here's how to share:</div>
-                <div className="text-sm text-gray-300 italic leading-relaxed">
-                  "I can help with managing remote teams because I led 15 people across 4 countries for 3 years."
-                </div>
-              </div>
-
               {/* Template Paragraph */}
               <div className="bg-gray-700 rounded-2xl shadow-sm p-6 mb-6 text-base leading-relaxed border border-gray-600">
                 <div className="text-white">
-                  I can help with{' '}
-                  <span className="inline-block min-w-[120px] px-3 py-1 rounded bg-gray-600 text-gray-300 border border-gray-500">
-                    managing remote teams
-                  </span>{' '}
-                  because{' '}
-                  <span className="inline-block min-w-[120px] px-3 py-1 rounded bg-gray-600 text-gray-300 border border-gray-500">
-                    I led 15 people across 4 countries for 3 years
-                  </span>.
+                  <div className="mb-2">
+                    I can help with{' '}
+                    <span className="inline-block min-w-[120px] px-3 py-1 rounded bg-gray-600 text-gray-300 border border-gray-500">
+                      managing remote teams
+                    </span>
+                  </div>
+                  <div>
+                    because{' '}
+                    <span className="inline-block min-w-[120px] px-3 py-1 rounded bg-gray-600 text-gray-300 border border-gray-500">
+                      I led 15 people across 4 countries for 3 years
+                    </span>.
+                  </div>
                 </div>
               </div>
 
@@ -1018,10 +1014,10 @@ const OneGoodIntroMobile = () => {
                 <button 
                   onMouseDown={handleVoiceRecord}
                   onTouchStart={handleVoiceRecord}
-                  className="w-20 h-20 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center text-white font-semibold mx-auto transition-colors shadow-lg"
+                  className="w-20 h-20 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 rounded-full flex items-center justify-center text-white font-semibold mx-auto transition-all shadow-lg"
                 >
                   <div className="text-center">
-                    <div className="text-2xl mb-1">🔴</div>
+                    <Mic className="w-8 h-8 mb-1" strokeWidth={2.5} />
                     <div className="text-xs">Hold</div>
                   </div>
                 </button>
@@ -1418,20 +1414,19 @@ const OneGoodIntroMobile = () => {
 
         {/* Experience Section */}
         <div className="px-8 py-6">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-lg font-semibold text-white">Experience</h2>
-            <div className="flex items-center gap-4">
-              <div className="text-right">
-                <p className="text-sm font-semibold text-white">Add your experience to connect with others</p>
-                <p className="text-xs text-teal-400">Record and have AI review it</p>
-              </div>
-              <button 
-                onClick={handleVoiceStart}
-                className="text-2xl hover:scale-110 transition-transform"
-              >
-                📞
-              </button>
+          <div className="flex items-center justify-end mb-8">
+            <div className="text-right mr-4">
+              <p className="text-sm font-semibold text-white">Add your experience to connect with others</p>
+              <p className="text-xs text-teal-400">Record and have AI review it</p>
             </div>
+            <button 
+              onClick={handleVoiceStart}
+              className="text-2xl hover:scale-110 transition-transform flex-shrink-0"
+            >
+              <div className="bg-gradient-to-r from-red-500 to-orange-500 p-1 rounded-lg">
+                <Phone className="w-6 h-6 text-white" strokeWidth={2.5} />
+              </div>
+            </button>
           </div>
 
           {/* Experience Cards - Dark Surface Boxes */}
@@ -1759,53 +1754,55 @@ const OneGoodIntroMobile = () => {
               {/* Flowing Paragraph */}
               <div className="bg-gray-700 rounded-2xl shadow-sm p-6 mb-6 text-base leading-relaxed border border-gray-600">
                 <div className="text-white">
-                  I need help with{' '}
-                  <span 
-                    className={`inline-block min-w-[120px] px-3 py-1 rounded cursor-pointer transition-all ${
-                      helpForm.challenge 
-                        ? 'bg-teal-500/20 text-teal-300 border border-teal-500' 
-                        : 'bg-gray-600 text-gray-400 border border-gray-500 hover:bg-gray-500'
-                    }`}
-                    onClick={() => handleFieldClick('challenge')}
-                  >
-                    {getDisplayText('challenge', 'your challenge')}
-                  </span>{' '}
-                  because{' '}
-                  <span 
-                    className={`inline-block min-w-[120px] px-3 py-1 rounded cursor-pointer transition-all ${
-                      helpForm.reason 
-                        ? 'bg-teal-500/20 text-teal-300 border border-teal-500' 
-                        : 'bg-gray-600 text-gray-400 border border-gray-500 hover:bg-gray-500'
-                    }`}
-                    onClick={() => handleFieldClick('reason')}
-                  >
-                    {getDisplayText('reason', 'why it matters')}
-                  </span>.
-                </div>
-                
-                <div className="text-white mt-3">
-                  I'd like to be introduced to someone who can{' '}
-                  <span 
-                    className={`inline-block min-w-[120px] px-3 py-1 rounded cursor-pointer transition-all ${
-                      helpForm.helpType 
-                        ? 'bg-teal-500/20 text-teal-300 border border-teal-500' 
-                        : 'bg-gray-600 text-gray-400 border border-gray-500 hover:bg-gray-500'
-                    }`}
-                    onClick={() => handleFieldClick('helpType')}
-                  >
-                    {getDisplayText('helpType', 'help me with')}
-                  </span>{' '}
-                  within{' '}
-                  <span 
-                    className={`inline-block min-w-[80px] px-3 py-1 rounded cursor-pointer transition-all ${
-                      selectedTimeline 
-                        ? 'bg-teal-500/20 text-teal-300 border border-teal-500' 
-                        : 'bg-gray-600 text-gray-400 border border-gray-500 hover:bg-gray-500'
-                    }`}
-                    onClick={handleTimelineClick}
-                  >
-                    {getTimelineDisplay()}
-                  </span>.
+                  <div className="mb-2">
+                    I need help with{' '}
+                    <span 
+                      className={`inline-block min-w-[120px] px-3 py-1 rounded cursor-pointer transition-all ${
+                        helpForm.challenge 
+                          ? 'bg-teal-500/20 text-teal-300 border border-teal-500' 
+                          : 'bg-gray-600 text-gray-400 border border-gray-500 hover:bg-gray-500'
+                      }`}
+                      onClick={() => handleFieldClick('challenge')}
+                    >
+                      {getDisplayText('challenge', 'your challenge')}
+                    </span>{' '}
+                    because{' '}
+                    <span 
+                      className={`inline-block min-w-[120px] px-3 py-1 rounded cursor-pointer transition-all ${
+                        helpForm.reason 
+                          ? 'bg-teal-500/20 text-teal-300 border border-teal-500' 
+                          : 'bg-gray-600 text-gray-400 border border-gray-500 hover:bg-gray-500'
+                      }`}
+                      onClick={() => handleFieldClick('reason')}
+                    >
+                      {getDisplayText('reason', 'why it matters')}
+                    </span>.
+                  </div>
+                  
+                  <div className="text-white mt-3">
+                    I'd like to be introduced to someone who can{' '}
+                    <span 
+                      className={`inline-block min-w-[120px] px-3 py-1 rounded cursor-pointer transition-all ${
+                        helpForm.helpType 
+                          ? 'bg-teal-500/20 text-teal-300 border border-teal-500' 
+                          : 'bg-gray-600 text-gray-400 border border-gray-500 hover:bg-gray-500'
+                      }`}
+                      onClick={() => handleFieldClick('helpType')}
+                    >
+                      {getDisplayText('helpType', 'help me with')}
+                    </span>{' '}
+                    within{' '}
+                    <span 
+                      className={`inline-block min-w-[80px] px-3 py-1 rounded cursor-pointer transition-all ${
+                        selectedTimeline 
+                          ? 'bg-teal-500/20 text-teal-300 border border-teal-500' 
+                          : 'bg-gray-600 text-gray-400 border border-gray-500 hover:bg-gray-500'
+                      }`}
+                      onClick={handleTimelineClick}
+                    >
+                      {getTimelineDisplay()}
+                    </span>.
+                  </div>
                 </div>
               </div>
 
