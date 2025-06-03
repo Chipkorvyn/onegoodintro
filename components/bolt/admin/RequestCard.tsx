@@ -106,8 +106,8 @@ const RequestCard: React.FC<RequestCardProps> = ({
         </div>
         
         {/* Challenge and context */}
-        <h2 className="text-lg font-semibold text-gray-900 mb-2">{request.challenge}</h2>
-        <p className="text-sm text-gray-600 mb-3">{request.context}</p>
+        <h2 className="text-lg font-semibold text-gray-900 mb-2">{request.title}</h2>
+        <p className="text-sm text-gray-600 mb-3">{request.proof}</p>
         
         {/* Help type */}
         <div className="mb-4">

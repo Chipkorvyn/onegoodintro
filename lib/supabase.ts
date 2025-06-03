@@ -40,16 +40,19 @@ export interface UserProblem {
 export interface HelpRequest {
   id: string
   user_id: string
-  challenge: string
-  reason: string
+  title: string
+  proof: string
   help_type: string
-  timeline: string
-  status: 'active' | 'paused' | 'solved'
+  timeline: 'urgent' | 'standard' | 'flexible'
+  status: 'pending' | 'matched' | 'completed'
   status_text: string
   views: number
   match_count: number
   created_at: string
   updated_at: string
+  challenge?: string
+  reason?: string
+  matching_frequency: 'daily' | 'weekly' | 'off'
 }
 
 // Utility function to format time ago

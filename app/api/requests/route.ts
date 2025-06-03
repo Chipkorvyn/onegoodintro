@@ -9,10 +9,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { challenge, reason, help_type, timeline } = await request.json()
+    const { title, proof, help_type, timeline } = await request.json()
 
     // Validate required fields
-    if (!challenge?.trim() || !reason?.trim() || !help_type?.trim() || !timeline) {
+    if (!title?.trim() || !proof?.trim() || !help_type?.trim() || !timeline) {
       return NextResponse.json({ error: 'All fields are required' }, { status: 400 })
     }
 
@@ -20,8 +20,8 @@ export async function POST(request: NextRequest) {
       .from('help_requests')
       .insert([{
         user_id: session.user.email,
-        challenge: challenge.trim(),
-        reason: reason.trim(),
+        title: title.trim(),
+        proof: proof.trim(),
         help_type: help_type.trim(),
         timeline,
         status: 'active',

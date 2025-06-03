@@ -46,8 +46,8 @@ const AdminDashboard: React.FC = () => {
       const searchLower = filter.searchQuery.toLowerCase();
       return (
         request.userName.toLowerCase().includes(searchLower) ||
-        request.challenge.toLowerCase().includes(searchLower) ||
-        request.context.toLowerCase().includes(searchLower)
+        request.title.toLowerCase().includes(searchLower) ||
+        request.proof.toLowerCase().includes(searchLower)
       );
     }
 

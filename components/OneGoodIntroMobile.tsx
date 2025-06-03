@@ -40,7 +40,6 @@ const OneGoodIntroMobile = () => {
   } | null>(null);
   const [cardsAccepted, setCardsAccepted] = useState<number>(0);
   const [totalAttempts, setTotalAttempts] = useState<number>(0);
-  // Add this to your state declarations
   const [resumeConversationHistory, setResumeConversationHistory] = useState<any[]>([]);
 
   // LinkedIn state
@@ -482,7 +481,7 @@ const OneGoodIntroMobile = () => {
   };
 
   // Define proper types
-  type ActiveFieldType = 'challenge' | 'reason' | 'helpType' | 'about' | 'linkedin' | 'name' | null;
+  type ActiveFieldType = 'challenge' | 'reason' | 'helpType' | 'name' | 'about' | 'linkedin' | null;
   type ModalIconType = 'handshake' | 'check' | 'heart';
 
   // State management
@@ -497,23 +496,18 @@ const OneGoodIntroMobile = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [showBottomSheet, setShowBottomSheet] = useState<boolean>(false);
-  const [selectedTimeline, setSelectedTimeline] = useState<string>('');
-  const [expandedCard, setExpandedCard] = useState<string | null>(null);
+  const [matchingFrequency, setMatchingFrequency] = useState<'daily' | 'weekly' | 'off'>('daily');
+  const [editingRequest, setEditingRequest] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState<boolean>(false);
-  const [newProblem, setNewProblem] = useState<{
-    title: string;
-    proof: string;
-  }>({ title: '', proof: '' });
-  const [showTimelineChips, setShowTimelineChips] = useState<boolean>(false);
-  const [helpForm, setHelpForm] = useState<{
-    challenge: string;
-    reason: string;
-    helpType: string;
-  }>({
+  const [newProblem, setNewProblem] = useState<Partial<HelpRequest>>({});
+  const [showTimelineChips, setShowTimelineChips] = useState(false);
+  const [helpForm, setHelpForm] = useState({
     challenge: '',
     reason: '',
     helpType: ''
   });
+  const [selectedTimeline, setSelectedTimeline] = useState<'urgent' | 'standard' | 'flexible'>('standard');
+  const [activeField, setActiveField] = useState<ActiveFieldType>(null);
 
   // Enhanced profile editing state
   const [editingField, setEditingField] = useState<string | null>(null);
@@ -524,7 +518,6 @@ const OneGoodIntroMobile = () => {
   const [resumeStatus, setResumeStatus] = useState<'empty' | 'processing' | 'complete'>('empty');
   const [resumeValue, setResumeValue] = useState<string>('');
   const [showAISuggestions, setShowAISuggestions] = useState<boolean>(false);
-  const [activeField, setActiveField] = useState<ActiveFieldType>(null);
 
   // Problem editing state
   const [editingProblem, setEditingProblem] = useState<string | null>(null);
@@ -563,8 +556,8 @@ const OneGoodIntroMobile = () => {
     }
     
     console.log('Submitting request...', {
-      challenge: helpForm.challenge,
-      reason: helpForm.reason,
+      title: helpForm.challenge,
+      proof: helpForm.reason,
       help_type: helpForm.helpType,
       timeline: selectedTimeline
     })
@@ -576,8 +569,8 @@ const OneGoodIntroMobile = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          challenge: helpForm.challenge.trim(),
-          reason: helpForm.reason.trim(),
+          title: helpForm.challenge.trim(),
+          proof: helpForm.reason.trim(),
           help_type: helpForm.helpType.trim(),
           timeline: selectedTimeline
         })
@@ -592,7 +585,7 @@ const OneGoodIntroMobile = () => {
         // Reset form
         setShowBottomSheet(false)
         setHelpForm({ challenge: '', reason: '', helpType: '' })
-        setSelectedTimeline('')
+        setSelectedTimeline('standard')
         setActiveField(null)
         setShowTimelineChips(false)
         
@@ -634,19 +627,38 @@ const OneGoodIntroMobile = () => {
   };
 
   const handleAddProblem = () => {
-    if (newProblem.title.trim() && newProblem.proof.trim()) {
-      setNewProblem({ title: '', proof: '' });
-      setShowAddForm(false);
-    }
+    if (!session?.user?.email) return;
+
+    const newUserProblem: UserProblem = {
+      id: crypto.randomUUID(),
+      user_id: session.user.email,
+      title: helpForm.challenge,
+      proof: helpForm.reason,
+      verified: false,
+      helped_count: 0,
+      ai_generated: false,
+      created_at: new Date().toISOString()
+    };
+
+    setUserProblems(prev => [...prev, newUserProblem]);
+    setHelpForm({ challenge: '', reason: '', helpType: '' });
+    setSelectedTimeline('standard');
+    setActiveField(null);
+    setShowTimelineChips(false);
   };
 
   // Problem editing functions
   const handleEditProblem = (problem: UserProblem) => {
-    setEditingProblem(problem.id);
     setEditingProblemData({
       title: problem.title,
       proof: problem.proof
     });
+    setUserProblems(prev => prev.map(p => 
+      p.id === problem.id
+        ? { ...problem, title: editingProblemData.title, proof: editingProblemData.proof }
+        : p
+    ));
+    setEditingProblemData({ title: '', proof: '' });
   };
 
   const handleDeleteProblem = async (problemId: string) => {
@@ -677,37 +689,31 @@ const OneGoodIntroMobile = () => {
     }
   };
 
-  const handleSaveProblem = async (problemId: string) => {
+  const handleSaveProblem = async (problem: string) => {
     if (!session?.user?.email) return;
     
     try {
-      const { error } = await supabase
-        .from('user_problems')
-        .update({
-          title: editingProblemData.title,
-          proof: editingProblemData.proof
-        })
-        .eq('id', problemId)
-        .eq('user_id', session.user.email);
+      const { data, error } = await supabase
+        .from('user_requests')
+        .insert([
+          {
+            user_id: session.user.email,
+            challenge: problem,
+            status: 'pending',
+            status_text: 'Waiting for match',
+            matching_frequency: matchingFrequency
+          }
+        ])
+        .select()
+        .single();
 
-      if (!error) {
-        // Update local state
-        setUserProblems(prev => 
-          prev.map(problem => 
-            problem.id === problemId 
-              ? { ...problem, title: editingProblemData.title, proof: editingProblemData.proof }
-              : problem
-          )
-        );
-        setEditingProblem(null);
-        setEditingProblemData({ title: '', proof: '' });
-      } else {
-        console.error('Error updating problem:', error);
-        alert('Failed to update card. Please try again.');
-      }
+      if (error) throw error;
+
+      setUserRequests(prev => [data, ...prev]);
+      setShowBottomSheet(false);
+      setHelpForm({ challenge: '', reason: '', helpType: '' });
     } catch (error) {
-      console.error('Error updating problem:', error);
-      alert('Failed to update card. Please try again.');
+      console.error('Error saving problem:', error);
     }
   };
 
@@ -736,21 +742,7 @@ const OneGoodIntroMobile = () => {
 
   // Enhanced profile field handlers with database integration
   const handleProfileFieldClick = (fieldName: ActiveFieldType) => {
-    setEditingField(fieldName);
-    if (fieldName === 'about') {
-      setFieldValues({ ...fieldValues, about: profileData.current || '' });
-    } else if (fieldName === 'name') {
-      setFieldValues({ ...fieldValues, name: profileData.name });
-    } else if (fieldName && fieldName !== 'challenge' && fieldName !== 'reason' && fieldName !== 'helpType' && fieldName !== 'linkedin' && fieldName !== 'about' && fieldName !== 'name') {
-      setFieldValues({ ...fieldValues, [fieldName]: profileData[fieldName as keyof typeof profileData] });
-    }
-    setTimeout(() => {
-      if (fieldName === 'about' && aboutRef.current) {
-        aboutRef.current.focus();
-      } else if (fieldName && fieldName !== 'about' && inputRefs[fieldName as keyof typeof inputRefs]?.current) {
-        inputRefs[fieldName as keyof typeof inputRefs].current?.focus();
-      }
-    }, 0);
+    setActiveField(fieldName);
   };
 
   const handleProfileFieldChange = (fieldName: string, value: string) => {
@@ -958,10 +950,9 @@ const OneGoodIntroMobile = () => {
 
   const handleTimelineClick = () => {
     setShowTimelineChips(true);
-    setActiveField(null);
   };
 
-  const handleTimelineSelect = (timeline: string) => {
+  const handleTimelineSelect = (timeline: 'urgent' | 'standard' | 'flexible') => {
     setSelectedTimeline(timeline);
     setShowTimelineChips(false);
   };
@@ -1414,14 +1405,14 @@ const OneGoodIntroMobile = () => {
       </div>
       {/* Experience Section - moved outside */}
       <div className="px-5 space-y-8">
-        <div className="flex items-center justify-end mb-8">
-          <div className="text-right mr-6">
+        <div className="flex items-center mb-6 mt-2 px-5 justify-end">
+          <div className="flex flex-col items-end mr-4">
             <p className="text-lg font-bold text-white">Add your experience to connect with others</p>
             <p className="text-base text-teal-400">Record and have AI review it</p>
           </div>
           <button 
             onClick={handleVoiceStart}
-            className="text-3xl hover:scale-110 transition-transform flex-shrink-0"
+            className="text-3xl hover:scale-110 transition-transform flex-shrink-0 mr-4"
           >
             <div className="bg-gradient-to-r from-red-500 to-orange-500 p-2 rounded-xl">
               <Phone className="w-8 h-8 text-white" strokeWidth={2.5} />
@@ -1511,16 +1502,6 @@ const OneGoodIntroMobile = () => {
             </div>
           ))}
         </div>
-
-        {/* Add Button */}
-        <div className="text-center mt-6">
-          <button 
-            onClick={handleVoiceStart}
-            className="w-10 h-10 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 rounded-full flex items-center justify-center text-white transition-all"
-          >
-            <Plus className="h-5 w-5" />
-          </button>
-        </div>
       </div>
       {/* LinkedIn Profile Section - RESTORED EDITING */}
       <div className="max-w-lg mx-auto mb-6 px-8">
@@ -1599,289 +1580,205 @@ const OneGoodIntroMobile = () => {
   // Keep existing render functions for other views (renderNewGetHelp, etc.) but update their backgrounds
   const renderNewGetHelp = () => (
     <div className="min-h-screen bg-gray-900 pb-20">
-      <div className="fixed top-0 left-0 right-0 z-50 bg-gray-800/90 backdrop-blur-md px-5 py-4 flex items-center justify-between border-b border-gray-700">
-        <button 
-          onClick={() => setCurrentView('full-profile')}
-          className="text-white text-lg hover:text-gray-300 hover:bg-gray-700 transition-all px-3 py-2 rounded-lg"
-        >
-          ←
-        </button>
-        <div className="text-lg font-semibold text-white">Your Requests</div>
-        <button 
-          onClick={() => setShowBottomSheet(true)}
-          className="bg-teal-500 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-teal-600"
-        >
-          New
-        </button>
+      {/* Removed fixed top bar to move content up */}
+      <div className="max-w-2xl mx-auto px-5 py-10 bg-gray-900">
+        <h1 className="text-2xl font-bold text-white mb-1 text-left">What help do you need?</h1>
+        <p className="mb-3 text-left">
+          <span className="text-teal-400">✓ Peer advice & insights</span> • 
+          <span className="text-teal-400">✓ Professional introductions</span> • 
+          <span className="text-red-400">✗ Sales & recruiting</span>
+        </p>
       </div>
-
-      <div className="pt-20">
-        <div className="max-w-2xl mx-auto px-5 py-10 text-center bg-gray-900">
-          <h1 className="text-2xl font-bold text-white mb-3">What help do you need?</h1>
-          <p className="text-gray-400 mb-4">Weekly matching • Keep 2-3 requests active for best matches</p>
-          <p className="mb-8"><span className="text-teal-400">✓ Peer advice & insights</span> • <span className="text-teal-400">✓ Professional introductions</span> • <span className="text-red-400">✗ Sales & recruiting</span></p>
-          
-          <div className="flex justify-center gap-8 p-5 bg-gray-800 rounded-2xl shadow-sm border border-gray-700">
-            <div className="text-center">
-              <span className="text-2xl font-bold text-white block">{userRequests.filter(r => r.status === 'active').length}</span>
-              <div className="text-xs text-gray-400 uppercase tracking-wide">Active Requests</div>
+      {/* Experience section - match profile page exactly */}
+      <div className="px-5 space-y-4">
+        <div className="flex items-center justify-between mb-6 mt-2">
+          <div className="flex">
+            {(['daily', 'weekly', 'off'] as const).map((option, index) => (
+              <button
+                key={option}
+                onClick={() => setMatchingFrequency(option)}
+                className={`
+                  px-3 py-1.5 text-sm font-medium transition-colors
+                  ${index === 0 ? 'rounded-l-md' : ''}
+                  ${index === 2 ? 'rounded-r-md' : ''}
+                  ${matchingFrequency === option 
+                    ? 'bg-teal-600 text-white' 
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  }
+                  border border-gray-600
+                  ${index > 0 ? 'border-l-0' : ''}
+                `}
+              >
+                {option.charAt(0).toUpperCase() + option.slice(1)}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="text-right">
+              <p className="text-lg font-bold text-white">Add your request</p>
+              <p className="text-base text-teal-400">Record and have AI review it</p>
             </div>
-            <div className="text-center">
-              <span className="text-2xl font-bold text-white block">5</span>
-              <div className="text-xs text-gray-400 uppercase tracking-wide">People Helped</div>
-            </div>
-            <div className="text-center">
-              <span className="text-2xl font-bold text-white block">12</span>
-              <div className="text-xs text-gray-400 uppercase tracking-wide">Introductions Made</div>
-            </div>
+            <button 
+              onClick={handleVoiceStart}
+              className="text-3xl hover:scale-110 transition-transform flex-shrink-0"
+            >
+              <div className="bg-teal-500 p-2 rounded-xl">
+                <Phone className="w-8 h-8 text-white" strokeWidth={2.5} />
+              </div>
+            </button>
           </div>
         </div>
         
-        <div className="px-5 space-y-8">
-          <div className="flex items-center justify-between mb-5">
-            <div className="text-lg font-semibold text-white">Your Requests</div>
-            <div className="flex bg-gray-800 rounded-full p-1 border border-gray-700">
-              <button className="bg-teal-500 text-white px-4 py-2 rounded-full text-xs font-semibold">All</button>
-              <button className="text-gray-400 px-4 py-2 rounded-full text-xs font-semibold">Active</button>
+        <div className="space-y-6">
+          {loadingRequests ? (
+            <div className="text-center py-8">
+              <div className="w-6 h-6 border-2 border-gray-600 border-t-teal-400 rounded-full animate-spin mx-auto mb-2"></div>
+              <p className="text-gray-500">Loading your requests...</p>
             </div>
-          </div>
-          
-          <div className="space-y-6">
-            {loadingRequests ? (
-              <div className="text-center py-8">
-                <div className="w-6 h-6 border-2 border-gray-600 border-t-teal-400 rounded-full animate-spin mx-auto mb-2"></div>
-                <p className="text-gray-500">Loading your requests...</p>
-              </div>
-            ) : userRequests.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-gray-500 mb-4">No requests yet</p>
-                <button 
-                  onClick={() => setShowBottomSheet(true)}
-                  className="text-teal-400 font-medium"
-                >
-                  Create your first request
-                </button>
-              </div>
-            ) : (
-              userRequests.map(request => (
+          ) : userRequests.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-gray-500 mb-4">No requests yet</p>
+              <button 
+                onClick={() => setShowBottomSheet(true)}
+                className="text-teal-400 font-medium"
+              >
+                Create your first request
+              </button>
+            </div>
+          ) : (
+            <>
+              {userRequests.map(request => (
                 <div 
                   key={request.id}
-                  className={`bg-gray-800 rounded-2xl shadow-sm cursor-pointer transition-all duration-300 overflow-hidden hover:shadow-md border border-gray-700 ${
-                    expandedCard === request.id ? 'transform -translate-y-1 shadow-lg' : ''
-                  }`}
-                  onClick={() => setExpandedCard(expandedCard === request.id ? null : request.id)}
+                  className="bg-gray-800 rounded-2xl shadow-sm cursor-pointer transition-all duration-300 overflow-hidden hover:shadow-md border border-gray-700"
                 >
                   <div className="p-5 relative">
-                    <div className={`absolute top-4 right-4 text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wide ${
-                      request.status === 'active' ? 'bg-teal-500 text-white' :
-                      request.status === 'paused' ? 'bg-gray-600 text-gray-300' :
-                      'bg-gray-700 text-white'
-                    }`}>
-                      {request.status}
+                    {/* Status Badge and Actions */}
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="text-xs text-gray-400 flex items-center gap-2">
+                        <span>{timeAgo(request.created_at)}</span>
+                        <div className="w-1 h-1 bg-current rounded-full"></div>
+                        <span className={`${
+                          request.status === 'matched' ? 'text-teal-400' :
+                          request.status === 'pending' ? 'text-yellow-400' :
+                          'text-gray-400'
+                        }`}>
+                          {request.status_text}
+                        </span>
+                      </div>
+                      <div className="flex gap-1">
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditRequest(request.id);
+                          }}
+                          className="text-teal-400 hover:bg-gray-700 p-1.5 rounded transition-colors"
+                          title="Edit request"
+                        >
+                          <Edit className="h-3 w-3" />
+                        </button>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteRequest(request.id);
+                          }}
+                          className="text-teal-400 hover:bg-gray-700 p-1.5 rounded transition-colors"
+                          title="Delete request"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
                     </div>
-                    <div className="text-sm font-semibold text-white mb-3 mr-20 leading-tight">
+
+                    <div className="text-sm font-semibold text-white mb-3 leading-tight">
                       "{request.challenge}"
                     </div>
-                    <div className="text-xs text-gray-400 flex items-center gap-2">
-                      <span>{timeAgo(request.created_at)}</span>
-                      <div className="w-1 h-1 bg-current rounded-full"></div>
-                      <span>{request.status_text}</span>
-                    </div>
                   </div>
-                  {expandedCard === request.id && (
-                    <div className="px-5 pb-5 transition-all duration-300">
-                      <div className="mb-3">
-                        <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-1">Context</div>
-                        <div className="text-sm text-gray-300 leading-relaxed">{request.reason}</div>
-                      </div>
-                      <div>
-                        <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-1">Looking for</div>
-                        <div className="text-sm text-gray-300 leading-relaxed">{request.help_type}</div>
-                      </div>
-                      <div className="mt-3">
-                        <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-1">Timeline</div>
-                        <div className="text-sm text-gray-300">{request.timeline}</div>
-                      </div>
-                    </div>
-                  )}
                 </div>
-              ))
-            )}
-            
-            <div 
-              className="bg-gray-800 rounded-2xl shadow-sm p-10 text-center cursor-pointer transition-all duration-300 hover:shadow-md hover:transform hover:-translate-y-0.5 border border-gray-700"
-              onClick={() => setShowBottomSheet(true)}
-            >
-              <div className="text-3xl mb-3 text-gray-400">+</div>
-              <div className="text-sm font-semibold mb-1 text-white">New request</div>
-              <div className="text-xs text-gray-400">What help do you need?</div>
-            </div>
-          </div>
+              ))}
+              
+              <div 
+                className="bg-gray-800 rounded-2xl shadow-sm p-10 text-center cursor-pointer transition-all duration-300 hover:shadow-md hover:transform hover:-translate-y-0.5 border border-gray-700"
+                onClick={() => setShowBottomSheet(true)}
+              >
+                <div className="text-3xl mb-3 text-gray-400">+</div>
+                <div className="text-sm font-semibold mb-1 text-white">New request</div>
+                <div className="text-xs text-gray-400">What help do you need?</div>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
       {/* Bottom Sheet - Dark Theme */}
       {showBottomSheet && (
-        <>
-          <div 
-            className="fixed inset-0 bg-black bg-opacity-40 z-50"
-            onClick={() => setShowBottomSheet(false)}
-          ></div>
-          <div className="fixed bottom-0 left-0 right-0 bg-gray-800 rounded-t-2xl z-50 max-h-[85vh] overflow-y-auto shadow-2xl border-t border-gray-700">
-            {/* Header */}
-            <div className="p-5 text-center relative">
-              <div className="w-10 h-1 bg-gray-600 rounded-full mx-auto mb-4"></div>
-              <div className="text-lg font-bold text-white">What help do you need?</div>
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end">
+          <div className="bg-gray-900 w-full rounded-t-3xl p-5 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-semibold text-white">New Request</h2>
               <button 
-                className="absolute top-4 right-4 text-gray-400 text-2xl hover:bg-gray-700 transition-all w-10 h-10 rounded-full flex items-center justify-center"
                 onClick={() => setShowBottomSheet(false)}
+                className="text-gray-400 hover:text-white"
               >
-                ×
+                <X size={24} />
               </button>
             </div>
             
-            <div className="p-5">
-              {/* Example Section */}
-              <div className="p-4 bg-gray-700 rounded-2xl shadow-sm mb-6 border border-gray-600">
-                <div className="text-sm font-semibold text-teal-400 mb-2">💡 Here's how others ask:</div>
-                <div className="text-sm text-gray-300 italic leading-relaxed">
-                  "I need help with choosing between two job offers because both have pros and cons. 
-                  I'd like to be introduced to someone who can share career decision frameworks within 1 week."
-                </div>
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  What help do you need?
+                </label>
+                <textarea
+                  value={helpForm.challenge}
+                  onChange={(e) => setHelpForm(prev => ({ ...prev, challenge: e.target.value }))}
+                  placeholder="Describe what you're looking for help with..."
+                  className="w-full bg-gray-800 text-white rounded-lg p-3 text-sm border border-gray-700 focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  rows={3}
+                />
               </div>
-
-              {/* Flowing Paragraph */}
-              <div className="bg-gray-700 rounded-2xl shadow-sm p-6 mb-6 text-base leading-relaxed border border-gray-600">
-                <div className="text-white">
-                  <div className="mb-2">
-                    I need help with{' '}
-                    <span 
-                      className={`inline-block min-w-[120px] px-3 py-1 rounded cursor-pointer transition-all ${
-                        helpForm.challenge 
-                          ? 'bg-teal-500/20 text-teal-300 border border-teal-500' 
-                          : 'bg-gray-600 text-gray-400 border border-gray-500 hover:bg-gray-500'
-                      }`}
-                      onClick={() => handleFieldClick('challenge')}
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  Connection Frequency
+                </label>
+                <div className="flex">
+                  {(['daily', 'weekly', 'off'] as const).map((option, index) => (
+                    <button
+                      key={option}
+                      onClick={() => setMatchingFrequency(option)}
+                      className={`
+                        flex-1 px-3 py-2 text-sm font-medium transition-colors
+                        ${index === 0 ? 'rounded-l-md' : ''}
+                        ${index === 2 ? 'rounded-r-md' : ''}
+                        ${matchingFrequency === option 
+                          ? 'bg-teal-600 text-white' 
+                          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                        }
+                        border border-gray-600
+                        ${index > 0 ? 'border-l-0' : ''}
+                      `}
                     >
-                      {getDisplayText('challenge', 'your challenge')}
-                    </span>{' '}
-                    because{' '}
-                    <span 
-                      className={`inline-block min-w-[120px] px-3 py-1 rounded cursor-pointer transition-all ${
-                        helpForm.reason 
-                          ? 'bg-teal-500/20 text-teal-300 border border-teal-500' 
-                          : 'bg-gray-600 text-gray-400 border border-gray-500 hover:bg-gray-500'
-                      }`}
-                      onClick={() => handleFieldClick('reason')}
-                    >
-                      {getDisplayText('reason', 'why it matters')}
-                    </span>.
-                  </div>
-                  
-                  <div className="text-white mt-3">
-                    I'd like to be introduced to someone who can{' '}
-                    <span 
-                      className={`inline-block min-w-[120px] px-3 py-1 rounded cursor-pointer transition-all ${
-                        helpForm.helpType 
-                          ? 'bg-teal-500/20 text-teal-300 border border-teal-500' 
-                          : 'bg-gray-600 text-gray-400 border border-gray-500 hover:bg-gray-500'
-                      }`}
-                      onClick={() => handleFieldClick('helpType')}
-                    >
-                      {getDisplayText('helpType', 'help me with')}
-                    </span>{' '}
-                    within{' '}
-                    <span 
-                      className={`inline-block min-w-[80px] px-3 py-1 rounded cursor-pointer transition-all ${
-                        selectedTimeline 
-                          ? 'bg-teal-500/20 text-teal-300 border border-teal-500' 
-                          : 'bg-gray-600 text-gray-400 border border-gray-500 hover:bg-gray-500'
-                      }`}
-                      onClick={handleTimelineClick}
-                    >
-                      {getTimelineDisplay()}
-                    </span>.
-                  </div>
-                </div>
-              </div>
-
-              {/* Inline Input Field */}
-              {activeField && (
-                <div className="mb-4">
-                  <div className="text-sm font-medium text-gray-300 mb-2">
-                    {activeField === 'challenge' && 'What do you need help with?'}
-                    {activeField === 'reason' && 'Why does this matter to you?'}
-                    {activeField === 'helpType' && 'What kind of help would be most valuable?'}
-                  </div>
-                  <div className="relative">
-                    <input
-                      ref={inputRefs[activeField]}
-                      type="text"
-                      value={activeField && (activeField === 'challenge' || activeField === 'reason' || activeField === 'helpType') ? helpForm[activeField] : ''}
-                      onChange={(e) => handleInputChange(activeField || '', e.target.value)}
-                      onBlur={handleInputBlur}
-                      className="w-full bg-gray-700 border border-gray-600 rounded-lg p-3 text-base focus:ring-2 focus:ring-teal-500 focus:border-transparent text-white"
-                      placeholder={
-                        activeField === 'challenge' ? 'relocating to Edinburgh for this role' :
-                        activeField === 'reason' ? 'it\'s a great opportunity but I\'m concerned about work-life balance' :
-                        'share insights about working in Scotland'
-                      }
-                      maxLength={activeField === 'challenge' ? 80 : activeField === 'reason' ? 100 : 60}
-                    />
-                    <button 
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-teal-400 hover:text-teal-300"
-                      onClick={() => setActiveField(null)}
-                    >
-                      ✓
+                      {option.charAt(0).toUpperCase() + option.slice(1)}
                     </button>
-                  </div>
-                  <div className="text-xs text-gray-500 mt-1">
-                    {activeField && (activeField === 'challenge' || activeField === 'reason' || activeField === 'helpType') 
-                      ? (helpForm[activeField]?.length || 0) 
-                      : 0} / {activeField === 'challenge' ? 80 : activeField === 'reason' ? 100 : 60} characters
-                  </div>
+                  ))}
                 </div>
-              )}
-
-              {/* Timeline Chips */}
-              {showTimelineChips && (
-                <div className="mb-4">
-                  <div className="text-sm font-medium text-gray-300 mb-2">When do you need this?</div>
-                  <div className="grid grid-cols-3 gap-3">
-                    {[
-                      { value: '1 week', label: '1 week', desc: 'ASAP' },
-                      { value: '2 weeks', label: '2 weeks', desc: 'Soon' },
-                      { value: 'flexible', label: 'Flexible', desc: 'This month' }
-                    ].map((timeline) => (
-                      <div
-                        key={timeline.value}
-                        className="border bg-gray-700 rounded-lg p-3 text-center cursor-pointer transition-all border-gray-600 hover:border-teal-400 hover:bg-gray-600"
-                        onClick={() => handleTimelineSelect(timeline.value)}
-                      >
-                        <div className="text-sm font-semibold mb-1 text-white">{timeline.label}</div>
-                        <div className="text-xs text-gray-400">{timeline.desc}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-            
-            <div className="p-5">
+              </div>
+              
               <button
-                className={`w-full py-4 rounded-lg text-base font-semibold transition-all ${
-                  validateHelpForm()
+                onClick={() => handleSaveProblem(helpForm.challenge)}
+                disabled={!helpForm.challenge.trim()}
+                className={`w-full py-3 rounded-lg text-sm font-semibold ${
+                  helpForm.challenge.trim()
                     ? 'bg-teal-500 text-white hover:bg-teal-600'
-                    : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                    : 'bg-gray-700 text-gray-400 cursor-not-allowed'
                 }`}
-                disabled={!validateHelpForm()}
-                onClick={submitHelpRequest}
               >
-                Add Request
+                Submit Request
               </button>
             </div>
           </div>
-        </>
+        </div>
       )}
     </div>
   );
@@ -2425,6 +2322,146 @@ const OneGoodIntroMobile = () => {
       </div>
     </div>
   );
+
+  const handleDeleteRequest = (requestId: string) => {
+    setUserRequests(prev => prev.filter(req => req.id !== requestId));
+  };
+
+  const handleEditRequest = (requestId: string) => {
+    setEditingRequest(requestId);
+    const request = userRequests.find(req => req.id === requestId);
+    if (request) {
+      setNewProblem({
+        id: request.id,
+        user_id: request.user_id,
+        title: request.title,
+        proof: request.proof,
+        help_type: request.help_type,
+        timeline: request.timeline,
+        status: request.status,
+        status_text: request.status_text,
+        views: request.views,
+        match_count: request.match_count,
+        created_at: request.created_at,
+        updated_at: request.updated_at
+      });
+      setShowAddForm(true);
+    }
+  };
+
+  const handleSaveEdit = () => {
+    if (!newProblem.id || !newProblem.title || !newProblem.proof || !newProblem.help_type || !newProblem.timeline) {
+      return;
+    }
+
+    setUserRequests(prev => prev.map(req => 
+      req.id === newProblem.id 
+        ? {
+            ...req,
+            title: newProblem.title!,
+            proof: newProblem.proof!,
+            help_type: newProblem.help_type!,
+            timeline: newProblem.timeline!,
+            updated_at: new Date().toISOString()
+          }
+        : req
+    ));
+    setEditingRequest(null);
+    setNewProblem({});
+    setShowAddForm(false);
+  };
+
+  const renderRequestsPage = () => {
+    return (
+      <div className="flex flex-col h-full">
+        <div className="p-4 border-b border-gray-200">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold">My Requests</h2>
+            <button
+              onClick={() => setShowAddForm(true)}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Add Request
+            </button>
+          </div>
+          <div className="flex items-center space-x-4">
+            <div className="flex-1">
+              <input
+                type="text"
+                placeholder="Search requests..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-gray-600">Matching:</span>
+              <select
+                value={matchingFrequency}
+                onChange={(e) => setMatchingFrequency(e.target.value as 'daily' | 'weekly' | 'off')}
+                className="px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="off">Off</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4">
+          {userRequests.map((request) => (
+            <div
+              key={request.id}
+              className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4"
+            >
+              <div className="flex justify-between items-start mb-3">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">{request.challenge}</h3>
+                  <p className="text-sm text-gray-600 mt-1">{request.reason}</p>
+                </div>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => handleEditRequest(request.id)}
+                    className="p-2 text-gray-600 hover:text-blue-600"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => handleDeleteRequest(request.id)}
+                    className="p-2 text-gray-600 hover:text-red-600"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-gray-600">Help Type: <span className="text-gray-900">{request.help_type}</span></p>
+                  <p className="text-gray-600">Timeline: <span className="text-gray-900">{request.timeline}</span></p>
+                  <p className="text-gray-600">Status: <span className="text-gray-900">{request.status}</span></p>
+                </div>
+                <div>
+                  <p className="text-gray-600">Views: <span className="text-gray-900">{request.views}</span></p>
+                  <p className="text-gray-600">Matches: <span className="text-gray-900">{request.match_count}</span></p>
+                  <p className="text-gray-600">Created: <span className="text-gray-900">{timeAgo(request.created_at)}</span></p>
+                </div>
+              </div>
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Status: {request.status_text}</span>
+                  <span className="text-sm text-gray-600">Last Updated: {timeAgo(request.updated_at)}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="font-sans">
