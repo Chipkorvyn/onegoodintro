@@ -1112,12 +1112,6 @@ const OneGoodIntroMobile = () => {
         <div className="flex items-center gap-2 ml-3 flex-shrink-0">
           {showSuccess && <Check className="h-4 w-4 text-teal-400 animate-pulse" />}
           {isSaving && <div className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin" />}
-          <button 
-            onClick={() => handleProfileFieldClick(fieldName as ActiveFieldType)}
-            className="text-teal-400 text-sm font-medium hover:text-teal-300 hover:bg-gray-700 transition-all px-3 py-2 rounded-lg"
-          >
-            [Edit]
-          </button>
         </div>
       </div>
     );
@@ -1639,11 +1633,6 @@ const OneGoodIntroMobile = () => {
           <div className="p-4 relative">
             <div className="flex items-start justify-between mb-3">
               <h3 className="text-xs text-gray-400 uppercase tracking-wide">Professional background</h3>
-              <div className="flex gap-1">
-                <button className="text-teal-400 hover:bg-gray-700 p-1 rounded transition-colors">
-                  <Edit className="h-3 w-3" />
-                </button>
-              </div>
             </div>
             
             <div className="grid grid-cols-2 gap-2">
@@ -1749,16 +1738,8 @@ const OneGoodIntroMobile = () => {
         {/* Learning Section - Expanded */}
         <div className="bg-gray-800 w-full rounded-xl shadow-lg hover:shadow-xl transition-all border border-gray-700 p-8 mb-6">
           <div className="relative">
-            <div className="flex items-start justify-between mb-6">
+            <div className="mb-6">
               <h3 className="text-base text-gray-400 font-medium">What I'm learning now</h3>
-              <div className="flex gap-1">
-                <button 
-                  onClick={() => handleProfileFieldClick('learning_focus')}
-                  className="text-teal-400 hover:bg-gray-700 p-2 rounded transition-colors"
-                >
-                  <Edit className="h-4 w-4" />
-                </button>
-              </div>
             </div>
             {editingField === 'learning_focus' ? (
               <div className="space-y-3">
@@ -1800,18 +1781,9 @@ const OneGoodIntroMobile = () => {
         {/* Projects Section - Compact */}
         <div className="bg-gray-800 w-full rounded-lg shadow-sm border-2 border-orange-400 mb-6">
           <div className="p-4 relative">
-            <div className="flex items-start justify-between mb-3">
+            <div className="mb-3">
               <h3 className="text-xs text-orange-400 uppercase tracking-wide">What I'm working on</h3>
-              <div className="flex gap-1">
-                <button 
-                  onClick={() => handleProfileFieldClick('project_description')}
-                  className="text-orange-400 hover:bg-gray-700 p-1 rounded transition-colors"
-                >
-                  <Edit className="h-3 w-3" />
-                </button>
-              </div>
             </div>
-            
             {editingField === 'project_description' ? (
               <div className="space-y-3">
                 <textarea
