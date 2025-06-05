@@ -4,15 +4,41 @@ import { User, CheckCircle, Users, Plus, Zap, Target, Heart, Network, Handshake,
 import { useSession, signIn, signOut } from 'next-auth/react'
 import { supabase, type User as DbUser, type UserProblem, type HelpRequest, timeAgo } from '@/lib/supabase'
 
+// Define proper types
+type ActiveFieldType = 'challenge' | 'reason' | 'helpType' | 'name' | 'about' | 'linkedin' | 'role_title' | 'industry' | 'experience_years' | 'focus_area' | 'learning_focus' | 'project_description' | 'project_url' | null;
+type ModalIconType = 'handshake' | 'check' | 'heart';
+
+// Add ProfileData type definition
+type ProfileData = {
+  name: string;
+  current: string;
+  background: string;
+  personal: string;
+  role_title: string;
+  industry: string;
+  experience_years: string;
+  focus_area: string;
+  learning_focus: string;
+  project_description: string;
+  project_url: string;
+};
+
 const OneGoodIntroMobile = () => {
   
   // Session and user data
   const { data: session, status } = useSession()
-  const [profileData, setProfileData] = useState({
+  const [profileData, setProfileData] = useState<ProfileData>({
     name: '',
     current: '',
     background: '',
-    personal: ''
+    personal: '',
+    role_title: '',
+    industry: '',
+    experience_years: '',
+    focus_area: '',
+    learning_focus: '',
+    project_description: '',
+    project_url: ''
   })
   const [userProblems, setUserProblems] = useState<UserProblem[]>([])
   const [userRequests, setUserRequests] = useState<HelpRequest[]>([])
@@ -154,7 +180,16 @@ const OneGoodIntroMobile = () => {
     // Load or create user profile
     let { data: user } = await supabase
       .from('users')
-      .select('*')
+      .select(`
+        *,
+        role_title,
+        industry, 
+        experience_years,
+        focus_area,
+        learning_focus,
+        project_description,
+        project_url
+      `)
       .eq('email', userEmail)
       .single()
 
@@ -216,7 +251,14 @@ const OneGoodIntroMobile = () => {
         name: user.name || '',
         current: user.current_focus,
         background: user.background,
-        personal: user.personal_info
+        personal: user.personal_info,
+        role_title: user.role_title || '',
+        industry: user.industry || '',
+        experience_years: user.experience_years || '',
+        focus_area: user.focus_area || '',
+        learning_focus: user.learning_focus || '',
+        project_description: user.project_description || '',
+        project_url: user.project_url || ''
       })
       setLinkedinUrl(user.linkedin_url || '')
     }
@@ -391,7 +433,6 @@ const OneGoodIntroMobile = () => {
             proof: currentVoiceCard.proof,
             verified: false,
             helped_count: 0
-            // Removed ai_generated: true since column was dropped
           })
           .select()
           .single();
@@ -417,6 +458,12 @@ const OneGoodIntroMobile = () => {
     setShowVoiceValidation(false);
     setCurrentVoiceCard(null);
     setVoiceTranscript('');
+
+    // If not approved, go back to recording
+    if (!approved) {
+      setVoiceState('initial');
+      setCurrentView('voice');
+    }
   };
 
   // Resume handlers
@@ -561,7 +608,7 @@ const OneGoodIntroMobile = () => {
   };
 
   // Define proper types
-  type ActiveFieldType = 'challenge' | 'reason' | 'helpType' | 'name' | 'about' | 'linkedin' | null;
+  type ActiveFieldType = 'challenge' | 'reason' | 'helpType' | 'name' | 'about' | 'linkedin' | 'role_title' | 'industry' | 'experience_years' | 'focus_area' | 'learning_focus' | 'project_description' | 'project_url' | null;
   type ModalIconType = 'handshake' | 'check' | 'heart';
 
   // State management
@@ -728,16 +775,11 @@ const OneGoodIntroMobile = () => {
 
   // Problem editing functions
   const handleEditProblem = (problem: UserProblem) => {
+    setEditingProblem(problem.id);
     setEditingProblemData({
       title: problem.title,
       proof: problem.proof
     });
-    setUserProblems(prev => prev.map(p => 
-      p.id === problem.id
-        ? { ...problem, title: editingProblemData.title, proof: editingProblemData.proof }
-        : p
-    ));
-    setEditingProblemData({ title: '', proof: '' });
   };
 
   const handleDeleteProblem = async (problemId: string) => {
@@ -768,31 +810,36 @@ const OneGoodIntroMobile = () => {
     }
   };
 
-  const handleSaveProblem = async (problem: string) => {
+  const handleSaveProblem = async (problemId: string) => {
     if (!session?.user?.email) return;
     
     try {
       const { data, error } = await supabase
-        .from('user_requests')
-        .insert([
-          {
-            user_id: session.user.email,
-            challenge: problem,
-            status: 'pending',
-            status_text: 'Waiting for match',
-            matching_frequency: matchingFrequency
-          }
-        ])
+        .from('user_problems')
+        .update({
+          title: editingProblemData.title,
+          proof: editingProblemData.proof
+        })
+        .eq('id', problemId)
+        .eq('user_id', session.user.email)
         .select()
         .single();
 
       if (error) throw error;
 
-      setUserRequests(prev => [data, ...prev]);
-      setShowBottomSheet(false);
-      setHelpForm({ challenge: '', reason: '', helpType: '' });
+      // Update local state
+      setUserProblems(prev => prev.map(p => 
+        p.id === problemId 
+          ? { ...p, title: editingProblemData.title, proof: editingProblemData.proof }
+          : p
+      ));
+      
+      // Reset editing state
+      setEditingProblem(null);
+      setEditingProblemData({ title: '', proof: '' });
     } catch (error) {
       console.error('Error saving problem:', error);
+      alert('Failed to save changes. Please try again.');
     }
   };
 
@@ -822,48 +869,108 @@ const OneGoodIntroMobile = () => {
   // Enhanced profile field handlers with database integration
   const handleProfileFieldClick = (fieldName: ActiveFieldType) => {
     setActiveField(fieldName);
+    setEditingField(fieldName);
+    // For about field, use current from profileData
+    const value = fieldName === 'about' ? profileData.current : fieldName ? profileData[fieldName as keyof ProfileData] : '';
+    setFieldValues(prev => ({ ...prev, [fieldName as string]: value }));
+    setTimeout(() => {
+      if (fieldName === 'about' && aboutRef.current) {
+        aboutRef.current.focus();
+      } else if (fieldName && inputRefs[fieldName as keyof typeof inputRefs]?.current) {
+        inputRefs[fieldName as keyof typeof inputRefs].current?.focus();
+      }
+    }, 0);
   };
 
-  const handleProfileFieldChange = (fieldName: string, value: string) => {
-    setFieldValues({ ...fieldValues, [fieldName]: value });
+  const handleProfileFieldChange = (fieldName: ActiveFieldType, value: string) => {
+    setFieldValues(prev => ({ ...prev, [fieldName as string]: value }));
   };
 
   const handleProfileFieldSave = async (fieldName: string) => {
     if (!session?.user?.email) return;
     
+    const value = fieldValues[fieldName as keyof typeof fieldValues];
     setSavingField(fieldName);
     
-    const value = fieldValues[fieldName];
-    
     try {
-      if (fieldName === 'about') {
-        // Save to single field only
-        const { error } = await supabase
-          .from('users')
-          .update({ current_focus: value })
-          .eq('email', session.user.email!);
-
-        if (!error) {
-          setProfileData(prev => ({ ...prev, current: value }));
-        }
-      } else if (fieldName === 'name') {
+      if (fieldName === 'name') {
         const { error } = await supabase
           .from('users')
           .update({ name: value })
-          .eq('email', session.user.email!);
+          .eq('email', session.user.email);
 
         if (!error) {
           setProfileData(prev => ({ ...prev, name: value }));
         }
+      } else if (fieldName === 'about') {
+        const { error } = await supabase
+          .from('users')
+          .update({ current_focus: value })
+          .eq('email', session.user.email);
+
+        if (!error) {
+          setProfileData(prev => ({ ...prev, current: value }));
+        }
+      } else if (fieldName === 'linkedin') {
+        const { error } = await supabase
+          .from('users')
+          .update({ linkedin_url: value })
+          .eq('email', session.user.email);
+
+        if (!error) {
+          setProfileData(prev => ({ ...prev, linkedin_url: value }));
+        }
+      } else if (fieldName === 'role_title') {
+        const { error } = await supabase
+          .from('users')
+          .update({ role_title: value })
+          .eq('email', session.user.email);
+
+        if (!error) {
+          setProfileData(prev => ({ ...prev, role_title: value }));
+        }
+      } else if (fieldName === 'industry') {
+        const { error } = await supabase
+          .from('users')
+          .update({ industry: value })
+          .eq('email', session.user.email);
+
+        if (!error) {
+          setProfileData(prev => ({ ...prev, industry: value }));
+        }
+      } else if (fieldName === 'experience_years') {
+        const { error } = await supabase
+          .from('users')
+          .update({ experience_years: value })
+          .eq('email', session.user.email);
+
+        if (!error) {
+          setProfileData(prev => ({ ...prev, experience_years: value }));
+        }
+      } else if (fieldName === 'focus_area') {
+        const { error } = await supabase
+          .from('users')
+          .update({ focus_area: value })
+          .eq('email', session.user.email);
+
+        if (!error) {
+          setProfileData(prev => ({ ...prev, focus_area: value }));
+        }
+      } else if (fieldName === 'learning_focus') {
+        const { error } = await supabase
+          .from('users')
+          .update({ learning_focus: value })
+          .eq('email', session.user.email);
+
+        if (!error) {
+          setProfileData(prev => ({ ...prev, learning_focus: value }));
+        }
       }
-      
-      setEditingField(null);
-      setSavingField(null);
-      setTimeout(() => setSavingField(fieldName + '_success'), 50);
-      setTimeout(() => setSavingField(null), 1500);
     } catch (error) {
       console.error('Error saving field:', error);
+    } finally {
       setSavingField(null);
+      setEditingField(null);
     }
   };
 
@@ -983,7 +1090,7 @@ const OneGoodIntroMobile = () => {
                 ref={inputRefs[fieldName as keyof typeof inputRefs]}
                 type="text"
                 value={value}
-                onChange={(e) => handleProfileFieldChange(fieldName, e.target.value)}
+                onChange={(e) => handleProfileFieldChange(fieldName as ActiveFieldType, e.target.value)}
                 onBlur={() => handleProfileFieldBlur(fieldName)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
@@ -1255,7 +1362,7 @@ const OneGoodIntroMobile = () => {
 
   // Main render functions
   const renderAuth = () => (
-    <div className="min-h-screen bg-gray-900 flex flex-col">
+    <div className="min-h-screen bg-gray-900 flex flex-col px-5">
       {/* Main Content */}
       <div className="flex-1 flex flex-col justify-center px-8 py-12">
         
@@ -1345,9 +1452,9 @@ const OneGoodIntroMobile = () => {
   );
 
   const renderFullProfile = () => (
-    <div className="min-h-screen bg-gray-900 pb-20">
+    <div className="min-h-screen bg-gray-900 pb-20 px-5">
+      {/* Header and Stats Container */}
       <div className="max-w-2xl mx-auto bg-gray-900">
-        
         {/* Profile Header - Dark Theme */}
         <div className="p-8 pb-2">
           {/* Avatar - Left aligned */}
@@ -1433,7 +1540,7 @@ const OneGoodIntroMobile = () => {
                         <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                           <path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0013 14.19a.66.66 0 000 .14V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.55 0 3.36.86 3.36 3.66z"/>
                         </svg>
-                        <span className="text-sm font-medium">LinkedIn connected</span>
+                        <span className="text-sm font-medium">LinkedIn</span>
                       </button>
                       <button 
                         onClick={() => setEditingLinkedin(true)}
@@ -1486,7 +1593,7 @@ const OneGoodIntroMobile = () => {
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
-                        <span className="text-sm">Resume uploaded</span>
+                        <span className="text-sm text-teal-400">Resume</span>
                       </span>
                       <button 
                         onClick={handleResumeStart}
@@ -1513,27 +1620,277 @@ const OneGoodIntroMobile = () => {
         </div>
 
         {/* Stats Section - Dark Surface Box */}
-        <div className="flex justify-center gap-8 p-4 bg-gray-800 rounded-2xl shadow-sm border border-gray-700 mx-8 mb-6">
+        <div className="flex justify-center gap-8 p-4 bg-gray-800 rounded-2xl shadow-sm border border-gray-700 mb-6">
           <div className="text-center">
             <span className="text-2xl font-bold text-white block">{userProblems.reduce((acc, p) => acc + p.helped_count, 0)}</span>
             <div className="text-xs text-gray-400 uppercase tracking-wide font-medium">People Helped</div>
           </div>
           <div className="text-center">
             <span className="text-2xl font-bold text-white block">{userProblems.length}</span>
-            <div className="text-xs text-gray-400 uppercase tracking-wide font-medium">Experience Areas</div>
+            <div className="text-xs text-gray-400 uppercase tracking-wide font-medium">Help Areas</div>
           </div>
         </div>
       </div>
-      {/* Experience Section - moved outside */}
+
+      {/* Cards Container - With Padding */}
       <div className="px-5 space-y-8">
-        <div className="flex items-center mb-6 mt-2 px-5 justify-end">
+        {/* Professional Background Card */}
+        <div className="bg-gray-800 w-full rounded-lg shadow-sm border border-gray-700 mb-6">
+          <div className="p-4 relative">
+            <div className="flex items-start justify-between mb-3">
+              <h3 className="text-xs text-gray-400 uppercase tracking-wide">Professional background</h3>
+              <div className="flex gap-1">
+                <button className="text-teal-400 hover:bg-gray-700 p-1 rounded transition-colors">
+                  <Edit className="h-3 w-3" />
+                </button>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-2">
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-gray-700 rounded flex items-center justify-center">
+                  <Users className="h-2 w-2 text-gray-300" />
+                </div>
+                {editingField === 'role_title' ? (
+                  <input
+                    type="text"
+                    value={fieldValues.role_title || ''}
+                    onChange={(e) => handleProfileFieldChange('role_title', e.target.value)}
+                    onBlur={() => handleProfileFieldSave('role_title')}
+                    onKeyDown={(e) => e.key === 'Enter' && handleProfileFieldSave('role_title')}
+                    className="flex-1 text-white text-sm bg-gray-600 border border-gray-500 rounded px-2 py-1 focus:ring-1 focus:ring-teal-500"
+                    placeholder="Your role"
+                  />
+                ) : (
+                  <span 
+                    onClick={() => handleProfileFieldClick('role_title')}
+                    className="text-white text-sm cursor-pointer hover:bg-gray-700 px-2 py-1 rounded transition-colors flex-1"
+                  >
+                    {profileData.role_title || 'Marketing Manager'}
+                  </span>
+                )}
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-gray-700 rounded flex items-center justify-center">
+                  <Target className="h-2 w-2 text-gray-300" />
+                </div>
+                {editingField === 'industry' ? (
+                  <input
+                    type="text"
+                    value={fieldValues.industry || ''}
+                    onChange={(e) => handleProfileFieldChange('industry', e.target.value)}
+                    onBlur={() => handleProfileFieldSave('industry')}
+                    onKeyDown={(e) => e.key === 'Enter' && handleProfileFieldSave('industry')}
+                    className="flex-1 text-white text-sm bg-gray-600 border border-gray-500 rounded px-2 py-1 focus:ring-1 focus:ring-teal-500"
+                    placeholder="Your industry"
+                  />
+                ) : (
+                  <span 
+                    onClick={() => handleProfileFieldClick('industry')}
+                    className="text-white text-sm cursor-pointer hover:bg-gray-700 px-2 py-1 rounded transition-colors flex-1"
+                  >
+                    {profileData.industry || 'Consumer brands'}
+                  </span>
+                )}
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-gray-700 rounded flex items-center justify-center">
+                  <User className="h-2 w-2 text-gray-300" />
+                </div>
+                {editingField === 'experience_years' ? (
+                  <input
+                    type="text"
+                    value={fieldValues.experience_years || ''}
+                    onChange={(e) => handleProfileFieldChange('experience_years', e.target.value)}
+                    onBlur={() => handleProfileFieldSave('experience_years')}
+                    onKeyDown={(e) => e.key === 'Enter' && handleProfileFieldSave('experience_years')}
+                    className="flex-1 text-white text-sm bg-gray-600 border border-gray-500 rounded px-2 py-1 focus:ring-1 focus:ring-teal-500"
+                    placeholder="Years of experience"
+                  />
+                ) : (
+                  <span 
+                    onClick={() => handleProfileFieldClick('experience_years')}
+                    className="text-white text-sm cursor-pointer hover:bg-gray-700 px-2 py-1 rounded transition-colors flex-1"
+                  >
+                    {profileData.experience_years || '6+ years experience'}
+                  </span>
+                )}
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-gray-700 rounded flex items-center justify-center">
+                  <Heart className="h-2 w-2 text-gray-300" />
+                </div>
+                {editingField === 'focus_area' ? (
+                  <input
+                    type="text"
+                    value={fieldValues.focus_area || ''}
+                    onChange={(e) => handleProfileFieldChange('focus_area', e.target.value)}
+                    onBlur={() => handleProfileFieldSave('focus_area')}
+                    onKeyDown={(e) => e.key === 'Enter' && handleProfileFieldSave('focus_area')}
+                    className="flex-1 text-white text-sm bg-gray-600 border border-gray-500 rounded px-2 py-1 focus:ring-1 focus:ring-teal-500"
+                    placeholder="Your focus area"
+                  />
+                ) : (
+                  <span 
+                    onClick={() => handleProfileFieldClick('focus_area')}
+                    className="text-white text-sm cursor-pointer hover:bg-gray-700 px-2 py-1 rounded transition-colors flex-1"
+                  >
+                    {profileData.focus_area || 'Brand strategy'}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Learning Section - Expanded */}
+        <div className="bg-gray-800 w-full rounded-xl shadow-lg hover:shadow-xl transition-all border border-gray-700 p-8 mb-6">
+          <div className="relative">
+            <div className="flex items-start justify-between mb-6">
+              <h3 className="text-base text-gray-400 font-medium">What I'm learning now</h3>
+              <div className="flex gap-1">
+                <button 
+                  onClick={() => handleProfileFieldClick('learning_focus')}
+                  className="text-teal-400 hover:bg-gray-700 p-2 rounded transition-colors"
+                >
+                  <Edit className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            {editingField === 'learning_focus' ? (
+              <div className="space-y-3">
+                <textarea
+                  value={fieldValues.learning_focus || ''}
+                  onChange={(e) => handleProfileFieldChange('learning_focus', e.target.value)}
+                  onBlur={() => handleProfileFieldSave('learning_focus')}
+                  maxLength={200}
+                  rows={4}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-white resize-none text-xl font-medium"
+                  placeholder="What are you learning? (e.g., ChatGPT for better emails and social posts. Figma basics for mockups. Trying to understand analytics better...)"
+                />
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => handleProfileFieldSave('learning_focus')} 
+                    className="bg-teal-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-teal-600"
+                  >
+                    Save
+                  </button>
+                  <button 
+                    onClick={() => setEditingField(null)} 
+                    className="bg-gray-600 text-gray-300 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-500"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <p 
+                onClick={() => handleProfileFieldClick('learning_focus')}
+                className="text-white leading-relaxed text-2xl font-medium cursor-pointer hover:bg-gray-700 px-2 py-1 rounded transition-colors"
+              >
+                {profileData.learning_focus || 'ChatGPT for better emails and social posts. Figma basics for mockups. Trying to understand analytics better so I can actually see what\'s working.'}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Projects Section - Compact */}
+        <div className="bg-gray-800 w-full rounded-lg shadow-sm border-2 border-orange-400 mb-6">
+          <div className="p-4 relative">
+            <div className="flex items-start justify-between mb-3">
+              <h3 className="text-xs text-orange-400 uppercase tracking-wide">What I'm working on</h3>
+              <div className="flex gap-1">
+                <button 
+                  onClick={() => handleProfileFieldClick('project_description')}
+                  className="text-orange-400 hover:bg-gray-700 p-1 rounded transition-colors"
+                >
+                  <Edit className="h-3 w-3" />
+                </button>
+              </div>
+            </div>
+            
+            {editingField === 'project_description' ? (
+              <div className="space-y-3">
+                <textarea
+                  value={fieldValues.project_description || ''}
+                  onChange={(e) => handleProfileFieldChange('project_description', e.target.value)}
+                  rows={3}
+                  className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-sm focus:ring-1 focus:ring-orange-500 focus:border-transparent text-white resize-none"
+                  placeholder="What project are you working on?"
+                />
+                <input
+                  type="text"
+                  value={fieldValues.project_url || ''}
+                  onChange={(e) => handleProfileFieldChange('project_url', e.target.value)}
+                  placeholder="Project URL (optional)"
+                  className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-sm focus:ring-1 focus:ring-orange-500 focus:border-transparent text-white"
+                />
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => handleProfileFieldSave('project_description')}
+                    className="bg-orange-500 text-white px-3 py-1 rounded text-xs font-medium hover:bg-orange-600"
+                  >
+                    Save
+                  </button>
+                  <button 
+                    onClick={() => setEditingField(null)}
+                    className="bg-gray-600 text-gray-300 px-3 py-1 rounded text-xs font-medium hover:bg-gray-500"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <p 
+                  onClick={() => handleProfileFieldClick('project_description')}
+                  className="text-white leading-relaxed text-sm mb-3 cursor-pointer hover:bg-gray-700 px-1 py-1 rounded transition-colors"
+                >
+                  {profileData.project_description || 'Building a simple website to showcase my marketing work. Learning Webflow and loving how easy it makes everything!'}
+                </p>
+                
+                {profileData.project_url || fieldValues.project_url ? (
+                  <div className="flex items-center gap-2 text-orange-400 hover:text-orange-300 transition-colors">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                    <a 
+                      href={profileData.project_url || fieldValues.project_url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="font-medium hover:underline text-xs"
+                    >
+                      View project: {(profileData.project_url || fieldValues.project_url)?.replace('https://', '')}
+                    </a>
+                  </div>
+                ) : (
+                  <div 
+                    onClick={() => handleProfileFieldClick('project_description')}
+                    className="flex items-center gap-2 text-orange-400 hover:text-orange-300 transition-colors cursor-pointer"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    <span className="font-medium text-xs">Add project URL</span>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Voice CTA */}
+        <div className="flex items-center mb-6 mt-2 justify-end">
           <div className="flex flex-col items-end mr-4">
-            <p className="text-lg font-bold text-white">Add your experience to connect with others</p>
+            <p className="text-lg font-bold text-white">Add how you can help</p>
             <p className="text-base text-teal-400">Record and have AI review it</p>
           </div>
           <button 
             onClick={() => handleVoiceStart('profile')}
-            className="text-3xl hover:scale-110 transition-transform flex-shrink-0 mr-4"
+            className="text-3xl hover:scale-110 transition-transform flex-shrink-0"
           >
             <div className="bg-gradient-to-r from-red-500 to-orange-500 p-2 rounded-xl">
               <Phone className="w-8 h-8 text-white" strokeWidth={2.5} />
@@ -1541,20 +1898,19 @@ const OneGoodIntroMobile = () => {
           </button>
         </div>
 
-        {/* Experience Cards - Dark Surface Boxes */}
-        <div className="space-y-6">
+        {/* Help Cards */}
+        <div className="space-y-4">
           {userProblems.map((problem) => (
             <div
               key={problem.id}
-              className="bg-gray-800 w-full rounded-2xl shadow-sm hover:shadow-md transition-all border border-gray-700"
+              className="bg-gray-800 w-full rounded-2xl shadow-sm hover:shadow-md transition-all border-2 border-teal-400"
             >
               <div className="p-5 relative">
                 {/* Status Badge and Actions */}
                 <div className="flex items-start justify-between mb-3">
-                  <StatusBadge 
-                    status={problem.verified ? 'verified' : problem.ai_generated ? 'ai-generated' : 'default'} 
-                    helpedCount={problem.helped_count} 
-                  />
+                  <h3 className="text-sm text-gray-400">
+                    {problem.helped_count > 0 ? `${problem.helped_count} people found this helpful` : 'I can help with'}
+                  </h3>
                   <div className="flex gap-1">
                     <button 
                       onClick={() => handleEditProblem(problem)}
@@ -1611,10 +1967,16 @@ const OneGoodIntroMobile = () => {
                   </div>
                 ) : (
                   <>
-                    <h3 className="text-sm font-semibold text-white mb-1 leading-tight">
+                    <p 
+                      onClick={() => handleEditProblem(problem)}
+                      className="text-white leading-relaxed text-xl font-medium mb-3 cursor-pointer hover:bg-gray-700 px-2 py-1 rounded transition-colors"
+                    >
                       {problem.title}
-                    </h3>
-                    <p className="text-sm text-gray-300 leading-relaxed">
+                    </p>
+                    <p 
+                      onClick={() => handleEditProblem(problem)}
+                      className="text-gray-400 text-sm text-right cursor-pointer hover:bg-gray-700 px-2 py-1 rounded transition-colors"
+                    >
                       {problem.proof}
                     </p>
                   </>
@@ -1622,77 +1984,19 @@ const OneGoodIntroMobile = () => {
               </div>
             </div>
           ))}
-        </div>
-      </div>
-      {/* LinkedIn Profile Section - RESTORED EDITING */}
-      <div className="max-w-lg mx-auto mb-6 px-8">
-        {!linkedinUrl && !editingLinkedin ? (
-          <div className="flex items-center justify-center">
-            <button 
-              onClick={() => setEditingLinkedin(true)}
-              className="text-teal-400 text-sm font-medium hover:text-teal-300 hover:bg-gray-800 transition-all px-3 py-2 rounded-lg"
-            >
-              + Add LinkedIn Profile
-            </button>
+
+          {/* Add New Help Card */}
+          <div className="bg-gray-800 w-full rounded-2xl shadow-sm hover:shadow-md transition-all border border-gray-700">
+            <div className="p-6 relative">
+              <button 
+                onClick={() => handleVoiceStart('profile')}
+                className="w-full py-6 border border-dashed border-gray-600 rounded-lg text-gray-400 hover:border-gray-500 hover:text-gray-300 transition-colors flex items-center justify-center gap-2"
+              >
+                <Phone className="h-4 w-4" />
+                <span className="text-base">Add another way you can help</span>
+              </button>
+            </div>
           </div>
-        ) : editingLinkedin ? (
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
-              value={linkedinUrl}
-              onChange={(e) => setLinkedinUrl(e.target.value)}
-              placeholder="linkedin.com/in/yourname"
-              className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm text-white"
-            />
-            <button 
-              onClick={handleLinkedinSave}
-              className="bg-teal-500 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-teal-600"
-            >
-              Save
-            </button>
-            <button 
-              onClick={() => {setEditingLinkedin(false); setLinkedinUrl('');}}
-              className="text-gray-400 hover:text-white"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        ) : (
-          <div className="flex items-center justify-center gap-2">
-            <button 
-              onClick={handleLinkedinClick}
-              className="flex items-center gap-2 text-blue-400 hover:text-blue-300 hover:bg-gray-800 transition-all px-3 py-2 rounded-lg"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0013 14.19a.66.66 0 000 .14V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.55 0 3.36.86 3.36 3.66z"/>
-              </svg>
-              LinkedIn Profile
-              <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-              </svg>
-            </button>
-            <button 
-              onClick={() => setEditingLinkedin(true)}
-              className="text-gray-400 hover:text-white hover:bg-gray-700 p-1 rounded"
-            >
-              <Edit className="h-3 w-3" />
-            </button>
-          </div>
-        )}
-      </div>
-      {/* Resume Upload Section - UPDATED BUTTON */}
-      <div className="max-w-lg mx-auto mb-6 px-8">
-        <div className="flex items-center justify-center">
-          <button 
-            onClick={handleResumeStart}
-            className="flex items-center gap-2 bg-gray-700 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors border border-gray-600"
-          >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-            </svg>
-            {resumeState === 'complete' ? 'Update Resume for better matching' : 'Add Resume for better matching'}
-            {resumeState === 'complete' && <span className="ml-1 text-xs">✓</span>}
-          </button>
         </div>
       </div>
     </div>
@@ -1700,7 +2004,7 @@ const OneGoodIntroMobile = () => {
 
   // Keep existing render functions for other views (renderNewGetHelp, etc.) but update their backgrounds
   const renderNewGetHelp = () => (
-    <div className="min-h-screen bg-gray-900 pb-20">
+    <div className="min-h-screen bg-gray-900 pb-20 px-5">
       {/* Removed fixed top bar to move content up */}
       <div className="max-w-2xl mx-auto px-5 py-10 bg-gray-900">
         <h1 className="text-2xl font-bold text-white mb-1 text-left">What help do you need?</h1>
@@ -1927,7 +2231,7 @@ const OneGoodIntroMobile = () => {
   );
 
   const renderPublicBoard = () => (
-    <div className="min-h-screen bg-gray-900 pb-20">
+    <div className="min-h-screen bg-gray-900 pb-20 px-5">
       <div className="px-5 py-4">
         <div className="flex items-center justify-between">
           <button 
@@ -2269,7 +2573,7 @@ const OneGoodIntroMobile = () => {
     });
 
     return (
-      <div className="min-h-screen bg-gray-900 pb-20">
+      <div className="min-h-screen bg-gray-900 pb-20 px-5">
         <div className="px-5 py-4">
           <div className="flex items-center justify-between">
             <button 
