@@ -1,8 +1,10 @@
 'use client';
 import React, { useState, useRef, useEffect } from 'react';
-import { User, CheckCircle, Users, Plus, Zap, Target, Heart, Network, Handshake, MessageCircle, Check, MapPin, Building2, X, Edit, Trash2, Mic, Brain, ArrowRight, TrendingUp, Phone } from 'lucide-react';
+import { User, CheckCircle, Users, Plus, Zap, Target, Heart, Network, Handshake, MessageCircle, Check, MapPin, Building2, X, Edit, Trash2, Mic, Brain, ArrowRight, TrendingUp, Phone, Link2, Globe } from 'lucide-react';
 import { useSession, signIn, signOut } from 'next-auth/react'
 import { supabase, type User as DbUser, type UserProblem, type HelpRequest, timeAgo } from '@/lib/supabase'
+import { MediaPreview } from '@/components/MediaPreview'
+import { processMediaUrl, isValidUrl, normalizeUrl } from '@/lib/url-processor'
 
 // Define proper types
 type ActiveFieldType = 'challenge' | 'reason' | 'helpType' | 'name' | 'about' | 'linkedin' | 'role_title' | 'industry' | 'experience_years' | 'focus_area' | 'learning_focus' | 'project_description' | 'project_url' | null;
@@ -21,6 +23,9 @@ type ProfileData = {
   learning_focus: string;
   project_description: string;
   project_url: string;
+  project_attachment_url?: string;
+  project_attachment_type?: 'youtube' | 'website';
+  project_attachment_metadata?: any;
 };
 
 const OneGoodIntroMobile = () => {
@@ -91,6 +96,18 @@ const OneGoodIntroMobile = () => {
   const [linkedinUrl, setLinkedinUrl] = useState<string>('');
   const [editingLinkedin, setEditingLinkedin] = useState<boolean>(false);
 
+  // URL attachment state (for help cards)
+  const [urlInputProblemId, setUrlInputProblemId] = useState<string | null>(null);
+  const [urlInputValue, setUrlInputValue] = useState<string>('');
+  const [urlProcessing, setUrlProcessing] = useState<boolean>(false);
+  const [urlError, setUrlError] = useState<string>('');
+
+  // Project URL state (for "What I'm working on")
+  const [projectUrlInputActive, setProjectUrlInputActive] = useState<boolean>(false);
+  const [projectUrlInputValue, setProjectUrlInputValue] = useState<string>('');
+  const [projectUrlProcessing, setProjectUrlProcessing] = useState<boolean>(false);
+  const [projectUrlError, setProjectUrlError] = useState<string>('');
+
   // Help requests data
   const helpRequests = [
     {
@@ -137,6 +154,36 @@ const OneGoodIntroMobile = () => {
       loadUserData(session.user.email)
     }
   }, [session])
+
+  // Process project URL when it exists but lacks metadata
+  useEffect(() => {
+    const processProjectUrl = async () => {
+      if (profileData.project_url && !profileData.project_attachment_metadata) {
+        try {
+          const processResponse = await fetch('/api/process-url', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ url: profileData.project_url })
+          });
+
+          if (processResponse.ok) {
+            const processedUrl = await processResponse.json();
+            setProfileData(prev => ({
+              ...prev,
+              project_attachment_type: processedUrl.type,
+              project_attachment_metadata: processedUrl.metadata
+            }));
+          }
+        } catch (error) {
+          console.error('Error processing project URL:', error);
+        }
+      }
+    };
+
+    processProjectUrl();
+  }, [profileData.project_url]);
 
   // Load user requests when session exists
   useEffect(() => {
@@ -965,6 +1012,251 @@ const OneGoodIntroMobile = () => {
     } catch (error) {
       console.error('Error saving problem:', error);
       alert('Failed to save changes. Please try again.');
+    }
+  };
+
+  // URL attachment functions
+  const handleAddLink = (problemId: string) => {
+    const problem = userProblems.find(p => p.id === problemId);
+    setUrlInputProblemId(problemId);
+    setUrlInputValue(problem?.attachment_url || '');
+    setUrlError('');
+  };
+
+  const handleCancelLink = () => {
+    setUrlInputProblemId(null);
+    setUrlInputValue('');
+    setUrlError('');
+  };
+
+  const handleSaveLink = async (problemId: string) => {
+    if (!session?.user?.email) return;
+    
+    setUrlProcessing(true);
+    setUrlError('');
+
+    try {
+      // If URL is empty, remove the link
+      if (!urlInputValue.trim()) {
+        await handleRemoveLink(problemId);
+        handleCancelLink();
+        return;
+      }
+
+      // Normalize URL (add https:// if needed)
+      const normalizedUrl = normalizeUrl(urlInputValue);
+
+      // Validate normalized URL
+      if (!isValidUrl(normalizedUrl)) {
+        setUrlError('Please enter a valid URL');
+        setUrlProcessing(false);
+        return;
+      }
+
+      // Process the URL to get metadata via API
+      const processResponse = await fetch('/api/process-url', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url: normalizedUrl })
+      });
+
+      if (!processResponse.ok) {
+        const errorData = await processResponse.json().catch(() => ({}));
+        throw new Error(errorData.error || `Failed to process URL (${processResponse.status})`);
+      }
+
+      const processedUrl = await processResponse.json();
+      
+      // Update the database
+      const { data, error } = await supabase
+        .from('user_problems')
+        .update({
+          attachment_url: normalizedUrl,
+          attachment_type: processedUrl.type,
+          attachment_metadata: processedUrl.metadata
+        })
+        .eq('id', problemId)
+        .eq('user_id', session.user.email)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Update local state
+      setUserProblems(prev => prev.map(problem => 
+        problem.id === problemId 
+          ? { 
+              ...problem, 
+              attachment_url: normalizedUrl,
+              attachment_type: processedUrl.type,
+              attachment_metadata: processedUrl.metadata
+            }
+          : problem
+      ));
+
+      // Reset URL input state
+      handleCancelLink();
+    } catch (error: any) {
+      console.error('Error saving link:', error);
+      if (error.message) {
+        setUrlError(error.message);
+      } else if (error.error) {
+        setUrlError(error.error);
+      } else {
+        setUrlError('Failed to save link. Please try again.');
+      }
+    } finally {
+      setUrlProcessing(false);
+    }
+  };
+
+  const handleRemoveLink = async (problemId: string) => {
+    if (!session?.user?.email) return;
+
+    try {
+      const { error } = await supabase
+        .from('user_problems')
+        .update({
+          attachment_url: null,
+          attachment_type: null,
+          attachment_metadata: null
+        })
+        .eq('id', problemId)
+        .eq('user_id', session.user.email);
+
+      if (!error) {
+        // Update local state
+        setUserProblems(prev => prev.map(problem => 
+          problem.id === problemId 
+            ? { 
+                ...problem, 
+                attachment_url: null,
+                attachment_type: null,
+                attachment_metadata: null
+              }
+            : problem
+        ));
+      }
+    } catch (error) {
+      console.error('Error removing link:', error);
+    }
+  };
+
+  // Project URL functions
+  const handleProjectAddLink = () => {
+    setProjectUrlInputActive(true);
+    setProjectUrlInputValue(profileData.project_url || '');
+    setProjectUrlError('');
+  };
+
+  const handleProjectCancelLink = () => {
+    setProjectUrlInputActive(false);
+    setProjectUrlInputValue('');
+    setProjectUrlError('');
+  };
+
+  const handleProjectSaveLink = async () => {
+    if (!session?.user?.email) return;
+    
+    setProjectUrlProcessing(true);
+    setProjectUrlError('');
+
+    try {
+      // If URL is empty, remove the link
+      if (!projectUrlInputValue.trim()) {
+        await handleProjectRemoveLink();
+        handleProjectCancelLink();
+        return;
+      }
+
+      // Normalize URL (add https:// if needed)
+      const normalizedUrl = normalizeUrl(projectUrlInputValue);
+
+      // Validate normalized URL
+      if (!isValidUrl(normalizedUrl)) {
+        setProjectUrlError('Please enter a valid URL');
+        setProjectUrlProcessing(false);
+        return;
+      }
+
+      // Process the URL to get metadata via API
+      const processResponse = await fetch('/api/process-url', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url: normalizedUrl })
+      });
+
+      if (!processResponse.ok) {
+        const errorData = await processResponse.json().catch(() => ({}));
+        throw new Error(errorData.error || `Failed to process URL (${processResponse.status})`);
+      }
+
+      const processedUrl = await processResponse.json();
+      
+      // Update the database (using existing project_url field)
+      const { data, error } = await supabase
+        .from('users')
+        .update({
+          project_url: normalizedUrl
+        })
+        .eq('id', session.user.email)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Update local state
+      setProfileData(prev => ({
+        ...prev,
+        project_url: normalizedUrl,
+        project_attachment_url: normalizedUrl,
+        project_attachment_type: processedUrl.type,
+        project_attachment_metadata: processedUrl.metadata
+      }));
+
+      // Reset URL input state
+      handleProjectCancelLink();
+    } catch (error: any) {
+      console.error('Error saving project link:', error);
+      if (error.message) {
+        setProjectUrlError(error.message);
+      } else if (error.error) {
+        setProjectUrlError(error.error);
+      } else {
+        setProjectUrlError('Failed to save link. Please try again.');
+      }
+    } finally {
+      setProjectUrlProcessing(false);
+    }
+  };
+
+  const handleProjectRemoveLink = async () => {
+    if (!session?.user?.email) return;
+
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({
+          project_url: null
+        })
+        .eq('id', session.user.email);
+
+      if (!error) {
+        // Update local state
+        setProfileData(prev => ({
+          ...prev,
+          project_url: '',
+          project_attachment_url: undefined,
+          project_attachment_type: undefined,
+          project_attachment_metadata: undefined
+        }));
+      }
+    } catch (error) {
+      console.error('Error removing project link:', error);
     }
   };
 
@@ -1923,13 +2215,6 @@ const OneGoodIntroMobile = () => {
                   className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-sm focus:ring-1 focus:ring-orange-500 focus:border-transparent text-white resize-none"
                   placeholder="What project are you working on?"
                 />
-                <input
-                  type="text"
-                  value={fieldValues.project_url || ''}
-                  onChange={(e) => handleProfileFieldChange('project_url', e.target.value)}
-                  placeholder="Project URL (optional)"
-                  className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-sm focus:ring-1 focus:ring-orange-500 focus:border-transparent text-white"
-                />
                 <div className="flex gap-2">
                   <button 
                     onClick={() => handleProfileFieldSave('project_description')}
@@ -1954,31 +2239,67 @@ const OneGoodIntroMobile = () => {
                   {profileData.project_description || 'Building a simple website to showcase my marketing work. Learning Webflow and loving how easy it makes everything!'}
                 </p>
                 
-                {profileData.project_url || fieldValues.project_url ? (
-                  <div className="flex items-center gap-2 text-orange-400 hover:text-orange-300 transition-colors">
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                    </svg>
-                    <a 
-                      href={profileData.project_url || fieldValues.project_url} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="font-medium hover:underline text-xs"
+                {/* Project URL attachment section */}
+                <div className="mt-4">
+                  {projectUrlInputActive ? (
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <div className="flex-1 relative">
+                          <input
+                            type="url"
+                            value={projectUrlInputValue}
+                            onChange={(e) => setProjectUrlInputValue(e.target.value)}
+                            placeholder="Paste URL here..."
+                            className="w-full px-3 py-1.5 pr-8 bg-gray-700 border border-gray-600 rounded text-sm text-white placeholder-gray-400 focus:ring-1 focus:ring-orange-500 focus:border-transparent"
+                            disabled={projectUrlProcessing}
+                          />
+                          {projectUrlInputValue && (
+                            <button
+                              onClick={() => setProjectUrlInputValue('')}
+                              className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+                              type="button"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                        <button
+                          onClick={handleProjectSaveLink}
+                          disabled={projectUrlProcessing}
+                          className="bg-orange-500 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {projectUrlProcessing ? 'Processing...' : 'Save'}
+                        </button>
+                        <button
+                          onClick={handleProjectCancelLink}
+                          disabled={projectUrlProcessing}
+                          className="text-gray-400 hover:text-white px-2 py-1.5 rounded text-sm"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                      {projectUrlError && (
+                        <p className="text-red-400 text-xs">{projectUrlError}</p>
+                      )}
+                    </div>
+                  ) : profileData.project_url ? (
+                    <MediaPreview 
+                      url={profileData.project_url}
+                      type={profileData.project_attachment_type || 'website'}
+                      metadata={profileData.project_attachment_metadata || undefined}
+                      onClick={handleProjectAddLink}
+                      allowPlayback={true}
+                    />
+                  ) : (
+                    <button
+                      onClick={handleProjectAddLink}
+                      className="flex items-center gap-2 text-orange-400 hover:text-orange-300 transition-colors cursor-pointer"
                     >
-                      View project: {(profileData.project_url || fieldValues.project_url)?.replace('https://', '')}
-                    </a>
-                  </div>
-                ) : (
-                  <div 
-                    onClick={() => handleProfileFieldClick('project_description')}
-                    className="flex items-center gap-2 text-orange-400 hover:text-orange-300 transition-colors cursor-pointer"
-                  >
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                    <span className="font-medium text-xs">Add project URL</span>
-                  </div>
-                )}
+                      <Link2 className="w-3 h-3" />
+                      <span className="font-medium text-xs">Add project URL</span>
+                    </button>
+                  )}
+                </div>
               </>
             )}
           </div>
@@ -2111,6 +2432,67 @@ const OneGoodIntroMobile = () => {
                     >
                       {problem.proof}
                     </p>
+
+                    {/* Media attachment section */}
+                    <div className="mt-4">
+                      {urlInputProblemId === problem.id ? (
+                        <div className="space-y-2">
+                          <div className="flex gap-2">
+                            <div className="flex-1 relative">
+                              <input
+                                type="url"
+                                value={urlInputValue}
+                                onChange={(e) => setUrlInputValue(e.target.value)}
+                                placeholder="Paste URL here..."
+                                className="w-full px-3 py-1.5 pr-8 bg-gray-700 border border-gray-600 rounded text-sm text-white placeholder-gray-400 focus:ring-1 focus:ring-teal-500 focus:border-transparent"
+                                disabled={urlProcessing}
+                              />
+                              {urlInputValue && (
+                                <button
+                                  onClick={() => setUrlInputValue('')}
+                                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+                                  type="button"
+                                >
+                                  <X className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => handleSaveLink(problem.id)}
+                              disabled={urlProcessing}
+                              className="bg-teal-500 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-teal-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {urlProcessing ? 'Processing...' : 'Save'}
+                            </button>
+                            <button
+                              onClick={handleCancelLink}
+                              disabled={urlProcessing}
+                              className="text-gray-400 hover:text-white px-2 py-1.5 rounded text-sm"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                          {urlError && (
+                            <p className="text-red-400 text-xs">{urlError}</p>
+                          )}
+                        </div>
+                      ) : problem.attachment_url ? (
+                        <MediaPreview 
+                          url={problem.attachment_url}
+                          type={problem.attachment_type || 'website'}
+                          metadata={problem.attachment_metadata || undefined}
+                          onClick={() => handleAddLink(problem.id)}
+                        />
+                      ) : (
+                        <button
+                          onClick={() => handleAddLink(problem.id)}
+                          className="text-teal-400 text-sm hover:text-teal-300 transition-colors flex items-center gap-1"
+                        >
+                          <Link2 className="w-3 h-3" />
+                          Add link
+                        </button>
+                      )}
+                    </div>
                   </>
                 )}
               </div>

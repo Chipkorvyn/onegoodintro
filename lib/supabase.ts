@@ -34,6 +34,16 @@ export interface UserProblem {
   helped_count: number
   ai_generated: boolean
   created_at: string
+  attachment_url?: string | null
+  attachment_type?: 'youtube' | 'website' | null
+  attachment_metadata?: {
+    title?: string
+    description?: string
+    thumbnail?: string
+    favicon?: string
+    siteName?: string
+    duration?: string
+  } | null
 }
 
 // Add these interfaces to your existing supabase.ts file
