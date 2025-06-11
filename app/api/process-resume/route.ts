@@ -80,37 +80,31 @@ export async function POST(request: NextRequest) {
 
 // Your proven prompt generation functions
 function generateFirstPrompt(resumeText: string): string {
-  return `You are reading a resume/LinkedIn profile written for job applications. Extract what peer advice this person could share based on challenges they've personally navigated in their career.
+  return `You are an AI assistant that helps professionals identify problems they have personally solved that OTHER INDIVIDUALS might be facing. Focus on practical peer-to-peer advice sharing. Think about situations where someone might say "I went through exactly that - here's what I learned."
 
 ## Card Format (STRICT - mind the length)
-Always respond with exactly this format, using natural workplace conversation language - sound like someone sharing experience in a casual work conversation, no corporate jargon, just real talk:
-**You can help with:** [specific challenge/situation they've personally navigated - max 10 words]
+Always respond with exactly this format, in simple professional language (direct and practical, emphasises concrete value, NO CORPORATE JARGON):
+**You can help with:** [specific challenge/situation you've personally faced - max 10 words]
 **Because:** [concrete experience with specific details from their background - max 15 words]
 
-## "You can help with" MUST be challenges they've personally faced that other individuals might also be dealing with
-- Focus on concrete situations they've navigated and solved
-- Think: "What struggles has this person been through that others face too?"
+## "You can help with" MUST be individual career problems based on specific situations from their experience
+- Focus on concrete challenges they've faced and solved
+- Get to second order implications. Use the project information to imply what is the biggest problems solved, in practical terms. Make it specific and do not use corporate jargon, but do not exaggerate beyond what is in the data.
+- NOT generic career transitions or broad consulting topics
 
 ## "Because" MUST Include Concrete Details
 - ALWAYS reference specific companies, roles, timeframes, numbers, or situations from their profile
-- Use actual data points from their experience
-- Mention specific projects or achievements
-- Include numbers where available
+- Use actual data points: "You managed 15 engineers at <Company> for 3 years"
+- Mention specific projects: "You led the checkout redesign at <Company>"
+- Include numbers: "You've done 5+ acquisitions" or "You raised $20M in Series A"
+- Reference transitions: "You went from consultant to VP at <Company>"
 - Never use generic statements - always pull real details from their experience
-
-## Examples of GOOD "Because" statement formats:
-- "You [specific action] at [Company] for [timeframe]"
-- "You [achievement] including [specific detail/number]"
-- "You [leadership role] [team size/scope] at [Company]"
 
 ## Strategy: GO WIDE, NOT DEEP
 - Explore DIFFERENT aspects of their experience with each card
 - Each card should reference different roles, companies, or timeframes
 - Cover their full career range efficiently
 - Do not repeat problems and cards
-
-## After Each Card:
-ALWAYS ask: "Is this experience accurate? Can you help individuals with this? Please respond with YES or NO."
 
 Profile text to analyze:
 ${resumeText}
@@ -131,40 +125,34 @@ ${historyText}
 
 IMPORTANT: Don't repeat previous words/phrases. Be creative with language.
 
-You are reading a resume/LinkedIn profile written for job applications. Extract what peer advice this person could share based on challenges they've personally navigated in their career.
+You are an AI assistant that helps professionals identify problems they have personally solved that OTHER INDIVIDUALS might be facing. Focus on practical peer-to-peer advice sharing. Think about situations where someone might say "I went through exactly that - here's what I learned."
 
 Based on the feedback above, generate a COMPLETELY DIFFERENT challenge that explores a different aspect of their experience.
 
 ## Card Format (STRICT - mind the length)
-Always respond with exactly this format, using natural workplace conversation language - sound like someone sharing experience in a casual work conversation, no corporate jargon, just real talk:
-**You can help with:** [specific challenge/situation they've personally navigated - max 10 words]
+Always respond with exactly this format, in simple professional language (direct and practical, emphasises concrete value, NO CORPORATE JARGON):
+**You can help with:** [specific challenge/situation you've personally faced - max 10 words]
 **Because:** [concrete experience with specific details from their background - max 15 words]
 
-## "You can help with" MUST be challenges they've personally faced that other individuals might also be dealing with
-- Focus on concrete situations they've navigated and solved
-- Think: "What struggles has this person been through that others face too?"
+## "You can help with" MUST be individual career problems based on specific situations from their experience
+- Focus on concrete challenges they've faced and solved
+- Get to second order implications. Use the project information to imply what is the biggest problems solved, in practical terms. Make it specific and do not use corporate jargon, but do not exaggerate beyond what is in the data.
+- NOT generic career transitions or broad consulting topics
 - Be creative with language - no repeated patterns or phrases
 
 ## "Because" MUST Include Concrete Details
 - ALWAYS reference specific companies, roles, timeframes, numbers, or situations from their profile
-- Use actual data points from their experience
-- Mention specific projects or achievements
-- Include numbers where available
+- Use actual data points: "You managed 15 engineers at <Company> for 3 years"
+- Mention specific projects: "You led the checkout redesign at <Company>"
+- Include numbers: "You've done 5+ acquisitions" or "You raised $20M in Series A"
+- Reference transitions: "You went from consultant to VP at <Company>"
 - Never use generic statements - always pull real details from their experience
-
-## Examples of GOOD "Because" statement formats:
-- "You [specific action] at [Company] for [timeframe]"
-- "You [achievement] including [specific detail/number]"
-- "You [leadership role] [team size/scope] at [Company]"
 
 ## Strategy: GO WIDE, NOT DEEP
 - Explore DIFFERENT aspects of their experience with each card
 - Each card should reference different roles, companies, or timeframes
 - Cover their full career range efficiently
 - Do not repeat problems and cards
-
-## After Each Card:
-ALWAYS ask: "Is this experience accurate? Can you help individuals with this? Please respond with YES or NO."
 
 Profile text to analyze:
 ${resumeText}

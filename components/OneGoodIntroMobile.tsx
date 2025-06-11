@@ -72,7 +72,7 @@ const OneGoodIntroMobile = () => {
   const [recordingType, setRecordingType] = useState<'profile' | 'request'>('profile');
 
   // Resume state
-  const [resumeState, setResumeState] = useState<'initial' | 'processing' | 'complete'>('initial');
+  const [resumeState, setResumeState] = useState<'initial' | 'processing' | 'complete' | 'error'>('initial');
   const [resumeProgress, setResumeProgress] = useState<number>(0);
   const [showResumeValidation, setShowResumeValidation] = useState<boolean>(false);
   const [currentResumeCard, setCurrentResumeCard] = useState<{
@@ -82,6 +82,10 @@ const OneGoodIntroMobile = () => {
   const [cardsAccepted, setCardsAccepted] = useState<number>(0);
   const [totalAttempts, setTotalAttempts] = useState<number>(0);
   const [resumeConversationHistory, setResumeConversationHistory] = useState<any[]>([]);
+  const [resumeText, setResumeText] = useState<string>('');
+  const [resumeFilename, setResumeFilename] = useState<string>('');
+  const [resumeError, setResumeError] = useState<string>('');
+  const [generatingCard, setGeneratingCard] = useState<boolean>(false);
 
   // LinkedIn state
   const [linkedinUrl, setLinkedinUrl] = useState<string>('');
@@ -472,65 +476,173 @@ const OneGoodIntroMobile = () => {
     setResumeState('initial');
   };
 
-  const handleResumeUpload = () => {
+  const handleResumeUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Reset error state
+    setResumeError('');
+    
+    // Validate file type
+    const validTypes = [
+      'application/pdf',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/msword'
+    ];
+    
+    if (!validTypes.includes(file.type)) {
+      setResumeError('Please upload a PDF, DOC, or DOCX file');
+      return;
+    }
+
+    // Validate file size (10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      setResumeError('File is too large. Maximum size is 10MB');
+      return;
+    }
+
     setResumeState('processing');
     setResumeProgress(0);
-    
-    // Simulate file processing
-    const timer = setInterval(() => {
-      setResumeProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(timer);
-          setResumeState('complete');
-          setCardsAccepted(0);
-          setTotalAttempts(0);
-          setCurrentView('full-profile');
-          generateNextResumeCard();
-          return 100;
-        }
-        return prev + 20;
+    setResumeFilename(file.name);
+
+    try {
+      // Create FormData and send to extraction API
+      const formData = new FormData();
+      formData.append('file', file);
+
+      // Update progress while uploading
+      const progressTimer = setInterval(() => {
+        setResumeProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressTimer);
+            return 90;
+          }
+          return prev + 10;
+        });
+      }, 200);
+
+      const extractResponse = await fetch('/api/extract-resume', {
+        method: 'POST',
+        body: formData
       });
-    }, 400);
+
+      clearInterval(progressTimer);
+
+      if (!extractResponse.ok) {
+        const error = await extractResponse.json();
+        console.error('Extract API Error:', error);
+        throw new Error(error.error || 'Failed to extract text from resume');
+      }
+
+      const response = await extractResponse.json();
+      const { text, success } = response;
+      
+      if (!success || !text) {
+        throw new Error('Failed to extract text from resume');
+      }
+      
+      setResumeText(text);
+      setResumeProgress(100);
+      
+      // Immediately start card generation without delay
+      setResumeState('complete');
+      setCardsAccepted(0);
+      setTotalAttempts(0);
+      setResumeConversationHistory([]);
+      // Stay in resume view during card validation
+      generateNextResumeCard(text);
+
+    } catch (error) {
+      console.error('Resume upload error:', error);
+      setResumeError(error instanceof Error ? error.message : 'Failed to process resume');
+      setResumeState('error');
+      setResumeProgress(0);
+    }
   };
 
-  const generateNextResumeCard = async (resumeText?: string) => {
+  const handleResumeButtonClick = () => {
+    fileInputRef.current?.click();
+  };
+
+
+  const generateNextResumeCard = async (passedResumeText?: string) => {
     if (cardsAccepted >= 5 || totalAttempts >= 8) {
       setShowResumeValidation(false);
       return;
     }
 
-    // Mock sample cards - no API call
-    const sampleCards = [
-      {
-        title: 'Digital marketing strategy for B2B SaaS',
-        proof: 'You led growth at TechCorp increasing leads 300% in 1 year'
-      },
-      {
-        title: 'Team leadership in fast-growing startups',
-        proof: 'You built engineering team from 3 to 15 people at StartupCo'
-      },
-      {
-        title: 'Product launch coordination',
-        proof: 'You managed 3 major product launches generating $2M+ revenue'
-      },
-      {
-        title: 'Customer acquisition in competitive markets',
-        proof: 'You developed acquisition strategy that reduced CAC by 40%'
-      }
-    ];
+    // Use the passed text or the stored resume text
+    const textToProcess = passedResumeText || resumeText;
+    
+    if (!textToProcess) {
+      console.error('No resume text available');
+      setResumeError('No resume text available for processing');
+      return;
+    }
 
-    const card = sampleCards[totalAttempts % sampleCards.length];
-    setCurrentResumeCard({
-      title: card.title,
-      proof: card.proof
-    });
-    setShowResumeValidation(true);
+    setGeneratingCard(true);
+    setResumeError('');
+
+    try {
+      // Call the actual API
+      const response = await fetch('/api/process-resume', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          resumeText: textToProcess,
+          conversationHistory: resumeConversationHistory
+        })
+      });
+
+      if (!response.ok) {
+        let error;
+        try {
+          error = await response.json();
+        } catch (parseError) {
+          console.error('Failed to parse error response:', parseError);
+          error = { error: `HTTP ${response.status}: ${response.statusText}` };
+        }
+        console.error('Resume processing error:', error);
+        setResumeError(error.error || `Failed to generate card (${response.status})`);
+        setGeneratingCard(false);
+        return;
+      }
+
+      const { title, proof } = await response.json();
+      
+      console.log('Generated card:', { title, proof });
+      
+      setCurrentResumeCard({
+        title,
+        proof
+      });
+      setShowResumeValidation(true);
+      setGeneratingCard(false);
+      
+      console.log('Card state updated, showResumeValidation set to true');
+      
+    } catch (error) {
+      console.error('Error generating card:', error);
+      setResumeError('Failed to generate card. Please try again.');
+      setGeneratingCard(false);
+    }
   };
 
   const handleResumeApproval = async (approved: boolean) => {
+    console.log('Resume approval called:', { approved, totalAttempts, cardsAccepted });
+    
+    // Check if user is logged in (same as voice workflow)
+    if (!session?.user?.email) {
+      alert('Please sign in to save your experience');
+      return;
+    }
+    
+    // Update total attempts counter
     const newTotalAttempts = totalAttempts + 1;
     setTotalAttempts(newTotalAttempts);
-
+    
     // Add to conversation history with your format
     if (currentResumeCard) {
       setResumeConversationHistory(prev => [...prev, {
@@ -544,35 +656,51 @@ const OneGoodIntroMobile = () => {
       const newCardsAccepted = cardsAccepted + 1;
       setCardsAccepted(newCardsAccepted);
       
-      // Save to database
+      console.log('Saving card to database:', currentResumeCard);
+      
+      // Save to database (removed ai_generated field since it was dropped from table)
       const { data, error } = await supabase
         .from('user_problems')
         .insert({
-          user_id: session?.user?.email || '',
+          user_id: session.user.email,
           title: currentResumeCard.title,
           proof: currentResumeCard.proof,
           verified: false,
-          helped_count: 0,
-          ai_generated: true
+          helped_count: 0
         })
         .select()
         .single();
 
       if (!error && data) {
+        console.log('Card saved successfully:', data);
         setUserProblems(prev => [...prev, data]);
+      } else if (error) {
+        console.error('Failed to save card:', error);
+        console.error('Error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+        setResumeError('Failed to save card to database. Please try again.');
       }
       
       if (newCardsAccepted >= 5) {
         setShowResumeValidation(false);
+        // Only change view when user is completely done with resume flow
+        setCurrentView('full-profile');
         return;
       }
     }
 
     if (newTotalAttempts >= 8) {
       setShowResumeValidation(false);
+      // Change view when user hits attempt limit
+      setCurrentView('full-profile');
       return;
     }
 
+    // Keep modal open and generate next card (modal will update when new card is ready)
     generateNextResumeCard();
   };
 
@@ -654,6 +782,7 @@ const OneGoodIntroMobile = () => {
 
   // Add dedicated ref for about field
   const aboutRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const inputRefs = {
     challenge: useRef<HTMLInputElement>(null),
@@ -785,10 +914,6 @@ const OneGoodIntroMobile = () => {
   const handleDeleteProblem = async (problemId: string) => {
     if (!session?.user?.email) return;
     
-    // Show confirmation dialog
-    if (!confirm('Are you sure you want to delete this card? This action cannot be undone.')) {
-      return;
-    }
     
     try {
       const { error } = await supabase
@@ -1298,13 +1423,25 @@ const OneGoodIntroMobile = () => {
             <p className="text-gray-400 mb-6 text-sm leading-relaxed">
               We'll find areas where you can help others based on your experience
             </p>
+            {resumeError && (
+              <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+                <p className="text-sm text-red-400">{resumeError}</p>
+              </div>
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.doc,.docx"
+              onChange={handleResumeUpload}
+              className="hidden"
+            />
             <button 
-              onClick={handleResumeUpload}
+              onClick={handleResumeButtonClick}
               className="w-full bg-teal-500 text-white py-3 rounded-lg font-semibold hover:bg-teal-600 transition-colors mb-4"
             >
               Choose File
             </button>
-            <p className="text-xs text-gray-500">Supports PDF, DOC, DOCX</p>
+            <p className="text-xs text-gray-500">Supports PDF, DOC, DOCX (Max 10MB)</p>
           </>
         )}
 
@@ -1316,7 +1453,7 @@ const OneGoodIntroMobile = () => {
               </svg>
             </div>
             <h3 className="text-xl font-bold text-white mb-3">Processing resume...</h3>
-            <p className="text-gray-400 mb-4">Marketing_Resume.pdf</p>
+            <p className="text-gray-400 mb-4">{resumeFilename || 'Resume.pdf'}</p>
             <div className="w-full bg-gray-700 rounded-full h-2 mb-4">
               <div 
                 className="bg-teal-500 h-2 rounded-full transition-all duration-300" 
@@ -1324,6 +1461,26 @@ const OneGoodIntroMobile = () => {
               ></div>
             </div>
             <p className="text-sm text-gray-400">Looking for 5 areas you can help</p>
+          </>
+        )}
+
+        {resumeState === 'error' && (
+          <>
+            <div className="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+              <X className="w-6 h-6 text-white" />
+            </div>
+            <h3 className="text-xl font-bold text-white mb-3">Upload Failed</h3>
+            <p className="text-gray-400 mb-4">{resumeError || 'Failed to process resume'}</p>
+            <button 
+              onClick={() => {
+                setResumeState('initial');
+                setResumeError('');
+                setResumeProgress(0);
+              }}
+              className="w-full bg-teal-500 text-white py-3 rounded-lg font-semibold hover:bg-teal-600 transition-colors"
+            >
+              Try Again
+            </button>
           </>
         )}
       </div>
@@ -1580,33 +1737,6 @@ const OneGoodIntroMobile = () => {
                     </div>
                   )}
 
-                  {/* Resume Section */}
-                  {resumeState === 'complete' ? (
-                    <div className="flex items-center gap-2">
-                      <span className="flex items-center gap-2 text-gray-300">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        <span className="text-sm text-teal-400">Resume</span>
-                      </span>
-                      <button 
-                        onClick={handleResumeStart}
-                        className="text-gray-400 hover:text-white hover:bg-gray-700 p-1 rounded"
-                      >
-                        <Edit className="h-3 w-3" />
-                      </button>
-                    </div>
-                  ) : (
-                    <button 
-                      onClick={handleResumeStart}
-                      className="flex items-center gap-2 text-teal-400 hover:text-teal-300 hover:bg-gray-700 transition-all px-2 py-1 rounded-lg"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                      <span className="text-sm">Add Resume</span>
-                    </button>
-                  )}
                 </div>
               </div>
             </div>
@@ -1868,6 +1998,36 @@ const OneGoodIntroMobile = () => {
               <Phone className="w-8 h-8 text-white" strokeWidth={2.5} />
             </div>
           </button>
+        </div>
+
+        {/* Add Resume Section */}
+        <div className="flex items-center mb-6 mt-2 justify-end">
+          {resumeState === 'complete' ? (
+            <div className="flex items-center gap-2">
+              <span className="flex items-center gap-2 text-gray-300">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span className="text-sm text-teal-400">Resume</span>
+              </span>
+              <button 
+                onClick={handleResumeStart}
+                className="text-gray-400 hover:text-white hover:bg-gray-700 p-1 rounded"
+              >
+                <Edit className="h-3 w-3" />
+              </button>
+            </div>
+          ) : (
+            <button 
+              onClick={handleResumeStart}
+              className="flex items-center gap-2 text-teal-400 hover:text-teal-300 hover:bg-gray-700 transition-all px-2 py-1 rounded-lg"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <span className="text-sm">Add Resume</span>
+            </button>
+          )}
         </div>
 
         {/* Help Cards */}
@@ -2745,10 +2905,6 @@ const OneGoodIntroMobile = () => {
   const handleDeleteRequest = async (requestId: string) => {
     if (!session?.user?.email) return;
     
-    // Show confirmation dialog
-    if (!confirm('Are you sure you want to delete this request? This action cannot be undone.')) {
-      return;
-    }
     
     try {
       const response = await fetch('/api/requests', {
@@ -3105,40 +3261,70 @@ const OneGoodIntroMobile = () => {
       )}
 
       {/* Resume Validation UI */}
-      {showResumeValidation && currentResumeCard && (
+      {(showResumeValidation || generatingCard) && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-gray-800 rounded-2xl shadow-2xl max-w-sm w-full p-6 border border-gray-700">
-            <div className="text-center mb-4">
-              <h3 className="text-xl font-bold text-white mb-2">AI found this experience</h3>
-              <p className="text-sm text-gray-400">
-                Card {cardsAccepted + 1} of 5 • {totalAttempts + 1} attempts made
-              </p>
-            </div>
-            
-            <div className="bg-gray-700 rounded-lg p-4 mb-6 border border-gray-600">
-              <h4 className="font-semibold text-white mb-2">{currentResumeCard.title}</h4>
-              <p className="text-sm text-gray-300">{currentResumeCard.proof}</p>
-            </div>
+            {generatingCard ? (
+              // Loading state
+              <div className="text-center">
+                <div className="w-12 h-12 bg-teal-500 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+                  <Brain className="w-6 h-6 text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">Finding next experience...</h3>
+                <p className="text-sm text-gray-400">
+                  Card {cardsAccepted + 1} of 5 • {totalAttempts + 1} attempts made
+                </p>
+              </div>
+            ) : currentResumeCard ? (
+              // Card display state
+              <>
+                <div className="text-center mb-4">
+                  <h3 className="text-xl font-bold text-white mb-2">AI found this experience</h3>
+                  <p className="text-sm text-gray-400">
+                    Card {cardsAccepted + 1} of 5 • {totalAttempts + 1} attempts made
+                  </p>
+                </div>
+                
+                <div className="bg-gray-700 rounded-lg p-4 mb-6 border border-gray-600">
+                  <h4 className="font-semibold text-white mb-2">{currentResumeCard.title}</h4>
+                  <p className="text-sm text-gray-300">{currentResumeCard.proof}</p>
+                </div>
 
-            <div className="space-y-3">
-              <button 
-                onClick={() => handleResumeApproval(true)}
-                className="w-full bg-teal-500 text-white py-3 rounded-lg font-semibold hover:bg-teal-600"
-              >
-                ✓ Add to Profile
-              </button>
-              <button 
-                onClick={() => handleResumeApproval(false)}
-                className="w-full bg-gray-600 text-gray-300 py-3 rounded-lg font-semibold hover:bg-gray-500"
-              >
-                ✗ Try Again
-              </button>
-            </div>
+                <div className="space-y-3">
+                  <button 
+                    onClick={() => handleResumeApproval(true)}
+                    className="w-full bg-teal-500 text-white py-3 rounded-lg font-semibold hover:bg-teal-600"
+                  >
+                    ✓ Add to Profile
+                  </button>
+                  <button 
+                    onClick={() => handleResumeApproval(false)}
+                    className="w-full bg-gray-600 text-gray-300 py-3 rounded-lg font-semibold hover:bg-gray-500"
+                  >
+                    ✗ Try Again
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setShowResumeValidation(false);
+                      setCurrentView('full-profile');
+                    }}
+                    className="w-full bg-gray-700 text-gray-400 py-2 rounded-lg font-medium hover:bg-gray-600 text-sm"
+                  >
+                    Done for now
+                  </button>
+                </div>
 
-            {cardsAccepted >= 4 && (
-              <p className="text-center text-xs text-gray-500 mt-4">
-                Almost done! 1 more card to go.
-              </p>
+                {cardsAccepted >= 4 && (
+                  <p className="text-center text-xs text-gray-500 mt-4">
+                    Almost done! 1 more card to go.
+                  </p>
+                )}
+              </>
+            ) : (
+              // Fallback state
+              <div className="text-center">
+                <h3 className="text-xl font-bold text-white mb-2">Loading...</h3>
+              </div>
             )}
           </div>
         </div>

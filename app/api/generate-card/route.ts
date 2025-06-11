@@ -41,7 +41,7 @@ Focus on:
 Return JSON format:
 { "title": "...", "proof": "..." }
 
-IMPORTANT: Keep within character limits and make it sound professional but conversational.`
+IMPORTANT: Keep within character limits and make it sound professional but conversational, no corporate jargon.`
           }
         ]
       })
