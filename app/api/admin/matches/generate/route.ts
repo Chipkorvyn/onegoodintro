@@ -113,7 +113,7 @@ export async function POST() {
           }
         ]
 
-        Only include matches with score > 0.7. Focus on relevant experience, skills, and industry alignment.
+        Only include matches with score > 0.5. Focus on relevant experience, skills, and industry alignment.
       `
 
       try {
