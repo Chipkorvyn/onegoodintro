@@ -14,6 +14,7 @@ type ModalIconType = 'handshake' | 'check' | 'heart';
 interface NetworkConnection {
   id: number;
   name: string;
+  title: string;
   company: string;
   avatar: string;
   connectionContext: string;
@@ -864,6 +865,7 @@ const OneGoodIntroMobile = () => {
     3: 1,
     5: 0
   });
+  const [chatView, setChatView] = useState<'list' | 'chat'>('list');
 
   // Initialize chat messages if not exists
   const initializeChat = useCallback((connectionId: number) => {
@@ -892,6 +894,7 @@ const OneGoodIntroMobile = () => {
     {
       id: 1,
       name: 'Maria Rodriguez',
+      title: 'Product Manager',
       company: 'TechStart',
       avatar: 'MR',
       connectionContext: 'You helped with crisis management',
@@ -903,6 +906,7 @@ const OneGoodIntroMobile = () => {
     {
       id: 2,
       name: 'John Smith',
+      title: 'Engineering Director',
       company: 'Enterprise Corp',
       avatar: 'JS',
       connectionContext: 'Helped you with P&L strategy',
@@ -914,6 +918,7 @@ const OneGoodIntroMobile = () => {
     {
       id: 3,
       name: 'Anna Kim',
+      title: 'Strategy Consultant',
       company: 'Growth Ventures',
       avatar: 'AK',
       connectionContext: 'You helped with M&A integration',
@@ -925,6 +930,7 @@ const OneGoodIntroMobile = () => {
     {
       id: 4,
       name: 'David Chen',
+      title: 'Senior PM',
       company: 'Spotify',
       avatar: 'DC',
       connectionContext: 'Helped you with product strategy',
@@ -936,6 +942,7 @@ const OneGoodIntroMobile = () => {
     {
       id: 5,
       name: 'Sophie Laurent',
+      title: 'Management Consultant',
       company: 'McKinsey',
       avatar: 'SL',
       connectionContext: 'You helped with team scaling',
@@ -3069,19 +3076,6 @@ const OneGoodIntroMobile = () => {
   );
 
   const renderNetwork = () => {
-    interface NetworkConnection {
-      id: number;
-      name: string;
-      company: string;
-      avatar: string;
-      connectionContext: string;
-      currentStatus: {
-        type: 'looking_for' | 'recently_helped';
-        text: string;
-      }
-    }
-
-
     const filteredConnections = networkConnectionsImproved.filter((conn: NetworkConnection) => {
       if (searchTerm === '') return true;
       
@@ -3118,48 +3112,78 @@ const OneGoodIntroMobile = () => {
             />
           </div>
 
-          <div className="space-y-6">
-            {filteredConnections.map((connection: NetworkConnection) => (
-              <div key={connection.id} className="bg-gray-800 rounded-2xl shadow-sm p-4 hover:shadow-md transition-all border border-gray-700">
-                <div className="flex items-start space-x-4">
-                  <div className="w-14 h-14 bg-gray-700 rounded-full flex items-center justify-center text-gray-300 font-bold text-lg flex-shrink-0">
-                    {connection.avatar}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-white text-lg">{connection.name}</h3>
-                    <p className="text-gray-400 mb-2">{connection.company}</p>
-                    
-                    <div className="mb-3">
-                      <p className="text-sm text-gray-500 mb-1">How you connected:</p>
-                      <p className="text-sm text-gray-300">{connection.connectionContext}</p>
+          <div className="space-y-4">
+            {filteredConnections.map((connection: NetworkConnection) => {
+              const lastMessage = getLastMessage(connection.id);
+              const hasMessages = chatMessages[connection.id]?.length > 0;
+              
+              return (
+                <button
+                  key={connection.id}
+                  onClick={() => {
+                    setActiveChat(connection.id);
+                    setShowChatPanel(true);
+                    setChatView('chat');
+                    setUnreadCounts(prev => ({ ...prev, [connection.id]: 0 }));
+                  }}
+                  className="w-full bg-gray-800 rounded-2xl shadow-sm p-4 hover:shadow-md hover:bg-gray-750 transition-all border border-gray-700 text-left"
+                >
+                  <div className="flex items-start space-x-4">
+                    {/* Avatar */}
+                    <div className="w-14 h-14 bg-gray-700 rounded-full flex items-center justify-center text-gray-300 font-bold text-lg flex-shrink-0 relative">
+                      {connection.avatar}
+                      {unreadCounts[connection.id] > 0 && (
+                        <div className="absolute -top-1 -right-1 w-6 h-6 bg-teal-500 rounded-full flex items-center justify-center">
+                          <span className="text-xs text-white font-bold">{unreadCounts[connection.id]}</span>
+                        </div>
+                      )}
                     </div>
                     
-                    <div>
-                      <p className="text-sm text-gray-500 mb-1">Current activity:</p>
-                      <p className={`text-sm font-medium ${
-                        connection.currentStatus.type === 'looking_for' ? 'text-teal-400' : 'text-blue-400'
-                      }`}>
-                        {connection.currentStatus.text}
-                      </p>
-                    </div>
-                  </div>
-                  <button 
-                    onClick={() => {
-                      setActiveChat(connection.id);
-                      setShowChatPanel(true);
-                    }}
-                    className="p-4 hover:bg-gray-700 rounded-xl transition-all flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center relative"
-                  >
-                    <MessageCircle className="h-5 w-5 text-gray-400" />
-                    {unreadCounts[connection.id] > 0 && (
-                      <div className="absolute top-2 right-2 w-5 h-5 bg-teal-500 rounded-full flex items-center justify-center">
-                        <span className="text-xs text-white font-bold">{unreadCounts[connection.id]}</span>
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      {/* Name and Title */}
+                      <div className="mb-2">
+                        <h3 className="font-bold text-white text-lg mb-1">{connection.name}</h3>
+                        <p className="text-gray-400 text-sm">{connection.title} at {connection.company}</p>
                       </div>
-                    )}
-                  </button>
-                </div>
-              </div>
-            ))}
+                      
+                      {/* Current Activity */}
+                      {connection.currentStatus && (
+                        <div className="mb-3">
+                          <p className={`text-sm font-medium ${
+                            connection.currentStatus.type === 'looking_for' ? 'text-teal-400' : 'text-blue-400'
+                          }`}>
+                            {connection.currentStatus.text}
+                          </p>
+                        </div>
+                      )}
+                      
+                      {/* Message Section */}
+                      <div className="border-t border-gray-700 pt-3">
+                        {hasMessages && lastMessage ? (
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm text-gray-300 truncate flex-1 mr-2">
+                              {lastMessage.sender === 'me' ? 'You: ' : ''}{lastMessage.text}
+                            </p>
+                            <div className="flex items-center space-x-1 flex-shrink-0">
+                              <span className="text-xs text-gray-500">
+                                {new Date(lastMessage.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                              <MessageCircle className="h-4 w-4 text-gray-500" />
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm text-gray-500">Start a conversation</p>
+                            <MessageCircle className="h-4 w-4 text-gray-500" />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
           </div>
 
           {filteredConnections.length === 0 && searchTerm && (
@@ -3617,15 +3641,30 @@ const OneGoodIntroMobile = () => {
     }
   };
 
+  // Get last message for each conversation
+  const getLastMessage = (connectionId: number) => {
+    const messages = chatMessages[connectionId] || [];
+    if (messages.length === 0) return null;
+    return messages[messages.length - 1];
+  };
+
+  // Get conversations with messages or unread counts
+  const getActiveConversations = () => {
+    return networkConnectionsImproved.filter(conn => 
+      chatMessages[conn.id]?.length > 0 || unreadCounts[conn.id] > 0
+    );
+  };
+
   const renderChatPanel = () => {
     if (!showChatPanel) return null;
     
-    const activeChatConnection = networkConnectionsImproved.find(conn => conn.id === activeChat);
-    const messages = chatMessages[activeChat!] || [];
-    
-    return (
-      <div className="fixed inset-0 z-50 bg-gray-900 flex flex-col">
-          {/* Chat header */}
+    if (chatView === 'list') {
+      // Conversation List View (like WhatsApp)
+      const conversations = getActiveConversations();
+      
+      return (
+        <div className="fixed inset-0 z-50 bg-gray-900 flex flex-col">
+          {/* Header */}
           <div className="bg-gray-800 px-4 py-4 border-b border-gray-700">
             <div className="flex items-center justify-between">
               <button 
@@ -3634,87 +3673,139 @@ const OneGoodIntroMobile = () => {
               >
                 <X className="h-5 w-5" />
               </button>
-              
-              {activeChatConnection && (
-                <div className="flex items-center space-x-3 flex-1 ml-3">
-                  <div className="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center text-sm font-semibold text-gray-300">
-                    {activeChatConnection.avatar}
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-white">{activeChatConnection.name}</h3>
-                    <p className="text-xs text-gray-400">{activeChatConnection.company}</p>
-                  </div>
-                </div>
-              )}
+              <h1 className="text-lg font-semibold text-white">Messages</h1>
+              <div className="w-10"></div>
             </div>
           </div>
           
-          {/* Active conversations list */}
-          <div className="border-b border-gray-700 p-2 flex space-x-2 overflow-x-auto">
-            {networkConnectionsImproved.filter(conn => chatMessages[conn.id] || unreadCounts[conn.id] > 0).map(conn => (
-              <button
-                key={conn.id}
-                onClick={() => {
-                  setActiveChat(conn.id);
-                  setUnreadCounts(prev => ({ ...prev, [conn.id]: 0 }));
-                }}
-                className={`flex items-center space-x-2 px-3 py-2 rounded-lg whitespace-nowrap transition-colors ${
-                  activeChat === conn.id ? 'bg-gray-700' : 'hover:bg-gray-800'
-                }`}
-              >
-                <div className="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center text-xs font-semibold text-gray-300">
-                  {conn.avatar}
-                </div>
-                <span className="text-sm text-white">{conn.name.split(' ')[0]}</span>
-                {unreadCounts[conn.id] > 0 && (
-                  <div className="w-5 h-5 bg-teal-500 rounded-full flex items-center justify-center">
-                    <span className="text-xs text-white font-bold">{unreadCounts[conn.id]}</span>
-                  </div>
-                )}
-              </button>
-            ))}
-          </div>
-          
-          {/* Messages area */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {messages.map(message => (
-              <div
-                key={message.id}
-                className={`flex ${message.sender === 'me' ? 'justify-end' : 'justify-start'}`}
-              >
-                <div className={`max-w-[70%] rounded-2xl px-4 py-2 ${
-                  message.sender === 'me' 
-                    ? 'bg-teal-500 text-white' 
-                    : 'bg-gray-800 text-white border border-gray-700'
-                }`}>
-                  <p className="text-sm">{message.text}</p>
-                  <p className={`text-xs mt-1 ${
-                    message.sender === 'me' ? 'text-teal-200' : 'text-gray-500'
-                  }`}>
-                    {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </p>
+          {/* Conversation List */}
+          <div className="flex-1 overflow-y-auto">
+            {conversations.length > 0 ? (
+              conversations.map(conn => {
+                const lastMessage = getLastMessage(conn.id);
+                return (
+                  <button
+                    key={conn.id}
+                    onClick={() => {
+                      setActiveChat(conn.id);
+                      setChatView('chat');
+                      setUnreadCounts(prev => ({ ...prev, [conn.id]: 0 }));
+                    }}
+                    className="w-full p-4 border-b border-gray-700 hover:bg-gray-800 transition-colors flex items-center space-x-3"
+                  >
+                    {/* Avatar */}
+                    <div className="w-12 h-12 bg-gray-700 rounded-full flex items-center justify-center text-sm font-semibold text-gray-300 flex-shrink-0">
+                      {conn.avatar}
+                    </div>
+                    
+                    {/* Message Info */}
+                    <div className="flex-1 min-w-0 text-left">
+                      <div className="flex items-center justify-between mb-1">
+                        <h3 className="font-semibold text-white text-sm">{conn.name}</h3>
+                        {lastMessage && (
+                          <span className="text-xs text-gray-500">
+                            {new Date(lastMessage.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm text-gray-400 truncate">
+                          {lastMessage ? lastMessage.text : 'Start a conversation'}
+                        </p>
+                        {unreadCounts[conn.id] > 0 && (
+                          <div className="w-5 h-5 bg-teal-500 rounded-full flex items-center justify-center flex-shrink-0 ml-2">
+                            <span className="text-xs text-white font-bold">{unreadCounts[conn.id]}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })
+            ) : (
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center">
+                  <MessageCircle className="h-12 w-12 text-gray-500 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-white mb-2">No messages yet</h3>
+                  <p className="text-gray-400">Start a conversation with your connections</p>
                 </div>
               </div>
-            ))}
+            )}
           </div>
-          
-          {/* Message input */}
-          <div className="bg-gray-800 p-4 border-t border-gray-700">
-            <div className="flex items-center space-x-2">
-              <input
-                type="text"
-                value={messageInput}
-                onChange={(e) => setMessageInput(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                placeholder="Type a message..."
-                className="flex-1 bg-gray-700 text-white px-4 py-2 rounded-full focus:outline-none focus:ring-2 focus:ring-teal-500"
-              />
-              <button 
-                onClick={sendMessage}
-                className="bg-teal-500 text-white p-2 rounded-full hover:bg-teal-600 transition-colors"
-              >
-                <Send className="h-5 w-5" />
-              </button>
+        </div>
+      );
+    }
+    
+    // Individual Chat View
+    const activeChatConnection = networkConnectionsImproved.find(conn => conn.id === activeChat);
+    const messages = chatMessages[activeChat!] || [];
+    
+    return (
+      <div className="fixed inset-0 z-50 bg-gray-900 flex flex-col">
+        {/* Chat Header */}
+        <div className="bg-gray-800 px-4 py-4 border-b border-gray-700">
+          <div className="flex items-center space-x-3">
+            <button 
+              onClick={() => setShowChatPanel(false)}
+              className="text-gray-400 hover:text-white p-2"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            
+            {activeChatConnection && (
+              <>
+                <div className="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center text-sm font-semibold text-gray-300">
+                  {activeChatConnection.avatar}
+                </div>
+                <div>
+                  <h3 className="font-semibold text-white">{activeChatConnection.name}</h3>
+                  <p className="text-xs text-gray-400">{activeChatConnection.company}</p>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+        
+        {/* Messages Area */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {messages.map(message => (
+            <div
+              key={message.id}
+              className={`flex ${message.sender === 'me' ? 'justify-end' : 'justify-start'}`}
+            >
+              <div className={`max-w-[70%] rounded-2xl px-4 py-2 ${
+                message.sender === 'me' 
+                  ? 'bg-teal-500 text-white' 
+                  : 'bg-gray-800 text-white border border-gray-700'
+              }`}>
+                <p className="text-sm">{message.text}</p>
+                <p className={`text-xs mt-1 ${
+                  message.sender === 'me' ? 'text-teal-200' : 'text-gray-500'
+                }`}>
+                  {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+        
+        {/* Message Input */}
+        <div className="bg-gray-800 p-4 border-t border-gray-700">
+          <div className="flex items-center space-x-2">
+            <input
+              type="text"
+              value={messageInput}
+              onChange={(e) => setMessageInput(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+              placeholder="Type a message..."
+              className="flex-1 bg-gray-700 text-white px-4 py-2 rounded-full focus:outline-none focus:ring-2 focus:ring-teal-500"
+            />
+            <button 
+              onClick={sendMessage}
+              className="bg-teal-500 text-white p-2 rounded-full hover:bg-teal-600 transition-colors"
+            >
+              <Send className="h-5 w-5" />
+            </button>
           </div>
         </div>
       </div>
@@ -3739,22 +3830,6 @@ const OneGoodIntroMobile = () => {
       {/* Chat Panel */}
       {renderChatPanel()}
       
-      {/* Floating Messages Indicator */}
-      {currentView === 'network' && Object.values(unreadCounts).reduce((a, b) => a + b, 0) > 0 && !showChatPanel && (
-        <button
-          onClick={() => {
-            const firstUnreadChat = Object.entries(unreadCounts).find(([_, count]) => count > 0);
-            if (firstUnreadChat) {
-              setActiveChat(parseInt(firstUnreadChat[0]));
-              setShowChatPanel(true);
-            }
-          }}
-          className="fixed bottom-24 right-4 bg-teal-500 text-white px-4 py-2 rounded-full shadow-lg flex items-center space-x-2 hover:bg-teal-600 transition-colors z-30"
-        >
-          <MessageCircle className="h-5 w-5" />
-          <span className="font-medium">Messages ({Object.values(unreadCounts).reduce((a, b) => a + b, 0)})</span>
-        </button>
-      )}
 
       {showVoiceValidation && currentVoiceCard && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
