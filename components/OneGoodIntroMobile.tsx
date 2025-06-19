@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { User, CheckCircle, Users, Plus, Zap, Target, Heart, Network, Handshake, MessageCircle, Check, MapPin, Building2, X, Edit, Trash2, Mic, Brain, ArrowRight, TrendingUp, Phone, Link2, Globe, Send } from 'lucide-react';
+import { User, CheckCircle, Users, Plus, Zap, Target, Heart, Network, Handshake, MessageCircle, Check, MapPin, Building2, X, Edit, Trash2, Mic, Brain, ArrowRight, TrendingUp, Phone, Link2, Globe, Send, Camera } from 'lucide-react';
 import { useSession, signIn, signOut } from 'next-auth/react'
 import { supabase, type User as DbUser, type UserProblem, type HelpRequest, timeAgo } from '@/lib/supabase'
 import { MediaPreview } from '@/components/MediaPreview'
@@ -326,6 +326,24 @@ const OneGoodIntroMobile = () => {
         project_url: user.project_url || ''
       })
       setLinkedinUrl(user.linkedin_url || '')
+      
+      // Handle photo URL - if it's a path, generate signed URL
+      if (user.image) {
+        if (user.image.startsWith('http')) {
+          // It's already a full URL (e.g., from Google)
+          setPhotoUrl(user.image);
+        } else {
+          // It's a storage path, generate signed URL
+          const { data: signedUrlData } = await supabase.storage
+            .from('profile-photos')
+            .createSignedUrl(user.image, 3600); // 1 hour expiry
+          
+          if (signedUrlData) {
+            setPhotoUrl(signedUrlData.signedUrl);
+            setPhotoPath(user.image);
+          }
+        }
+      }
     }
 
     // Load user problems
@@ -867,6 +885,11 @@ const OneGoodIntroMobile = () => {
   });
   const [chatView, setChatView] = useState<'list' | 'chat'>('list');
 
+  // Photo upload state
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [photoUrl, setPhotoUrl] = useState<string>('');
+  const [photoPath, setPhotoPath] = useState<string>(''); // Store the path for signed URLs
+
   // Initialize chat messages if not exists
   const initializeChat = useCallback((connectionId: number) => {
     if (!chatMessages[connectionId]) {
@@ -1380,6 +1403,74 @@ const OneGoodIntroMobile = () => {
     }
   };
 
+  // Photo upload handler
+  const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !session?.user?.email) return;
+
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+    if (!validTypes.includes(file.type)) {
+      alert('Please upload a valid image file (JPEG, PNG, or GIF)');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Please upload an image smaller than 5MB');
+      return;
+    }
+
+    setUploadingPhoto(true);
+
+    try {
+      // Create form data
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('email', session.user.email);
+
+      // Upload to API endpoint
+      const response = await fetch('/api/upload-photo', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to upload photo');
+      }
+
+      const { url: photoPath } = await response.json();
+
+      // Update database with the path
+      const { error } = await supabase
+        .from('users')
+        .update({ image: photoPath })
+        .eq('email', session.user.email);
+
+      if (error) throw error;
+
+      // Generate signed URL for immediate display
+      const { data: signedUrlData, error: urlError } = await supabase.storage
+        .from('profile-photos')
+        .createSignedUrl(photoPath, 3600); // 1 hour expiry
+
+      if (!urlError && signedUrlData) {
+        setPhotoUrl(signedUrlData.signedUrl);
+        setPhotoPath(photoPath);
+      }
+      
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    } catch (error) {
+      console.error('Error uploading photo:', error);
+      alert('Failed to upload photo. Please try again.');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
   const showSuccessModal = (type: 'connection' | 'request' | 'help') => {
     const configs = {
       'connection': {
@@ -1501,6 +1592,15 @@ const OneGoodIntroMobile = () => {
 
         if (!error) {
           setProfileData(prev => ({ ...prev, learning_focus: value }));
+        }
+      } else if (fieldName === 'project_description') {
+        const { error } = await supabase
+          .from('users')
+          .update({ project_description: value })
+          .eq('email', session.user.email);
+
+        if (!error) {
+          setProfileData(prev => ({ ...prev, project_description: value }));
         }
       }
     } catch (error) {
@@ -2022,11 +2122,36 @@ const OneGoodIntroMobile = () => {
         <div className="p-8 pb-2">
           {/* Avatar - Left aligned */}
           <div className="flex items-start gap-6 mb-3">
-            <div className="relative w-20 h-20 rounded-full bg-gradient-to-br from-red-400 to-orange-400 flex items-center justify-center text-xl font-semibold text-white flex-shrink-0">
-              {profileData.name ? profileData.name.split(' ').map(n => n[0]).join('').toUpperCase() : 'CA'}
-              <button className="absolute -bottom-1 -right-1 w-7 h-7 bg-gradient-to-r from-red-500 to-orange-500 text-white rounded-full flex items-center justify-center hover:from-red-600 hover:to-orange-600 transition-all">
-                <Edit className="w-3 h-3" />
-              </button>
+            <div className="relative">
+              <div className="w-20 h-20 rounded-full overflow-hidden bg-gradient-to-br from-red-400 to-orange-400 flex items-center justify-center text-xl font-semibold text-white">
+                {photoUrl ? (
+                  <img 
+                    src={photoUrl} 
+                    alt={profileData.name || 'Profile'} 
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  profileData.name ? profileData.name.split(' ').map(n => n[0]).join('').toUpperCase() : 'CA'
+                )}
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handlePhotoUpload}
+                className="hidden"
+                id="photo-upload"
+              />
+              <label 
+                htmlFor="photo-upload"
+                className="absolute -bottom-1 -right-1 w-8 h-8 bg-gradient-to-r from-red-500 to-orange-500 text-white rounded-full flex items-center justify-center hover:from-red-600 hover:to-orange-600 transition-all cursor-pointer shadow-lg border-2 border-gray-900"
+              >
+                {uploadingPhoto ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Camera className="w-4 h-4" />
+                )}
+              </label>
             </div>
             
             {/* Name & Edit - Right of avatar */}
