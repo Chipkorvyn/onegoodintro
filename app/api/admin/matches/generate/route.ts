@@ -8,6 +8,8 @@ const openai = new OpenAI({
 
 export async function POST() {
   try {
+    console.log('🚀 Starting match generation...')
+    
     // Get active help requests that need matches
     const { data: helpRequests, error: requestsError } = await supabase
       .from('help_requests')
@@ -33,6 +35,13 @@ export async function POST() {
       return NextResponse.json({ error: 'Failed to fetch help requests' }, { status: 500 })
     }
 
+    console.log(`📋 Found ${helpRequests?.length || 0} help requests:`, helpRequests?.map(r => ({
+      id: r.id,
+      title: r.title,
+      user: r.users?.name,
+      status: r.status
+    })))
+
     // Get all users who could potentially help (excluding those who already have requests)
     const seekerIds = helpRequests?.map(req => req.user_id) || []
     
@@ -46,6 +55,12 @@ export async function POST() {
       console.error('Error fetching potential helpers:', helpersError)
       return NextResponse.json({ error: 'Failed to fetch potential helpers' }, { status: 500 })
     }
+
+    console.log(`👥 Found ${potentialHelpers?.length || 0} potential helpers:`, potentialHelpers?.map(h => ({
+      id: h.id,
+      name: h.name,
+      current_focus: h.current_focus
+    })))
 
     const matches = []
 
@@ -102,6 +117,9 @@ export async function POST() {
       `
 
       try {
+        console.log(`🤖 Sending request to OpenAI for: ${request.title}`)
+        console.log('📝 Prompt preview:', prompt.substring(0, 200) + '...')
+        
         const completion = await openai.chat.completions.create({
           model: "gpt-4o-mini",
           messages: [{ role: "user", content: prompt }],
@@ -110,8 +128,11 @@ export async function POST() {
         })
 
         const responseText = completion.choices[0]?.message?.content
+        console.log('🤖 OpenAI response:', responseText)
+        
         if (responseText) {
           const llmMatches = JSON.parse(responseText)
+          console.log(`✅ Parsed ${llmMatches.length} matches for request: ${request.title}`)
           
           for (const match of llmMatches) {
             // Insert potential match into database
@@ -158,6 +179,7 @@ export async function POST() {
       }
     }
 
+    console.log(`🎯 Final result: Generated ${matches.length} total matches`)
     return NextResponse.json(matches)
   } catch (error) {
     console.error('API error:', error)
