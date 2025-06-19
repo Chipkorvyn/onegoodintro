@@ -319,6 +319,7 @@ const OneGoodIntroMobile = () => {
       .from('user_problems')
       .select('*')
       .eq('user_id', userEmail)
+      .order('created_at', { ascending: true })
 
     if (problems) {
       setUserProblems(problems)
