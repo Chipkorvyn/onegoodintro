@@ -52,17 +52,26 @@ export default function AdminPage() {
   }
 
   const runMatching = async () => {
+    console.log('🔄 Starting matching process...')
     setMatchingLoading(true)
     try {
+      console.log('📡 Calling API...')
       const response = await fetch('/api/admin/matches/generate', { method: 'POST' })
+      console.log('📊 Response status:', response.status)
+      
       if (response.ok) {
         const data = await response.json()
+        console.log('✅ API Success! Received data:', data)
         setMatches(data)
+      } else {
+        const errorText = await response.text()
+        console.error('❌ API Error:', response.status, errorText)
       }
     } catch (error) {
-      console.error('Error generating matches:', error)
+      console.error('💥 Network Error:', error)
     } finally {
       setMatchingLoading(false)
+      console.log('🏁 Matching process finished')
     }
   }
 
@@ -118,7 +127,10 @@ export default function AdminPage() {
               Help Requests ({requests.length})
             </button>
             <button
-              onClick={() => setActiveTab('matching')}
+              onClick={() => {
+                console.log('🔀 Switching to matching tab')
+                setActiveTab('matching')
+              }}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 activeTab === 'matching'
                   ? 'border-blue-500 text-blue-600'
@@ -172,7 +184,10 @@ export default function AdminPage() {
           <div>
             <div className="mb-6">
               <button
-                onClick={runMatching}
+                onClick={() => {
+                  console.log('🎯 Run Matching button clicked!')
+                  runMatching()
+                }}
                 disabled={matchingLoading}
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
