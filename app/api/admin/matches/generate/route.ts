@@ -179,6 +179,29 @@ export async function POST() {
       }
     }
 
+    // TEMPORARY: Add a fake match for testing
+    if (matches.length === 0 && helpRequests && helpRequests.length > 0 && potentialHelpers && potentialHelpers.length > 0) {
+      console.log('🧪 Creating test match...')
+      const testMatch = {
+        id: 'test-123',
+        seeker: {
+          name: helpRequests[0].users?.name || 'Test Seeker',
+          email: helpRequests[0].users?.email || 'seeker@test.com',
+          background: 'Test background',
+          request_title: helpRequests[0].title,
+          help_type: helpRequests[0].help_type
+        },
+        helper: {
+          name: potentialHelpers[0].name || 'Test Helper',
+          email: potentialHelpers[0].email || 'helper@test.com',
+          background: 'Test helper background',
+          current_focus: potentialHelpers[0].current_focus || 'Test focus'
+        },
+        rationale: 'TEST MATCH: This is a test match to verify the system works'
+      }
+      matches.push(testMatch)
+    }
+
     console.log(`🎯 Final result: Generated ${matches.length} total matches`)
     return NextResponse.json(matches)
   } catch (error) {

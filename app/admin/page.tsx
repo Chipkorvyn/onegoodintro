@@ -62,6 +62,10 @@ export default function AdminPage() {
       if (response.ok) {
         const data = await response.json()
         console.log('✅ API Success! Received data:', data)
+        console.log('📊 Data length:', data.length)
+        if (data.length === 0) {
+          console.log('⚠️ No matches returned - check server logs for details')
+        }
         setMatches(data)
       } else {
         const errorText = await response.text()
