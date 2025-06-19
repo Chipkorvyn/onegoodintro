@@ -62,6 +62,24 @@ const OneGoodIntroMobile = () => {
   const [userProblems, setUserProblems] = useState<UserProblem[]>([])
   const [userRequests, setUserRequests] = useState<HelpRequest[]>([])
   const [loadingRequests, setLoadingRequests] = useState(false)
+  const [networkConnections, setNetworkConnections] = useState<NetworkConnection[]>([])
+  const [loadingNetwork, setLoadingNetwork] = useState(false)
+
+  // Profile completion calculation
+  const calculateProfileCompletion = () => {
+    const requiredFields = [
+      profileData.current,      // Headline under name
+      profileData.role_title,   // Job title
+      profileData.industry,     // Industry
+      profileData.focus_area,   // Focus area
+      profileData.experience_years // Experience
+    ]
+    
+    const completedFields = requiredFields.filter(field => field && field.trim() !== '').length
+    const isComplete = completedFields === requiredFields.length
+    
+    return { completedFields, totalFields: requiredFields.length, isComplete }
+  }
 
   // Request editing state
   const [editingRequest, setEditingRequest] = useState<string | null>(null);
@@ -203,6 +221,7 @@ const OneGoodIntroMobile = () => {
   useEffect(() => {
     if (session?.user?.email) {
       loadUserRequests()
+      loadNetworkData()
     }
   }, [session])
 
@@ -375,6 +394,26 @@ const OneGoodIntroMobile = () => {
       console.error('Error loading requests:', error)
     } finally {
       setLoadingRequests(false)
+    }
+  }
+
+  const loadNetworkData = async () => {
+    if (!session?.user?.email) return
+    
+    setLoadingNetwork(true)
+    try {
+      const response = await fetch('/api/network')
+      if (response.ok) {
+        const connections = await response.json()
+        setNetworkConnections(connections)
+        console.log('Loaded network connections:', connections)
+      } else {
+        console.error('Failed to load network connections')
+      }
+    } catch (error) {
+      console.error('Error loading network connections:', error)
+    } finally {
+      setLoadingNetwork(false)
     }
   }
 
@@ -912,69 +951,6 @@ const OneGoodIntroMobile = () => {
     }
   }, [chatMessages]);
 
-  // Network connections data
-  const networkConnectionsImproved: NetworkConnection[] = [
-    {
-      id: 1,
-      name: 'Maria Rodriguez',
-      title: 'Product Manager',
-      company: 'TechStart',
-      avatar: 'MR',
-      connectionContext: 'You helped with crisis management',
-      currentStatus: {
-        type: 'looking_for',
-        text: 'Looking for AI strategy advice'
-      }
-    },
-    {
-      id: 2,
-      name: 'John Smith',
-      title: 'Engineering Director',
-      company: 'Enterprise Corp',
-      avatar: 'JS',
-      connectionContext: 'Helped you with P&L strategy',
-      currentStatus: {
-        type: 'recently_helped',
-        text: 'Recently helped someone with fundraising'
-      }
-    },
-    {
-      id: 3,
-      name: 'Anna Kim',
-      title: 'Strategy Consultant',
-      company: 'Growth Ventures',
-      avatar: 'AK',
-      connectionContext: 'You helped with M&A integration',
-      currentStatus: {
-        type: 'looking_for',
-        text: 'Looking for content strategy insights'
-      }
-    },
-    {
-      id: 4,
-      name: 'David Chen',
-      title: 'Senior PM',
-      company: 'Spotify',
-      avatar: 'DC',
-      connectionContext: 'Helped you with product strategy',
-      currentStatus: {
-        type: 'recently_helped',
-        text: 'Recently helped someone with market research'
-      }
-    },
-    {
-      id: 5,
-      name: 'Sophie Laurent',
-      title: 'Management Consultant',
-      company: 'McKinsey',
-      avatar: 'SL',
-      connectionContext: 'You helped with team scaling',
-      currentStatus: {
-        type: 'looking_for',
-        text: 'Looking for European expansion advice'
-      }
-    }
-  ];
 
   // Initialize chat when opening
   useEffect(() => {
@@ -2177,10 +2153,22 @@ const OneGoodIntroMobile = () => {
                     onClick={() => handleProfileFieldClick('name')}
                     className="text-2xl font-bold text-white cursor-pointer hover:bg-gray-700 px-2 py-1 rounded transition-colors"
                   >
-                    {profileData.name || 'Chip Alexandru'}
+                    {profileData.name || 'Add your name...'}
                   </h1>
                 )}
                 {savingField === 'name' && <div className="w-4 h-4 border border-gray-400 border-t-transparent rounded-full animate-spin" />}
+              </div>
+
+              {/* Profile Completion Indicator */}
+              <div className="mb-3">
+                {(() => {
+                  const { completedFields, totalFields, isComplete } = calculateProfileCompletion()
+                  return (
+                    <span className={`text-sm ${isComplete ? 'text-green-400' : 'text-yellow-400'}`}>
+                      Profile: {isComplete ? 'Complete ✓' : `${completedFields}/${totalFields} fields`}
+                    </span>
+                  )
+                })()}
               </div>
               
               {/* Role/Title under name */}
@@ -2210,7 +2198,7 @@ const OneGoodIntroMobile = () => {
                       onClick={() => handleProfileFieldClick('about')}
                       className="text-sm text-gray-300 leading-relaxed cursor-pointer hover:bg-gray-700 px-2 py-1 rounded transition-colors flex-1"
                     >
-                      {profileData.current || 'I am just a guy 2 fjfjnf frjorndf rn'}
+                      {profileData.current || 'Add a brief professional summary...'}
                     </p>
                     {savingField === 'about' && <div className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin ml-2" />}
                   </div>
@@ -2322,7 +2310,7 @@ const OneGoodIntroMobile = () => {
                     onClick={() => handleProfileFieldClick('role_title')}
                     className="text-white text-sm cursor-pointer hover:bg-gray-700 px-2 py-1 rounded transition-colors flex-1"
                   >
-                    {profileData.role_title || 'Marketing Manager'}
+                    {profileData.role_title || 'Add your job title...'}
                   </span>
                 )}
               </div>
@@ -2346,7 +2334,7 @@ const OneGoodIntroMobile = () => {
                     onClick={() => handleProfileFieldClick('industry')}
                     className="text-white text-sm cursor-pointer hover:bg-gray-700 px-2 py-1 rounded transition-colors flex-1"
                   >
-                    {profileData.industry || 'Consumer brands'}
+                    {profileData.industry || 'Add your industry...'}
                   </span>
                 )}
               </div>
@@ -2370,7 +2358,7 @@ const OneGoodIntroMobile = () => {
                     onClick={() => handleProfileFieldClick('experience_years')}
                     className="text-white text-sm cursor-pointer hover:bg-gray-700 px-2 py-1 rounded transition-colors flex-1"
                   >
-                    {profileData.experience_years || '6+ years experience'}
+                    {profileData.experience_years || 'Add your experience...'}
                   </span>
                 )}
               </div>
@@ -2394,7 +2382,7 @@ const OneGoodIntroMobile = () => {
                     onClick={() => handleProfileFieldClick('focus_area')}
                     className="text-white text-sm cursor-pointer hover:bg-gray-700 px-2 py-1 rounded transition-colors flex-1"
                   >
-                    {profileData.focus_area || 'Brand strategy'}
+                    {profileData.focus_area || 'Add your focus area...'}
                   </span>
                 )}
               </div>
@@ -3201,7 +3189,7 @@ const OneGoodIntroMobile = () => {
   );
 
   const renderNetwork = () => {
-    const filteredConnections = networkConnectionsImproved.filter((conn: NetworkConnection) => {
+    const filteredConnections = networkConnections.filter((conn: NetworkConnection) => {
       if (searchTerm === '') return true;
       
       const search = searchTerm.toLowerCase();
@@ -3211,12 +3199,23 @@ const OneGoodIntroMobile = () => {
              conn.currentStatus.text.toLowerCase().includes(search);
     });
 
+    if (loadingNetwork) {
+      return (
+        <div className="min-h-screen bg-gray-900 pb-20 px-5 flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-8 h-8 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-400">Loading your network...</p>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen bg-gray-900 pb-20 px-5">
         {/* Removed fixed top bar to move content up */}
         <div className="max-w-2xl mx-auto px-5 py-10 bg-gray-900">
           <h1 className="text-2xl font-bold text-white mb-1 text-left">Your network</h1>
-          <p className="text-sm text-gray-500">{networkConnectionsImproved.length} connections</p>
+          <p className="text-sm text-gray-500">{networkConnections.length} connections</p>
         </div>
         
         <div className="px-5 space-y-4">
