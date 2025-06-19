@@ -27,7 +27,7 @@ export async function POST() {
           experience_years
         )
       `)
-      .eq('status', 'pending')
+      .eq('status', 'active')
       .order('created_at', { ascending: false })
     
     if (requestsError) {
