@@ -1,6 +1,6 @@
 'use client';
-import React, { useState, useRef, useEffect } from 'react';
-import { User, CheckCircle, Users, Plus, Zap, Target, Heart, Network, Handshake, MessageCircle, Check, MapPin, Building2, X, Edit, Trash2, Mic, Brain, ArrowRight, TrendingUp, Phone, Link2, Globe } from 'lucide-react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { User, CheckCircle, Users, Plus, Zap, Target, Heart, Network, Handshake, MessageCircle, Check, MapPin, Building2, X, Edit, Trash2, Mic, Brain, ArrowRight, TrendingUp, Phone, Link2, Globe, Send } from 'lucide-react';
 import { useSession, signIn, signOut } from 'next-auth/react'
 import { supabase, type User as DbUser, type UserProblem, type HelpRequest, timeAgo } from '@/lib/supabase'
 import { MediaPreview } from '@/components/MediaPreview'
@@ -9,6 +9,19 @@ import { processMediaUrl, isValidUrl, normalizeUrl } from '@/lib/url-processor'
 // Define proper types
 type ActiveFieldType = 'challenge' | 'reason' | 'helpType' | 'name' | 'about' | 'linkedin' | 'role_title' | 'industry' | 'experience_years' | 'focus_area' | 'learning_focus' | 'project_description' | 'project_url' | null;
 type ModalIconType = 'handshake' | 'check' | 'heart';
+
+// Add NetworkConnection interface
+interface NetworkConnection {
+  id: number;
+  name: string;
+  company: string;
+  avatar: string;
+  connectionContext: string;
+  currentStatus: {
+    type: 'looking_for' | 'recently_helped';
+    text: string;
+  }
+}
 
 // Add ProfileData type definition
 type ProfileData = {
@@ -840,6 +853,105 @@ const OneGoodIntroMobile = () => {
     linkedin: useRef<HTMLInputElement>(null),
     name: useRef<HTMLInputElement>(null)
   };
+
+  // Chat state
+  const [showChatPanel, setShowChatPanel] = useState(false);
+  const [activeChat, setActiveChat] = useState<number | null>(null);
+  const [chatMessages, setChatMessages] = useState<Record<number, Array<{id: number, text: string, sender: 'me' | 'them', timestamp: Date}>>>({});
+  const [messageInput, setMessageInput] = useState('');
+  const [unreadCounts, setUnreadCounts] = useState<Record<number, number>>({
+    1: 2,
+    3: 1,
+    5: 0
+  });
+
+  // Initialize chat messages if not exists
+  const initializeChat = useCallback((connectionId: number) => {
+    if (!chatMessages[connectionId]) {
+      // Sample initial messages
+      const initialMessages: Record<number, Array<{id: number, text: string, sender: 'me' | 'them', timestamp: Date}>> = {
+        1: [
+          { id: 1, text: "Hey! Thanks for connecting. I'd love to hear more about your team scaling challenges.", sender: 'them', timestamp: new Date(Date.now() - 86400000) },
+          { id: 2, text: "I saw you helped with M&A integration - that's exactly what I'm working on!", sender: 'them', timestamp: new Date(Date.now() - 3600000) }
+        ],
+        3: [
+          { id: 1, text: "Thanks for offering to help with content strategy!", sender: 'them', timestamp: new Date(Date.now() - 172800000) }
+        ]
+      };
+      
+      if (initialMessages[connectionId]) {
+        setChatMessages(prev => ({ ...prev, [connectionId]: initialMessages[connectionId] }));
+      } else {
+        setChatMessages(prev => ({ ...prev, [connectionId]: [] }));
+      }
+    }
+  }, [chatMessages]);
+
+  // Network connections data
+  const networkConnectionsImproved: NetworkConnection[] = [
+    {
+      id: 1,
+      name: 'Maria Rodriguez',
+      company: 'TechStart',
+      avatar: 'MR',
+      connectionContext: 'You helped with crisis management',
+      currentStatus: {
+        type: 'looking_for',
+        text: 'Looking for AI strategy advice'
+      }
+    },
+    {
+      id: 2,
+      name: 'John Smith',
+      company: 'Enterprise Corp',
+      avatar: 'JS',
+      connectionContext: 'Helped you with P&L strategy',
+      currentStatus: {
+        type: 'recently_helped',
+        text: 'Recently helped someone with fundraising'
+      }
+    },
+    {
+      id: 3,
+      name: 'Anna Kim',
+      company: 'Growth Ventures',
+      avatar: 'AK',
+      connectionContext: 'You helped with M&A integration',
+      currentStatus: {
+        type: 'looking_for',
+        text: 'Looking for content strategy insights'
+      }
+    },
+    {
+      id: 4,
+      name: 'David Chen',
+      company: 'Spotify',
+      avatar: 'DC',
+      connectionContext: 'Helped you with product strategy',
+      currentStatus: {
+        type: 'recently_helped',
+        text: 'Recently helped someone with market research'
+      }
+    },
+    {
+      id: 5,
+      name: 'Sophie Laurent',
+      company: 'McKinsey',
+      avatar: 'SL',
+      connectionContext: 'You helped with team scaling',
+      currentStatus: {
+        type: 'looking_for',
+        text: 'Looking for European expansion advice'
+      }
+    }
+  ];
+
+  // Initialize chat when opening
+  useEffect(() => {
+    if (activeChat && showChatPanel) {
+      initializeChat(activeChat);
+    }
+  }, [activeChat, showChatPanel, initializeChat]);
 
   // Skip simulated auth flow, go straight to profile if signed in
   useEffect(() => {
@@ -2747,24 +2859,12 @@ const OneGoodIntroMobile = () => {
 
   const renderPublicBoard = () => (
     <div className="min-h-screen bg-gray-900 pb-20 px-5">
-      <div className="px-5 py-4">
-        <div className="flex items-center justify-between">
-          <button 
-            onClick={() => setCurrentView('full-profile')}
-            className="text-gray-300 hover:text-white hover:bg-gray-800 transition-all px-3 py-2 rounded-lg"
-          >
-            ← Back
-          </button>
-          <h1 className="text-lg font-semibold text-white">Help Others</h1>
-          <div className="w-5"></div>
-        </div>
+      {/* Removed fixed top bar to move content up */}
+      <div className="max-w-2xl mx-auto px-5 py-10 bg-gray-900">
+        <h1 className="text-2xl font-bold text-white mb-1 text-left">People you might be able to help</h1>
       </div>
-
-      <div className="p-5">
-        <div className="text-center mb-8">
-          <h2 className="text-2xl font-bold text-white mb-2">People you can help</h2>
-          <p className="text-gray-400">Requests matched to your experience</p>
-        </div>
+      
+      <div className="px-5 space-y-4">
 
         <div className="space-y-6">
           {helpRequests.map(request => (
@@ -2875,132 +2975,94 @@ const OneGoodIntroMobile = () => {
   );
 
   const renderMatchFound = () => (
-    <div className="min-h-screen bg-gray-900 pb-20">
-      <div className="bg-gray-800 px-4 py-4 sticky top-0 z-10 border-b border-gray-700">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <button 
-              className="text-gray-400 hover:text-white hover:bg-gray-700 transition-all px-3 py-2 rounded-lg"
-              onClick={() => setCurrentView('new-get-help')}
-            >
-              ← Back
-            </button>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-6 h-6 bg-teal-500 rounded flex items-center justify-center">
-              <Zap className="h-4 w-4 text-white" />
-            </div>
-            <div>
-              <h1 className="font-bold text-white">OneGoodIntro</h1>
-              <p className="text-xs text-gray-400">Weekly Match</p>
-            </div>
-          </div>
-          <div className="w-12"></div>
-        </div>
+    <div className="min-h-screen bg-gray-900 pb-20 px-5">
+      {/* Removed fixed top bar to move content up */}
+      <div className="max-w-2xl mx-auto px-5 py-10 bg-gray-900">
+        <h1 className="text-2xl font-bold text-white mb-1 text-left">Your current match</h1>
       </div>
 
-      <div className="px-4 py-6">
-        <div className="space-y-8">
-          <div className="bg-gradient-to-r from-teal-500/20 to-blue-500/20 rounded-2xl shadow-sm p-5 text-center border border-teal-500/30">
-            <div className="flex items-center justify-center space-x-2 mb-3">
-              <div className="w-2 h-2 bg-teal-400 rounded-full animate-pulse"></div>
-              <span className="text-sm font-medium text-gray-300">This Week's Match</span>
-            </div>
-            <h2 className="text-xl font-bold text-white">You've been matched with Sarah</h2>
-          </div>
-
-          <div className="bg-gray-800 rounded-2xl shadow-sm p-6 border border-gray-700">
-            <div className="flex items-center space-x-4 mb-6">
-              <div className="relative">
-                <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-xl">
-                  {matchedPerson.avatar}
-                </div>
-                {matchedPerson.verified && (
-                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-teal-500 rounded-full flex items-center justify-center">
-                    <Check className="h-3 w-3 text-white" />
-                  </div>
-                )}
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center space-x-2 mb-1">
-                  <h2 className="text-lg font-bold text-white">{matchedPerson.name}</h2>
-                  <svg className="w-4 h-4 text-blue-400" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0013 14.19a.66.66 0 000 .14V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.55 0 3.36.86 3.36 3.66z"/>
-                  </svg>
-                </div>
-                <p className="text-gray-400 font-medium">{matchedPerson.title}</p>
-                <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
-                  <div className="flex items-center space-x-1">
-                    <Building2 className="h-3 w-3" />
-                    <span>{matchedPerson.company}</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <MapPin className="h-3 w-3" />
-                    <span>{matchedPerson.location}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-4">
-              <div className="flex flex-wrap gap-2">
-                {matchedPerson.expertise.map((skill: string) => (
-                  <span key={skill} className="bg-gray-700 text-gray-300 px-3 py-1 rounded-full text-xs font-medium border border-gray-600">
-                    {skill}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-gray-800 rounded-2xl shadow-sm p-5 border border-gray-700">
-            <div className="mb-4">
-              <h3 className="font-semibold text-white text-sm flex items-center">
-                <div className="w-2 h-2 bg-teal-400 rounded-full mr-2"></div>
-                Strong Match
-              </h3>
+      {/* Profile Section - Match profile page exactly */}
+      <div className="px-5 space-y-4">
+        {/* Profile Header - Dark surface box matching profile page */}
+        <div className="bg-gray-800 rounded-2xl shadow-sm p-6 border border-gray-700">
+          {/* Avatar and Name Section */}
+          <div className="flex items-start gap-6 mb-4">
+            <div className="relative w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xl font-semibold text-white flex-shrink-0">
+              {matchedPerson.avatar}
             </div>
             
-            <div className="space-y-6">
-              <div className="flex items-start space-x-3">
-                <div className="w-8 h-8 bg-teal-500/20 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <CheckCircle className="h-4 w-4 text-teal-400" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-white">
-                    Sarah might help with: <span className="text-teal-400">"Navigate promotion to senior PM level"</span>
-                  </p>
-                  <p className="text-gray-400 text-xs mt-1">From your active requests • Based on her experience with similar career transitions</p>
-                </div>
+            <div className="flex-1 pt-2">
+              <div className="flex items-center gap-3 mb-2">
+                <h1 className="text-2xl font-bold text-white">{matchedPerson.name}</h1>
               </div>
-
-              <div className="border-t border-gray-700"></div>
-
-              <div className="flex items-start space-x-3">
-                <div className="w-8 h-8 bg-blue-500/20 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <User className="h-4 w-4 text-blue-400" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-white">
-                    You might help with: <span className="text-blue-400">"Get insights on scaling product teams effectively"</span>
-                  </p>
-                  <p className="text-gray-400 text-xs mt-1">Her current need • Your consulting and strategy expertise is highly relevant</p>
+              
+              <div className="space-y-3">
+                <p className="text-sm text-gray-300 leading-relaxed">
+                  {matchedPerson.title} at {matchedPerson.company} • {matchedPerson.location}
+                </p>
+                
+                {/* LinkedIn Section */}
+                <div className="flex items-center gap-2">
+                  <button className="flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors px-2 py-1 rounded-lg">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0013 14.19a.66.66 0 000 .14V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.55 0 3.36.86 3.36 3.66z"/>
+                    </svg>
+                    <span className="text-sm font-medium">LinkedIn</span>
+                  </button>
                 </div>
               </div>
             </div>
           </div>
+        </div>
 
-          <div className="space-y-3 pt-2">
-            <button 
-              onClick={() => setCurrentView('match-connection')}
-              className="w-full bg-teal-500 text-white py-4 rounded-2xl font-semibold hover:bg-teal-600 transition-colors"
-            >
-              Arrange Introduction
-            </button>
-            <button className="w-full bg-gray-700 text-gray-300 py-4 rounded-2xl font-semibold hover:bg-gray-600 transition-colors border border-gray-600">
-              Try again next week
-            </button>
+        {/* Match Box */}
+        <div className="bg-gray-800 rounded-2xl shadow-sm p-5 border border-gray-700">
+          <div className="mb-4">
+            <h3 className="font-semibold text-white text-sm flex items-center">
+              <div className="w-2 h-2 bg-teal-400 rounded-full mr-2"></div>
+              Strong Match
+            </h3>
           </div>
+          
+          <div className="space-y-6">
+            <div className="flex items-start space-x-3">
+              <div className="w-8 h-8 bg-teal-500/20 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                <CheckCircle className="h-4 w-4 text-teal-400" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-white">
+                  Sarah might help with: <span className="text-teal-400">"Navigate promotion to senior PM level"</span>
+                </p>
+                <p className="text-gray-400 text-xs mt-1">Based on: her experience with similar career transitions</p>
+              </div>
+            </div>
+
+            <div className="border-t border-gray-700"></div>
+
+            <div className="flex items-start space-x-3">
+              <div className="w-8 h-8 bg-blue-500/20 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                <User className="h-4 w-4 text-blue-400" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-white">
+                  You might be able to help with: <span className="text-blue-400">"Get insights on scaling product teams effectively"</span>
+                </p>
+                <p className="text-gray-400 text-xs mt-1">Based on: your consulting and strategy expertise</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-3 pt-2">
+          <button 
+            onClick={() => setCurrentView('match-connection')}
+            className="w-full bg-teal-500 text-white py-4 rounded-2xl font-semibold hover:bg-teal-600 transition-colors"
+          >
+            Arrange Introduction
+          </button>
+          <button className="w-full bg-gray-700 text-gray-300 py-4 rounded-2xl font-semibold hover:bg-gray-600 transition-colors border border-gray-600">
+            Try again next week
+          </button>
         </div>
       </div>
     </div>
@@ -3019,63 +3081,6 @@ const OneGoodIntroMobile = () => {
       }
     }
 
-    const networkConnectionsImproved: NetworkConnection[] = [
-      {
-        id: 1,
-        name: 'Maria Rodriguez',
-        company: 'TechStart',
-        avatar: 'MR',
-        connectionContext: 'You helped with crisis management',
-        currentStatus: {
-          type: 'looking_for',
-          text: 'Looking for AI strategy advice'
-        }
-      },
-      {
-        id: 2,
-        name: 'John Smith',
-        company: 'Enterprise Corp',
-        avatar: 'JS',
-        connectionContext: 'Helped you with P&L strategy',
-        currentStatus: {
-          type: 'recently_helped',
-          text: 'Recently helped someone with fundraising'
-        }
-      },
-      {
-        id: 3,
-        name: 'Anna Kim',
-        company: 'Growth Ventures',
-        avatar: 'AK',
-        connectionContext: 'You helped with M&A integration',
-        currentStatus: {
-          type: 'looking_for',
-          text: 'Looking for content strategy insights'
-        }
-      },
-      {
-        id: 4,
-        name: 'David Chen',
-        company: 'Spotify',
-        avatar: 'DC',
-        connectionContext: 'Helped you with product strategy',
-        currentStatus: {
-          type: 'recently_helped',
-          text: 'Recently helped someone with market research'
-        }
-      },
-      {
-        id: 5,
-        name: 'Sophie Laurent',
-        company: 'McKinsey',
-        avatar: 'SL',
-        connectionContext: 'You helped with team scaling',
-        currentStatus: {
-          type: 'looking_for',
-          text: 'Looking for European expansion advice'
-        }
-      }
-    ];
 
     const filteredConnections = networkConnectionsImproved.filter((conn: NetworkConnection) => {
       if (searchTerm === '') return true;
@@ -3089,33 +3094,13 @@ const OneGoodIntroMobile = () => {
 
     return (
       <div className="min-h-screen bg-gray-900 pb-20 px-5">
-        <div className="px-5 py-4">
-          <div className="flex items-center justify-between">
-            <button 
-              onClick={() => setCurrentView('full-profile')}
-              className="text-gray-400 hover:text-white hover:bg-gray-800 transition-all px-3 py-2 rounded-lg"
-            >
-              ← Back
-            </button>
-            <div className="flex items-center space-x-2">
-              <div className="w-6 h-6 bg-teal-500 rounded flex items-center justify-center">
-                <Zap className="h-4 w-4 text-white" />
-              </div>
-              <div>
-                <h1 className="font-bold text-white">OneGoodIntro</h1>
-                <p className="text-xs text-gray-400">Your Network</p>
-              </div>
-            </div>
-            <div className="w-5"></div>
-          </div>
+        {/* Removed fixed top bar to move content up */}
+        <div className="max-w-2xl mx-auto px-5 py-10 bg-gray-900">
+          <h1 className="text-2xl font-bold text-white mb-1 text-left">Your network</h1>
+          <p className="text-sm text-gray-500">{networkConnectionsImproved.length} connections</p>
         </div>
-
-        <div className="p-5">
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold text-white mb-2">Your Network</h2>
-            <p className="text-gray-400 mb-1">People you've connected with through OneGoodIntro</p>
-            <p className="text-sm text-gray-500">{networkConnectionsImproved.length} connections</p>
-          </div>
+        
+        <div className="px-5 space-y-4">
 
           <div className="relative mb-8">
             <div className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400">
@@ -3158,8 +3143,19 @@ const OneGoodIntroMobile = () => {
                       </p>
                     </div>
                   </div>
-                  <button className="p-4 hover:bg-gray-700 rounded-xl transition-all flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center">
+                  <button 
+                    onClick={() => {
+                      setActiveChat(connection.id);
+                      setShowChatPanel(true);
+                    }}
+                    className="p-4 hover:bg-gray-700 rounded-xl transition-all flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center relative"
+                  >
                     <MessageCircle className="h-5 w-5 text-gray-400" />
+                    {unreadCounts[connection.id] > 0 && (
+                      <div className="absolute top-2 right-2 w-5 h-5 bg-teal-500 rounded-full flex items-center justify-center">
+                        <span className="text-xs text-white font-bold">{unreadCounts[connection.id]}</span>
+                      </div>
+                    )}
                   </button>
                 </div>
               </div>
@@ -3600,6 +3596,131 @@ const OneGoodIntroMobile = () => {
     return recordingType === 'request' ? 20 : 30; // 20s for requests, 30s for experience
   };
 
+  const sendMessage = () => {
+    if (messageInput.trim() && activeChat) {
+      const newMessage = {
+        id: Date.now(),
+        text: messageInput,
+        sender: 'me' as const,
+        timestamp: new Date()
+      };
+      
+      setChatMessages(prev => ({
+        ...prev,
+        [activeChat]: [...(prev[activeChat] || []), newMessage]
+      }));
+      
+      setMessageInput('');
+      
+      // Clear unread count for this chat
+      setUnreadCounts(prev => ({ ...prev, [activeChat]: 0 }));
+    }
+  };
+
+  const renderChatPanel = () => {
+    if (!showChatPanel) return null;
+    
+    const activeChatConnection = networkConnectionsImproved.find(conn => conn.id === activeChat);
+    const messages = chatMessages[activeChat!] || [];
+    
+    return (
+      <div className="fixed inset-0 z-50 bg-gray-900 flex flex-col">
+          {/* Chat header */}
+          <div className="bg-gray-800 px-4 py-4 border-b border-gray-700">
+            <div className="flex items-center justify-between">
+              <button 
+                onClick={() => setShowChatPanel(false)}
+                className="text-gray-400 hover:text-white p-2"
+              >
+                <X className="h-5 w-5" />
+              </button>
+              
+              {activeChatConnection && (
+                <div className="flex items-center space-x-3 flex-1 ml-3">
+                  <div className="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center text-sm font-semibold text-gray-300">
+                    {activeChatConnection.avatar}
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-white">{activeChatConnection.name}</h3>
+                    <p className="text-xs text-gray-400">{activeChatConnection.company}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          {/* Active conversations list */}
+          <div className="border-b border-gray-700 p-2 flex space-x-2 overflow-x-auto">
+            {networkConnectionsImproved.filter(conn => chatMessages[conn.id] || unreadCounts[conn.id] > 0).map(conn => (
+              <button
+                key={conn.id}
+                onClick={() => {
+                  setActiveChat(conn.id);
+                  setUnreadCounts(prev => ({ ...prev, [conn.id]: 0 }));
+                }}
+                className={`flex items-center space-x-2 px-3 py-2 rounded-lg whitespace-nowrap transition-colors ${
+                  activeChat === conn.id ? 'bg-gray-700' : 'hover:bg-gray-800'
+                }`}
+              >
+                <div className="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center text-xs font-semibold text-gray-300">
+                  {conn.avatar}
+                </div>
+                <span className="text-sm text-white">{conn.name.split(' ')[0]}</span>
+                {unreadCounts[conn.id] > 0 && (
+                  <div className="w-5 h-5 bg-teal-500 rounded-full flex items-center justify-center">
+                    <span className="text-xs text-white font-bold">{unreadCounts[conn.id]}</span>
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
+          
+          {/* Messages area */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {messages.map(message => (
+              <div
+                key={message.id}
+                className={`flex ${message.sender === 'me' ? 'justify-end' : 'justify-start'}`}
+              >
+                <div className={`max-w-[70%] rounded-2xl px-4 py-2 ${
+                  message.sender === 'me' 
+                    ? 'bg-teal-500 text-white' 
+                    : 'bg-gray-800 text-white border border-gray-700'
+                }`}>
+                  <p className="text-sm">{message.text}</p>
+                  <p className={`text-xs mt-1 ${
+                    message.sender === 'me' ? 'text-teal-200' : 'text-gray-500'
+                  }`}>
+                    {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          {/* Message input */}
+          <div className="bg-gray-800 p-4 border-t border-gray-700">
+            <div className="flex items-center space-x-2">
+              <input
+                type="text"
+                value={messageInput}
+                onChange={(e) => setMessageInput(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                placeholder="Type a message..."
+                className="flex-1 bg-gray-700 text-white px-4 py-2 rounded-full focus:outline-none focus:ring-2 focus:ring-teal-500"
+              />
+              <button 
+                onClick={sendMessage}
+                className="bg-teal-500 text-white p-2 rounded-full hover:bg-teal-600 transition-colors"
+              >
+                <Send className="h-5 w-5" />
+              </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="font-sans">
       {currentView === 'auth' && renderAuth()}
@@ -3614,6 +3735,26 @@ const OneGoodIntroMobile = () => {
       {renderModal()}
       {currentView !== 'auth' && renderBottomNav()}
       {renderRequestValidation()}
+      
+      {/* Chat Panel */}
+      {renderChatPanel()}
+      
+      {/* Floating Messages Indicator */}
+      {currentView === 'network' && Object.values(unreadCounts).reduce((a, b) => a + b, 0) > 0 && !showChatPanel && (
+        <button
+          onClick={() => {
+            const firstUnreadChat = Object.entries(unreadCounts).find(([_, count]) => count > 0);
+            if (firstUnreadChat) {
+              setActiveChat(parseInt(firstUnreadChat[0]));
+              setShowChatPanel(true);
+            }
+          }}
+          className="fixed bottom-24 right-4 bg-teal-500 text-white px-4 py-2 rounded-full shadow-lg flex items-center space-x-2 hover:bg-teal-600 transition-colors z-30"
+        >
+          <MessageCircle className="h-5 w-5" />
+          <span className="font-medium">Messages ({Object.values(unreadCounts).reduce((a, b) => a + b, 0)})</span>
+        </button>
+      )}
 
       {showVoiceValidation && currentVoiceCard && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
