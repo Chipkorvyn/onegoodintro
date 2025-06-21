@@ -80,13 +80,20 @@ export default function AdminPage() {
   }
 
   const confirmMatch = async (matchId: string) => {
+    console.log('✅ Confirm button clicked for match ID:', matchId)
     try {
       const response = await fetch(`/api/admin/matches/${matchId}/confirm`, { method: 'POST' })
+      console.log('📊 Confirm response status:', response.status)
+      
       if (response.ok) {
+        console.log('✅ Match confirmed successfully!')
         loadPotentialMatches()
+      } else {
+        const errorText = await response.text()
+        console.error('❌ Confirm failed:', response.status, errorText)
       }
     } catch (error) {
-      console.error('Error confirming match:', error)
+      console.error('💥 Confirm error:', error)
     }
   }
 
@@ -195,7 +202,7 @@ export default function AdminPage() {
                 disabled={matchingLoading}
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
-                {matchingLoading ? 'Running Matching...' : 'Run Matching'}
+                {matchingLoading ? 'Running Matching...' : 'Run Mutual Matching'}
               </button>
             </div>
 
@@ -203,7 +210,7 @@ export default function AdminPage() {
               <div className="flex items-center justify-center py-12">
                 <div className="text-center">
                   <div className="w-8 h-8 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
-                  <p className="text-gray-600">Generating matches...</p>
+                  <p className="text-gray-600">Generating mutual matches...</p>
                 </div>
               </div>
             ) : (
@@ -211,54 +218,71 @@ export default function AdminPage() {
                 {matches.map((match) => (
                   <div key={match.id} className="bg-white p-6 rounded-lg shadow-sm">
                     <div className="flex justify-between items-start mb-4">
-                      <h3 className="text-lg font-semibold">Match #{match.id}</h3>
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => confirmMatch(match.id)}
-                          className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
-                        >
-                          Confirm
-                        </button>
-                        <button
-                          onClick={() => rejectMatch(match.id)}
-                          className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700"
-                        >
-                          Reject
-                        </button>
+                      <div>
+                        <h3 className="text-lg font-semibold">Mutual Match #{match.id}</h3>
+                        <div className="flex gap-2 mt-1">
+                          <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                            match.mutual_score >= 8 ? 'bg-green-100 text-green-800' :
+                            match.mutual_score >= 6 ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            Score: {match.mutual_score}/10 • {match.match_type}
+                          </span>
+                          <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                            match.status === 'confirmed' 
+                              ? 'bg-blue-100 text-blue-800' 
+                              : 'bg-orange-100 text-orange-800'
+                          }`}>
+                            {match.status === 'confirmed' ? '✓ Confirmed' : 'Pending'}
+                          </span>
+                        </div>
+                      </div>
+                      {match.status === 'pending' ? (
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => confirmMatch(match.id)}
+                            className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
+                          >
+                            Confirm
+                          </button>
+                          <button
+                            onClick={() => rejectMatch(match.id)}
+                            className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700"
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="text-sm text-gray-500">
+                          Confirmed • Users can now see this match
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                      <div className="border rounded-lg p-4">
+                        <h4 className="font-semibold text-blue-600 mb-2">{match.user1.name}</h4>
+                        <p className="text-sm mb-2"><strong>Gives:</strong> {match.user1_gives}</p>
+                        <p className="text-sm"><strong>Gets:</strong> {match.user1_gets}</p>
+                      </div>
+
+                      <div className="border rounded-lg p-4">
+                        <h4 className="font-semibold text-green-600 mb-2">{match.user2.name}</h4>
+                        <p className="text-sm mb-2"><strong>Gives:</strong> {match.user2_gives}</p>
+                        <p className="text-sm"><strong>Gets:</strong> {match.user2_gets}</p>
                       </div>
                     </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="border rounded-lg p-4">
-                        <h4 className="font-semibold text-blue-600 mb-2">Help Seeker</h4>
-                        <p className="font-medium">{match.seeker.name}</p>
-                        <p className="text-sm text-gray-600 mb-2">{match.seeker.email}</p>
-                        <p className="text-sm mb-2"><strong>Background:</strong> {match.seeker.background}</p>
-                        <p className="text-sm mb-2"><strong>Request:</strong> {match.seeker.request_title}</p>
-                        <p className="text-sm"><strong>Help Type:</strong> {match.seeker.help_type}</p>
-                      </div>
-                      
-                      <div className="border rounded-lg p-4">
-                        <h4 className="font-semibold text-green-600 mb-2">Potential Helper</h4>
-                        <p className="font-medium">{match.helper.name}</p>
-                        <p className="text-sm text-gray-600 mb-2">{match.helper.email}</p>
-                        <p className="text-sm mb-2"><strong>Background:</strong> {match.helper.background}</p>
-                        <p className="text-sm"><strong>Focus:</strong> {match.helper.current_focus}</p>
-                      </div>
+
+                    <div className="p-4 bg-gray-50 rounded-lg">
+                      <h4 className="font-semibold text-gray-700 mb-2">Why This Works</h4>
+                      <p className="text-sm text-gray-600">{match.rationale}</p>
                     </div>
-                    
-                    {match.rationale && (
-                      <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                        <h4 className="font-semibold text-gray-700 mb-2">Match Rationale</h4>
-                        <p className="text-sm text-gray-600">{match.rationale}</p>
-                      </div>
-                    )}
                   </div>
                 ))}
-                
+
                 {matches.length === 0 && !matchingLoading && (
                   <div className="text-center py-12">
-                    <p className="text-gray-600">No matches available. Click "Run Matching" to generate new matches.</p>
+                    <p className="text-gray-600">No mutual matches available. Click "Run Mutual Matching" to generate new matches.</p>
                   </div>
                 )}
               </div>

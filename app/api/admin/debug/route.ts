@@ -6,11 +6,11 @@ export async function GET() {
     // Try different possible table names
     let helpRequests, error1, error2
 
-    // Try 'help_requests'
+    // Try 'help_requests' with all columns to see what exists
     const result1 = await supabase
       .from('help_requests')
-      .select('id, title, status, user_id')
-      .limit(3)
+      .select('*')
+      .limit(1)
     helpRequests = result1.data
     error1 = result1.error
 

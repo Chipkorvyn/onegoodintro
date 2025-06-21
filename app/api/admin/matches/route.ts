@@ -3,66 +3,43 @@ import { supabase } from '@/lib/supabase'
 
 export async function GET(request: NextRequest) {
   try {
-    // Get potential matches (unmatched help requests with potential helpers)
-    // Return empty array if tables don't exist yet
-    let potentialMatches = []
-    
-    try {
-      const { data, error } = await supabase
-        .from('potential_matches')
-        .select(`
-          *,
-          seeker:seeker_id (
-            name,
-            email,
-            background,
-            current_focus
-          ),
-          helper:helper_id (
-            name,
-            email,
-            background,
-            current_focus
-          ),
-          help_request:request_id (
-            title,
-            help_type,
-            proof
-          )
-        `)
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false })
-      
-      if (error) {
-        console.log('Potential matches table not ready yet, returning empty matches')
-        potentialMatches = []
-      } else {
-        potentialMatches = data || []
-      }
-    } catch (error) {
-      console.log('Matching system not set up yet, returning empty matches')
-      potentialMatches = []
+    const { data: matches, error } = await supabase
+      .from('potential_matches')
+      .select(`
+        *,
+        user1:user1_id (name, email),
+        user2:user2_id (name, email)
+      `)
+      .not('user1_id', 'is', null)
+      .not('user2_id', 'is', null)
+      .in('status', ['pending', 'confirmed'])
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.log('Error fetching mutual matches:', error)
+      return NextResponse.json([])
     }
-    
-    // Transform data to match frontend expectations
-    const transformedMatches = potentialMatches?.map(match => ({
+
+    const transformedMatches = matches?.map(match => ({
       id: match.id,
-      seeker: {
-        name: match.seeker?.name || 'Unknown',
-        email: match.seeker?.email || '',
-        background: match.seeker?.background || '',
-        request_title: match.help_request?.title || '',
-        help_type: match.help_request?.help_type || ''
+      user1: {
+        name: match.user1?.name || 'Unknown',
+        email: match.user1?.email || ''
       },
-      helper: {
-        name: match.helper?.name || 'Unknown',
-        email: match.helper?.email || '',
-        background: match.helper?.background || '',
-        current_focus: match.helper?.current_focus || ''
+      user2: {
+        name: match.user2?.name || 'Unknown',
+        email: match.user2?.email || ''
       },
-      rationale: match.rationale || ''
+      match_type: match.match_type,
+      mutual_score: match.mutual_score,
+      user1_gives: match.user1_gives,
+      user1_gets: match.user1_gets,
+      user2_gives: match.user2_gives,
+      user2_gets: match.user2_gets,
+      rationale: match.rationale,
+      status: match.status
     })) || []
-    
+
     return NextResponse.json(transformedMatches)
   } catch (error) {
     console.error('API error:', error)

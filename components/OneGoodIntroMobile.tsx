@@ -19,7 +19,7 @@ interface NetworkConnection {
   avatar: string;
   connectionContext: string;
   currentStatus: {
-    type: 'looking_for' | 'recently_helped';
+    type: 'looking_for' | 'recently_helped' | 'mutual_benefit';
     text: string;
   }
 }
@@ -64,6 +64,51 @@ const OneGoodIntroMobile = () => {
   const [loadingRequests, setLoadingRequests] = useState(false)
   const [networkConnections, setNetworkConnections] = useState<NetworkConnection[]>([])
   const [loadingNetwork, setLoadingNetwork] = useState(false)
+
+  // Load confirmed matches for network (where both users accepted)
+  useEffect(() => {
+    const loadNetworkConnections = async () => {
+      if (session?.user?.email) {
+        setLoadingNetwork(true)
+        try {
+          const response = await fetch('/api/matches')
+          if (response.ok) {
+            const matches = await response.json()
+            console.log('🔍 Debug: All matches:', matches)
+            console.log('🔍 Debug: Match statuses:', matches.map(m => ({ id: m.id, status: m.status })))
+            
+            // Convert accepted/completed matches to network connections for testing
+            const connections = matches
+              .filter(match => match.status === 'accepted' || match.status === 'completed')
+              .map((match, index) => ({
+                id: match.id, // Use the actual match ID from confirmed_matches table
+                name: match.other_user?.name || 'Unknown',
+                title: match.other_user?.current_focus || 'Professional',
+                company: match.other_user?.background || '',
+                avatar: match.other_user?.name?.split(' ').map(n => n[0]).join('') || '??',
+                connectionContext: match.rationale || 'Mutual benefit match',
+                currentStatus: {
+                  type: match.is_mutual ? 'mutual_benefit' : (match.is_seeker ? 'recently_helped' : 'looking_for'),
+                  text: match.is_mutual 
+                    ? `You give: ${match.you_give} | You get: ${match.you_get}`
+                    : match.is_seeker 
+                      ? `They help you with: ${match.request?.title}`
+                      : `You help them with: ${match.request?.title}`
+                }
+              }))
+            
+            setNetworkConnections(connections)
+          }
+        } catch (error) {
+          console.error('Error loading network connections:', error)
+        } finally {
+          setLoadingNetwork(false)
+        }
+      }
+    }
+
+    loadNetworkConnections()
+  }, [session])
 
   // Profile completion calculation
   const calculateProfileCompletion = () => {
@@ -840,26 +885,55 @@ const OneGoodIntroMobile = () => {
     }
   };
 
-  // Match data for connection flow
-  const matchedPerson = {
-    name: "Sarah Johnson",
-    title: "Senior Product Director",
-    company: "InnovateCo",
-    avatar: "SJ",
-    verified: true,
-    location: "London",
-    professionalExchanges: 47,
-    mutualConnections: 3,
-    recentHelped: ["Michael", "Elena", "James", "Lisa", "David"],
-    expertise: ["Product Leadership", "Career Development", "Team Scaling", "B2B SaaS"]
-  };
+  // Match data for connection flow - load from actual matches API
+  const [matchedPerson, setMatchedPerson] = useState(null);
+  const [currentMatch, setCurrentMatch] = useState(null); // Store full match object with ID
+  const [matchAccepting, setMatchAccepting] = useState(false); // Track API call state
+  
+  // Load real matches from API
+  useEffect(() => {
+    const loadMatches = async () => {
+      if (session?.user?.email) {
+        try {
+          const response = await fetch('/api/matches');
+          console.log('🔍 Debug: Matches API response status:', response.status);
+          if (response.ok) {
+            const matches = await response.json();
+            console.log('🔍 Debug: Matches received:', matches);
+            if (matches.length > 0) {
+              // Use the first match as the "current match"
+              const firstMatch = matches[0];
+              console.log('🔍 Debug: First match:', firstMatch);
+              setCurrentMatch(firstMatch); // Store full match object
+              setMatchedPerson({
+                name: firstMatch.other_user?.name,
+                title: firstMatch.other_user?.current_focus,
+                company: firstMatch.other_user?.background,
+                avatar: firstMatch.other_user?.name?.split(' ').map(n => n[0]).join('') || '??',
+                expertise: [firstMatch.rationale || 'Professional guidance']
+              });
+            } else {
+              console.log('🔍 Debug: No matches returned');
+            }
+          } else {
+            const errorText = await response.text();
+            console.error('🔍 Debug: Matches API error:', response.status, errorText);
+          }
+        } catch (error) {
+          console.error('Error loading matches:', error);
+        }
+      }
+    };
+
+    loadMatches();
+  }, [session]);
 
   // Define proper types
   type ActiveFieldType = 'challenge' | 'reason' | 'helpType' | 'name' | 'about' | 'linkedin' | 'role_title' | 'industry' | 'experience_years' | 'focus_area' | 'learning_focus' | 'project_description' | 'project_url' | null;
   type ModalIconType = 'handshake' | 'check' | 'heart';
 
   // State management
-  const [currentView, setCurrentView] = useState<'auth' | 'full-profile' | 'match-found' | 'match-connection' | 'public-board' | 'network' | 'new-get-help' | 'voice' | 'resume'>('auth');
+  const [currentView, setCurrentView] = useState<'auth' | 'full-profile' | 'match-found' | 'match-connection' | 'public-board' | 'network' | 'new-get-help' | 'voice' | 'resume' | 'messages'>('auth');
   const [showModal, setShowModal] = useState<boolean>(false);
   const [modalContent, setModalContent] = useState<{
     icon: ModalIconType;
@@ -899,9 +973,120 @@ const OneGoodIntroMobile = () => {
     proof: string;
   }>({ title: '', proof: '' });
 
+  // Messaging state
+  const [selectedConnection, setSelectedConnection] = useState<any>(null);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [messageText, setMessageText] = useState<string>('');
+  const [sendingMessage, setSendingMessage] = useState<boolean>(false);
+  const [loadingMessages, setLoadingMessages] = useState<boolean>(false);
+
   // Add dedicated ref for about field
   const aboutRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Handle match acceptance
+  const handleArrangeIntroduction = async () => {
+    if (!currentMatch?.id) {
+      console.error('No current match to accept');
+      return;
+    }
+
+    console.log('🔍 Debug: Attempting to accept match:', {
+      matchId: currentMatch.id,
+      fullMatch: currentMatch
+    });
+
+    setMatchAccepting(true);
+    try {
+      console.log('📡 Making API call to:', `/api/matches/${currentMatch.id}/accept`);
+      const response = await fetch(`/api/matches/${currentMatch.id}/accept`, {
+        method: 'POST'
+      });
+
+      console.log('📊 API Response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      });
+
+      if (response.ok) {
+        console.log('✅ Match accepted successfully');
+        // Update the current match status to accepted
+        setCurrentMatch(prev => prev ? { ...prev, status: 'accepted' } : null);
+        // Skip the connection popup and stay on match-found view with updated button
+        // setCurrentView('match-connection'); // Commented out - no more popup
+      } else {
+        const errorText = await response.text();
+        console.error('❌ Failed to accept match:', errorText);
+        console.error('🔍 Debug: Response status:', response.status);
+      }
+    } catch (error) {
+      console.error('💥 Network error accepting match:', error);
+    } finally {
+      console.log('🏁 Setting matchAccepting to false');
+      setMatchAccepting(false);
+    }
+  };
+
+  // Messaging functions
+  const loadMessages = async (connectionId: string) => {
+    if (!connectionId) return;
+    
+    console.log('🔍 Loading messages for connection:', connectionId);
+    setLoadingMessages(true);
+    try {
+      const response = await fetch(`/api/messages/${connectionId}`);
+      console.log('📊 Messages API response:', response.status, response.statusText);
+      
+      if (response.ok) {
+        const messagesData = await response.json();
+        console.log('✅ Messages loaded:', messagesData);
+        setMessages(messagesData);
+      } else {
+        const errorText = await response.text();
+        console.error('❌ Failed to load messages:', response.status, errorText);
+      }
+    } catch (error) {
+      console.error('💥 Error loading messages:', error);
+    } finally {
+      setLoadingMessages(false);
+    }
+  };
+
+  const sendNewMessage = async () => {
+    if (!selectedConnection?.id || !messageText.trim() || sendingMessage) return;
+
+    setSendingMessage(true);
+    try {
+      const response = await fetch(`/api/messages/${selectedConnection.id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message_text: messageText.trim()
+        })
+      });
+
+      if (response.ok) {
+        const newMessage = await response.json();
+        setMessages(prev => [...prev, newMessage]);
+        setMessageText('');
+      } else {
+        console.error('Failed to send message');
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+    } finally {
+      setSendingMessage(false);
+    }
+  };
+
+  const openMessages = (connection: any) => {
+    setSelectedConnection(connection);
+    setCurrentView('messages');
+    loadMessages(connection.id);
+  };
 
   const inputRefs = {
     challenge: useRef<HTMLInputElement>(null),
@@ -2981,60 +3166,24 @@ const OneGoodIntroMobile = () => {
     <div className="min-h-screen bg-gray-900 pb-20 px-5">
       {/* Removed fixed top bar to move content up */}
       <div className="max-w-2xl mx-auto px-5 py-10 bg-gray-900">
-        <h1 className="text-2xl font-bold text-white mb-1 text-left">People you might be able to help</h1>
+        <h1 className="text-2xl font-bold text-white mb-1 text-left">Help Others</h1>
       </div>
       
-      <div className="px-5 space-y-4">
-
-        <div className="space-y-6">
-          {helpRequests.map(request => (
-            <div 
-              key={request.id} 
-              className="bg-gray-800 rounded-2xl shadow-sm p-5 hover:shadow-md transition-all border border-gray-700"
-            >
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center text-sm font-semibold text-gray-300">
-                  {request.avatar}
-                </div>
-                <div>
-                  <p className="text-base font-semibold text-white">{request.person}</p>
-                  <p className="text-sm text-gray-400">{request.title} at {request.company}</p>
-                </div>
-              </div>
-
-              <h3 className="text-lg font-medium text-white mb-3 leading-snug">
-                "{request.text}"
-              </h3>
-
-              <p className="text-sm text-gray-300 mb-4 leading-relaxed">
-                {request.context}
-              </p>
-
-              <div className="flex gap-3">
-                <button 
-                  onClick={() => {
-                    showSuccessModal('help');  
-                  }}
-                  className="bg-teal-500 text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-teal-600 transition-colors"
-                >
-                  I can help
-                </button>
-                <button className="text-gray-400 text-sm font-medium hover:text-gray-300 hover:bg-gray-700 transition-all py-3 px-4 rounded-lg">
-                  Skip
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-8 p-4 bg-gray-800 rounded-2xl shadow-sm text-center border border-gray-700">
-          <h3 className="text-base font-semibold text-white mb-1">That's this week's selection</h3>
-          <p className="text-gray-400 text-sm mb-3">
-            New requests appear throughout the week, filtered to areas where you have relevant experience.
+      <div className="px-5 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center max-w-md">
+          <div className="w-20 h-20 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Heart className="h-10 w-10 text-blue-400" />
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-4">Coming Soon</h2>
+          <p className="text-gray-400 text-base leading-relaxed mb-6">
+            We're building a space where you can discover people who need your expertise and experience. 
+            This feature will be available soon!
           </p>
-          <button className="text-teal-400 text-sm font-semibold hover:text-teal-300 transition-colors">
-            See more requests
-          </button>
+          <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+            <p className="text-blue-300 text-sm">
+              💡 In the meantime, focus on building your profile and getting matched with people who can help you.
+            </p>
+          </div>
         </div>
       </div>
     </div>
@@ -3073,7 +3222,7 @@ const OneGoodIntroMobile = () => {
 
           <div className="mb-6">
             <p className="text-gray-300 text-base leading-relaxed">
-              Sarah also received this match. When you both confirm, we'll send introduction emails.
+              {matchedPerson?.name || "Your match"} also received this match. When you both confirm, we'll send introduction emails.
             </p>
           </div>
 
@@ -3101,24 +3250,32 @@ const OneGoodIntroMobile = () => {
         <h1 className="text-2xl font-bold text-white mb-1 text-left">Your current match</h1>
       </div>
 
-      {/* Profile Section - Match profile page exactly */}
+      {!matchedPerson ? (
+        <div className="px-5 text-center py-12">
+          <div className="text-gray-400 text-6xl mb-4">🤝</div>
+          <h2 className="text-xl font-semibold text-gray-300 mb-2">No matches yet</h2>
+          <p className="text-gray-500">We're working on finding the perfect match for you. Check back soon!</p>
+        </div>
+      ) : (
+        <>
+          {/* Profile Section - Match profile page exactly */}
       <div className="px-5 space-y-4">
         {/* Profile Header - Dark surface box matching profile page */}
         <div className="bg-gray-800 rounded-2xl shadow-sm p-6 border border-gray-700">
           {/* Avatar and Name Section */}
           <div className="flex items-start gap-6 mb-4">
             <div className="relative w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xl font-semibold text-white flex-shrink-0">
-              {matchedPerson.avatar}
+              {matchedPerson?.avatar || '??'}
             </div>
             
             <div className="flex-1 pt-2">
               <div className="flex items-center gap-3 mb-2">
-                <h1 className="text-2xl font-bold text-white">{matchedPerson.name}</h1>
+                <h1 className="text-2xl font-bold text-white">{matchedPerson?.name || 'Your Match'}</h1>
               </div>
               
               <div className="space-y-3">
                 <p className="text-sm text-gray-300 leading-relaxed">
-                  {matchedPerson.title} at {matchedPerson.company} • {matchedPerson.location}
+                  {matchedPerson?.title || 'Professional'} {matchedPerson?.company ? `at ${matchedPerson.company}` : ''} {matchedPerson?.location ? `• ${matchedPerson.location}` : ''}
                 </p>
                 
                 {/* LinkedIn Section */}
@@ -3140,7 +3297,7 @@ const OneGoodIntroMobile = () => {
           <div className="mb-4">
             <h3 className="font-semibold text-white text-sm flex items-center">
               <div className="w-2 h-2 bg-teal-400 rounded-full mr-2"></div>
-              Strong Match
+              {currentMatch?.mutual_score ? `${currentMatch.mutual_score}/10 Match` : 'Strong Match'}
             </h3>
           </div>
           
@@ -3151,9 +3308,9 @@ const OneGoodIntroMobile = () => {
               </div>
               <div className="flex-1">
                 <p className="text-sm font-medium text-white">
-                  Sarah might help with: <span className="text-teal-400">"Navigate promotion to senior PM level"</span>
+                  {matchedPerson?.name || "Your match"} can help you with: <span className="text-teal-400">"{currentMatch?.you_get || "Professional guidance"}"</span>
                 </p>
-                <p className="text-gray-400 text-xs mt-1">Based on: her experience with similar career transitions</p>
+                <p className="text-gray-400 text-xs mt-1">They bring: {currentMatch?.they_give || "Professional expertise"}</p>
               </div>
             </div>
 
@@ -3165,26 +3322,37 @@ const OneGoodIntroMobile = () => {
               </div>
               <div className="flex-1">
                 <p className="text-sm font-medium text-white">
-                  You might be able to help with: <span className="text-blue-400">"Get insights on scaling product teams effectively"</span>
+                  You can help them with: <span className="text-blue-400">"{currentMatch?.they_get || "Professional guidance"}"</span>
                 </p>
-                <p className="text-gray-400 text-xs mt-1">Based on: your consulting and strategy expertise</p>
+                <p className="text-gray-400 text-xs mt-1">You bring: {currentMatch?.you_give || "Your expertise"}</p>
               </div>
             </div>
           </div>
         </div>
 
         <div className="space-y-3 pt-2">
-          <button 
-            onClick={() => setCurrentView('match-connection')}
-            className="w-full bg-teal-500 text-white py-4 rounded-2xl font-semibold hover:bg-teal-600 transition-colors"
-          >
-            Arrange Introduction
-          </button>
-          <button className="w-full bg-gray-700 text-gray-300 py-4 rounded-2xl font-semibold hover:bg-gray-600 transition-colors border border-gray-600">
-            Try again next week
-          </button>
+          {currentMatch?.status === 'accepted' ? (
+            <div className="w-full bg-green-600 text-white py-4 rounded-2xl font-semibold text-center">
+              ✓ Introduction Arranged
+            </div>
+          ) : (
+            <>
+              <button 
+                onClick={handleArrangeIntroduction}
+                disabled={matchAccepting}
+                className="w-full bg-teal-500 text-white py-4 rounded-2xl font-semibold hover:bg-teal-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {matchAccepting ? 'Arranging...' : 'Arrange Introduction'}
+              </button>
+              <button className="w-full bg-gray-700 text-gray-300 py-4 rounded-2xl font-semibold hover:bg-gray-600 transition-colors border border-gray-600">
+                Decline
+              </button>
+            </>
+          )}
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 
@@ -3238,29 +3406,16 @@ const OneGoodIntroMobile = () => {
 
           <div className="space-y-4">
             {filteredConnections.map((connection: NetworkConnection) => {
-              const lastMessage = getLastMessage(connection.id);
-              const hasMessages = chatMessages[connection.id]?.length > 0;
-              
               return (
                 <button
                   key={connection.id}
-                  onClick={() => {
-                    setActiveChat(connection.id);
-                    setShowChatPanel(true);
-                    setChatView('chat');
-                    setUnreadCounts(prev => ({ ...prev, [connection.id]: 0 }));
-                  }}
+                  onClick={() => openMessages(connection)}
                   className="w-full bg-gray-800 rounded-2xl shadow-sm p-4 hover:shadow-md hover:bg-gray-750 transition-all border border-gray-700 text-left"
                 >
                   <div className="flex items-start space-x-4">
                     {/* Avatar */}
-                    <div className="w-14 h-14 bg-gray-700 rounded-full flex items-center justify-center text-gray-300 font-bold text-lg flex-shrink-0 relative">
+                    <div className="w-14 h-14 bg-gray-700 rounded-full flex items-center justify-center text-gray-300 font-bold text-lg flex-shrink-0">
                       {connection.avatar}
-                      {unreadCounts[connection.id] > 0 && (
-                        <div className="absolute -top-1 -right-1 w-6 h-6 bg-teal-500 rounded-full flex items-center justify-center">
-                          <span className="text-xs text-white font-bold">{unreadCounts[connection.id]}</span>
-                        </div>
-                      )}
                     </div>
                     
                     {/* Content */}
@@ -3284,24 +3439,10 @@ const OneGoodIntroMobile = () => {
                       
                       {/* Message Section */}
                       <div className="border-t border-gray-700 pt-3">
-                        {hasMessages && lastMessage ? (
-                          <div className="flex items-center justify-between">
-                            <p className="text-sm text-gray-300 truncate flex-1 mr-2">
-                              {lastMessage.sender === 'me' ? 'You: ' : ''}{lastMessage.text}
-                            </p>
-                            <div className="flex items-center space-x-1 flex-shrink-0">
-                              <span className="text-xs text-gray-500">
-                                {new Date(lastMessage.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                              </span>
-                              <MessageCircle className="h-4 w-4 text-gray-500" />
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-between">
-                            <p className="text-sm text-gray-500">Start a conversation</p>
-                            <MessageCircle className="h-4 w-4 text-gray-500" />
-                          </div>
-                        )}
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm text-gray-500">Send a message</p>
+                          <MessageCircle className="h-4 w-4 text-gray-500" />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -3316,7 +3457,7 @@ const OneGoodIntroMobile = () => {
             </div>
           )}
 
-          {networkConnectionsImproved.length === 0 && (
+          {networkConnections.length === 0 && !loadingNetwork && (
             <div className="text-center py-12">
               <div className="w-16 h-16 bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
                 <MessageCircle className="h-8 w-8 text-gray-500" />
@@ -3325,6 +3466,109 @@ const OneGoodIntroMobile = () => {
               <p className="text-gray-400">Your successful introductions will appear here</p>
             </div>
           )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderMessages = () => {
+    console.log('🔍 Rendering messages view, selectedConnection:', selectedConnection);
+    console.log('🔍 Current view:', currentView);
+    if (!selectedConnection) {
+      console.log('❌ No selectedConnection, not rendering messages');
+      return null;
+    }
+
+    return (
+      <div className="min-h-screen bg-gray-900 pb-20">
+        {/* Header */}
+        <div className="bg-gray-800 border-b border-gray-700 px-5 py-4 flex items-center">
+          <button 
+            onClick={() => setCurrentView('network')}
+            className="mr-3 p-2 text-gray-400 hover:text-white transition-colors"
+          >
+            <ArrowRight className="h-5 w-5 rotate-180" />
+          </button>
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-teal-500 rounded-full flex items-center justify-center flex-shrink-0">
+              <span className="text-white text-sm font-semibold">
+                {selectedConnection.avatar}
+              </span>
+            </div>
+            <div>
+              <h3 className="text-white font-semibold">{selectedConnection.name}</h3>
+              <p className="text-gray-400 text-sm">{selectedConnection.title}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Messages */}
+        <div className="flex-1 p-5 space-y-4 min-h-[calc(100vh-200px)]">
+          {loadingMessages ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="text-center">
+                <div className="w-8 h-8 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
+                <p className="text-gray-400">Loading messages...</p>
+              </div>
+            </div>
+          ) : messages.length === 0 ? (
+            <div className="text-center py-12">
+              <MessageCircle className="h-12 w-12 text-gray-600 mx-auto mb-4" />
+              <p className="text-gray-400">No messages yet</p>
+              <p className="text-gray-500 text-sm mt-2">Start the conversation!</p>
+            </div>
+          ) : (
+            messages.map((message) => {
+              const isOwnMessage = message.sender_id === session?.user?.email;
+              const timestamp = new Date(message.created_at).toLocaleTimeString([], { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+              });
+
+              return (
+                <div 
+                  key={message.id} 
+                  className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl ${
+                    isOwnMessage 
+                      ? 'bg-teal-500 text-white' 
+                      : 'bg-gray-700 text-white'
+                  }`}>
+                    <p className="text-sm">{message.message_text}</p>
+                    <p className={`text-xs mt-1 ${
+                      isOwnMessage ? 'text-teal-100' : 'text-gray-400'
+                    }`}>
+                      {timestamp}
+                    </p>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Message Input */}
+        <div className="fixed bottom-0 left-0 right-0 bg-gray-800 border-t border-gray-700 p-4 z-50">
+          <div className="flex items-center space-x-3">
+            <input
+              type="text"
+              value={messageText}
+              onChange={(e) => setMessageText(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && sendNewMessage()}
+              placeholder="Type a message..."
+              className="flex-1 bg-gray-700 border border-gray-600 rounded-full px-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-teal-500"
+              disabled={sendingMessage}
+              maxLength={1000}
+            />
+            <button
+              onClick={sendNewMessage}
+              disabled={!messageText.trim() || sendingMessage}
+              className="bg-teal-500 text-white p-2 rounded-full hover:bg-teal-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Send className="h-5 w-5" />
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -3404,15 +3648,14 @@ const OneGoodIntroMobile = () => {
           <span className="text-xs font-medium">Matches</span>
         </button>
         <button 
-          onClick={() => setCurrentView('public-board')}
-          className={`flex flex-col items-center space-y-1 px-4 py-3 rounded-xl min-h-[44px] ${
-            currentView === 'public-board' 
-              ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white' 
-              : 'text-gray-400 hover:bg-red-900/30 hover:text-red-400 transition-all'
-          }`}
+          disabled
+          className="flex flex-col items-center space-y-1 px-4 py-3 rounded-xl min-h-[44px] text-gray-500 cursor-not-allowed relative"
         >
           <Heart className="h-5 w-5" />
           <span className="text-xs font-medium">Help Others</span>
+          <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded-full font-medium">
+            Soon
+          </span>
         </button>
         <button 
           onClick={() => setCurrentView('network')}
@@ -3774,7 +4017,7 @@ const OneGoodIntroMobile = () => {
 
   // Get conversations with messages or unread counts
   const getActiveConversations = () => {
-    return networkConnectionsImproved.filter(conn => 
+    return networkConnections.filter(conn => 
       chatMessages[conn.id]?.length > 0 || unreadCounts[conn.id] > 0
     );
   };
@@ -3861,7 +4104,7 @@ const OneGoodIntroMobile = () => {
     }
     
     // Individual Chat View
-    const activeChatConnection = networkConnectionsImproved.find(conn => conn.id === activeChat);
+    const activeChatConnection = networkConnections.find(conn => conn.id === activeChat);
     const messages = chatMessages[activeChat!] || [];
     
     return (
@@ -3920,7 +4163,7 @@ const OneGoodIntroMobile = () => {
               type="text"
               value={messageInput}
               onChange={(e) => setMessageInput(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+              onKeyPress={(e) => e.key === 'Enter' && sendNewMessage()}
               placeholder="Type a message..."
               className="flex-1 bg-gray-700 text-white px-4 py-2 rounded-full focus:outline-none focus:ring-2 focus:ring-teal-500"
             />
@@ -3947,8 +4190,9 @@ const OneGoodIntroMobile = () => {
       {currentView === 'match-found' && renderMatchFound()}
       {currentView === 'public-board' && renderPublicBoard()}
       {currentView === 'network' && renderNetwork()}
+      {currentView === 'messages' && renderMessages()}
       {renderModal()}
-      {currentView !== 'auth' && renderBottomNav()}
+      {currentView !== 'auth' && currentView !== 'messages' && renderBottomNav()}
       {renderRequestValidation()}
       
       {/* Chat Panel */}

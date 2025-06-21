@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import { createClient } from '@supabase/supabase-js'
+
+// Admin supabase client with service role (bypasses RLS)
+const adminSupabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
 
 export async function POST(
   request: NextRequest,
@@ -27,14 +34,10 @@ export async function POST(
       .from('potential_matches')
       .select(`
         *,
-        seeker:seeker_id (
-          name,
-          email
-        ),
-        helper:helper_id (
-          name,
-          email
-        )
+        seeker:seeker_id (name, email),
+        helper:helper_id (name, email),
+        user1:user1_id (name, email),
+        user2:user2_id (name, email)
       `)
       .eq('id', matchId)
       .single()
@@ -44,50 +47,103 @@ export async function POST(
       return NextResponse.json({ error: 'Failed to fetch match details' }, { status: 500 })
     }
 
-    // Create confirmed match entry for user interaction
-    const { data: confirmedMatch, error: confirmedError } = await supabase
-      .from('confirmed_matches')
-      .insert({
-        potential_match_id: matchId,
-        seeker_id: match.seeker_id,
-        helper_id: match.helper_id,
-        request_id: match.request_id
-      })
-      .select()
-      .single()
-
-    if (confirmedError) {
-      console.error('Error creating confirmed match:', confirmedError)
-      return NextResponse.json({ error: 'Failed to create confirmed match' }, { status: 500 })
+    // Determine if this is a mutual match or old-style match
+    const isMutualMatch = match.user1_id && match.user2_id
+    
+    let confirmedMatch
+    if (isMutualMatch) {
+      // Create confirmed match entry for mutual matching
+      const { data: newMatch, error: confirmedError } = await adminSupabase
+        .from('confirmed_matches')
+        .insert({
+          potential_match_id: matchId,
+          user1_id: match.user1_id,
+          user2_id: match.user2_id
+        })
+        .select()
+        .single()
+      
+      if (confirmedError) {
+        console.error('Error creating mutual confirmed match:', confirmedError)
+        return NextResponse.json({ error: 'Failed to create confirmed match' }, { status: 500 })
+      }
+      confirmedMatch = newMatch
+    } else {
+      // Create confirmed match entry for old-style matching
+      const { data: newMatch, error: confirmedError } = await adminSupabase
+        .from('confirmed_matches')
+        .insert({
+          potential_match_id: matchId,
+          seeker_id: match.seeker_id,
+          helper_id: match.helper_id,
+          request_id: match.request_id
+        })
+        .select()
+        .single()
+      
+      if (confirmedError) {
+        console.error('Error creating old-style confirmed match:', confirmedError)
+        return NextResponse.json({ error: 'Failed to create confirmed match' }, { status: 500 })
+      }
+      confirmedMatch = newMatch
     }
 
     // Create user notifications (these will be used for emails)
-    const notifications = [
-      {
-        user_id: match.seeker_id,
-        type: 'match_confirmed',
-        title: 'New Match Found!',
-        message: `You've been matched with ${match.helper?.name} for your help request.`,
-        data: { 
-          match_id: confirmedMatch.id, 
-          other_user: match.helper?.name,
-          match_url: `/matches`
+    let notifications = []
+    
+    if (isMutualMatch) {
+      notifications = [
+        {
+          user_id: match.user1_id,
+          type: 'match_confirmed',
+          title: 'New Mutual Match Found!',
+          message: `You've been matched with ${match.user2?.name} for mutual benefit collaboration.`,
+          data: { 
+            match_id: confirmedMatch.id, 
+            other_user: match.user2?.name,
+            match_url: `/matches`
+          }
+        },
+        {
+          user_id: match.user2_id,
+          type: 'match_confirmed',
+          title: 'New Mutual Match Found!',
+          message: `You've been matched with ${match.user1?.name} for mutual benefit collaboration.`,
+          data: { 
+            match_id: confirmedMatch.id, 
+            other_user: match.user1?.name,
+            match_url: `/matches`
+          }
         }
-      },
-      {
-        user_id: match.helper_id,
-        type: 'match_confirmed',
-        title: 'Someone Needs Your Help!',
-        message: `${match.seeker?.name} has been matched with you for assistance.`,
-        data: { 
-          match_id: confirmedMatch.id, 
-          other_user: match.seeker?.name,
-          match_url: `/matches`
+      ]
+    } else {
+      notifications = [
+        {
+          user_id: match.seeker_id,
+          type: 'match_confirmed',
+          title: 'New Match Found!',
+          message: `You've been matched with ${match.helper?.name} for your help request.`,
+          data: { 
+            match_id: confirmedMatch.id, 
+            other_user: match.helper?.name,
+            match_url: `/matches`
+          }
+        },
+        {
+          user_id: match.helper_id,
+          type: 'match_confirmed',
+          title: 'Someone Needs Your Help!',
+          message: `${match.seeker?.name} has been matched with you for assistance.`,
+          data: { 
+            match_id: confirmedMatch.id, 
+            other_user: match.seeker?.name,
+            match_url: `/matches`
+          }
         }
-      }
-    ]
+      ]
+    }
 
-    const { error: notificationError } = await supabase
+    const { error: notificationError } = await adminSupabase
       .from('notifications')
       .insert(notifications)
 

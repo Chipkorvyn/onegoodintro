@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { OpenAI } from 'openai'
+import { getUsersForMatching, generateMutualMatchPrompt } from '@/lib/matching-utils'
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -8,204 +9,112 @@ const openai = new OpenAI({
 
 export async function POST() {
   try {
-    console.log('🚀 Starting match generation...')
-    
-    // Get active help requests that need matches
-    const { data: helpRequests, error: requestsError } = await supabase
-      .from('help_requests')
-      .select(`
-        *,
-        users!help_requests_user_id_fkey (
-          id,
-          name,
-          email,
-          background,
-          current_focus,
-          role_title,
-          industry,
-          focus_area,
-          experience_years
-        )
-      `)
-      .eq('status', 'active')
-      .order('created_at', { ascending: false })
-    
-    if (requestsError) {
-      console.error('Error fetching help requests:', requestsError)
-      return NextResponse.json({ error: 'Failed to fetch help requests' }, { status: 500 })
+    console.log('🚀 Starting mutual benefit matching...')
+
+    // Get users for matching
+    const users = await getUsersForMatching()
+    console.log(`👥 Found ${users.length} users for matching:`, users.map(u => u.name))
+
+    if (users.length < 2) {
+      return NextResponse.json({ message: 'Need at least 2 users for matching', matches: [], users: users.length })
     }
 
-    console.log(`📋 Found ${helpRequests?.length || 0} help requests:`, helpRequests?.map(r => ({
-      id: r.id,
-      title: r.title,
-      user: r.users?.name,
-      status: r.status
-    })))
+    // Generate LLM prompt
+    const prompt = generateMutualMatchPrompt(users)
+    console.log('📝 Generated prompt for', users.length, 'users')
 
-    // Get all users who could potentially help (excluding those who already have requests)
-    const seekerIds = helpRequests?.map(req => req.user_id) || []
-    
-    const { data: potentialHelpers, error: helpersError } = await supabase
-      .from('users')
-      .select('*')
-      .not('id', 'in', `(${seekerIds.join(',')})`)
-      .not('current_focus', 'is', null)
-    
-    if (helpersError) {
-      console.error('Error fetching potential helpers:', helpersError)
-      return NextResponse.json({ error: 'Failed to fetch potential helpers' }, { status: 500 })
+    // Call OpenAI
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.3,
+      max_tokens: 2000,
+    })
+
+    const responseText = completion.choices[0]?.message?.content
+    console.log('🤖 OpenAI response received:', responseText)
+
+    if (!responseText) {
+      return NextResponse.json({ error: 'No response from OpenAI' }, { status: 500 })
     }
 
-    console.log(`👥 Found ${potentialHelpers?.length || 0} potential helpers:`, potentialHelpers?.map(h => ({
-      id: h.id,
-      name: h.name,
-      current_focus: h.current_focus
-    })))
+    // Clean and parse response
+    let cleanedResponse = responseText.trim()
+    if (cleanedResponse.startsWith('```json')) {
+      cleanedResponse = cleanedResponse.replace(/```json\s*/, '').replace(/\s*```$/, '')
+    }
+    if (cleanedResponse.startsWith('```')) {
+      cleanedResponse = cleanedResponse.replace(/```\s*/, '').replace(/\s*```$/, '')
+    }
 
-    const matches = []
+    console.log('🧹 Cleaned response:', cleanedResponse)
 
-    // Generate matches using LLM
-    for (const request of helpRequests || []) {
-      const seeker = request.users
-      
-      // Create context for LLM matching
-      const seekerContext = `
-        Seeker: ${seeker.name}
-        Professional Summary: ${seeker.current_focus || 'Not provided'}
-        Background: ${seeker.background || 'Not provided'}
-        Role/Title: ${seeker.role_title || 'Not provided'}
-        Industry: ${seeker.industry || 'Not provided'}
-        Focus Area: ${seeker.focus_area || 'Not provided'}
-        Experience: ${seeker.experience_years || 'Not provided'}
-        Help Request: ${request.title}
-        Help Type: ${request.help_type}
-        Context: ${request.proof}
-        Timeline: ${request.timeline}
-      `
+    const llmMatches = JSON.parse(cleanedResponse)
+    console.log(`✅ Parsed ${llmMatches.length} mutual matches:`, llmMatches)
 
-      // Find best matches using LLM
-      const helpersContext = potentialHelpers?.slice(0, 10).map(helper => `
-        Helper ID: ${helper.id}
-        Name: ${helper.name}
-        Professional Summary: ${helper.current_focus || 'Not provided'}
-        Background: ${helper.background || 'Not provided'}
-        Role/Title: ${helper.role_title || 'Not provided'}
-        Industry: ${helper.industry || 'Not provided'}
-        Focus Area: ${helper.focus_area || 'Not provided'}
-        Experience: ${helper.experience_years || 'Not provided'}
-      `).join('\n\n') || ''
+    // Save matches to database
+    const savedMatches = []
+    for (const match of llmMatches) {
+      // Find users by ID (more robust than name matching)
+      const user1 = users.find(u => u.id === match.user1_id)
+      const user2 = users.find(u => u.id === match.user2_id)
 
-      const prompt = `
-        You are a professional networking matching system. Given a help seeker and potential helpers, identify the top 2-3 best matches and provide rationale.
+      if (!user1 || !user2) {
+        console.warn('⚠️ Could not find users for match:', match.user1_id, match.user2_id)
+        console.warn('Available user IDs:', users.map(u => u.id))
+        continue
+      }
 
-        HELP SEEKER:
-        ${seekerContext}
-
-        POTENTIAL HELPERS:
-        ${helpersContext}
-
-        Return a JSON array of matches in this format:
-        [
-          {
-            "helper_id": "helper_uuid",
-            "match_score": 0.85,
-            "rationale": "Brief explanation of why this is a good match based on background, expertise, and current focus alignment"
-          }
-        ]
-
-        Only include matches with score > 0.5. Focus on relevant experience, skills, and industry alignment.
-      `
-
-      try {
-        console.log(`🤖 Sending request to OpenAI for: ${request.title}`)
-        console.log('📝 Prompt preview:', prompt.substring(0, 200) + '...')
-        
-        const completion = await openai.chat.completions.create({
-          model: "gpt-4o-mini",
-          messages: [{ role: "user", content: prompt }],
-          temperature: 0.3,
-          max_tokens: 1000,
+      // Save to database
+      const { data: savedMatch, error } = await supabase
+        .from('potential_matches')
+        .insert({
+          user1_id: user1.id,
+          user2_id: user2.id,
+          match_type: match.match_type,
+          mutual_score: match.mutual_score,
+          user1_gives: match.user1_gives,
+          user1_gets: match.user1_gets,
+          user2_gives: match.user2_gives,
+          user2_gets: match.user2_gets,
+          rationale: match.rationale,
+          status: 'pending'
         })
+        .select()
+        .single()
 
-        const responseText = completion.choices[0]?.message?.content
-        console.log('🤖 OpenAI response:', responseText)
-        
-        if (responseText) {
-          const llmMatches = JSON.parse(responseText)
-          console.log(`✅ Parsed ${llmMatches.length} matches for request: ${request.title}`)
-          
-          for (const match of llmMatches) {
-            // Insert potential match into database
-            const { data: insertedMatch, error: insertError } = await supabase
-              .from('potential_matches')
-              .insert({
-                seeker_id: seeker.id,
-                helper_id: match.helper_id,
-                request_id: request.id,
-                match_score: match.match_score,
-                rationale: match.rationale,
-                status: 'pending'
-              })
-              .select()
-              .single()
-
-            if (!insertError && insertedMatch) {
-              // Get helper details for response
-              const helper = potentialHelpers?.find(h => h.id === match.helper_id)
-              
-              matches.push({
-                id: insertedMatch.id,
-                seeker: {
-                  name: seeker.name,
-                  email: seeker.email,
-                  background: seeker.background,
-                  request_title: request.title,
-                  help_type: request.help_type
-                },
-                helper: {
-                  name: helper?.name || 'Unknown',
-                  email: helper?.email || '',
-                  background: helper?.background || '',
-                  current_focus: helper?.current_focus || ''
-                },
-                rationale: match.rationale
-              })
-            }
-          }
-        }
-      } catch (llmError) {
-        console.error('LLM matching error for request', request.id, ':', llmError)
-        // Continue with other requests even if one fails
+      if (error) {
+        console.error('❌ Error saving match:', error)
+        console.error('Match data:', {
+          user1_id: user1.id,
+          user2_id: user2.id,
+          match_type: match.match_type,
+          mutual_score: match.mutual_score
+        })
+        continue
       }
+
+      console.log('✅ Successfully saved match:', savedMatch.id)
+
+      savedMatches.push({
+        id: savedMatch.id,
+        user1: { name: user1.name, id: user1.id },
+        user2: { name: user2.name, id: user2.id },
+        match_type: match.match_type,
+        mutual_score: match.mutual_score,
+        user1_gives: match.user1_gives,
+        user1_gets: match.user1_gets,
+        user2_gives: match.user2_gives,
+        user2_gets: match.user2_gets,
+        rationale: match.rationale
+      })
     }
 
-    // TEMPORARY: Add a fake match for testing
-    if (matches.length === 0 && helpRequests && helpRequests.length > 0 && potentialHelpers && potentialHelpers.length > 0) {
-      console.log('🧪 Creating test match...')
-      const testMatch = {
-        id: 'test-123',
-        seeker: {
-          name: helpRequests[0].users?.name || 'Test Seeker',
-          email: helpRequests[0].users?.email || 'seeker@test.com',
-          background: 'Test background',
-          request_title: helpRequests[0].title,
-          help_type: helpRequests[0].help_type
-        },
-        helper: {
-          name: potentialHelpers[0].name || 'Test Helper',
-          email: potentialHelpers[0].email || 'helper@test.com',
-          background: 'Test helper background',
-          current_focus: potentialHelpers[0].current_focus || 'Test focus'
-        },
-        rationale: 'TEST MATCH: This is a test match to verify the system works'
-      }
-      matches.push(testMatch)
-    }
+    console.log(`🎯 Successfully saved ${savedMatches.length} matches`)
+    return NextResponse.json(savedMatches)
 
-    console.log(`🎯 Final result: Generated ${matches.length} total matches`)
-    return NextResponse.json(matches)
   } catch (error) {
-    console.error('API error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    console.error('💥 Matching error:', error)
+    return NextResponse.json({ error: 'Matching failed', details: error.message }, { status: 500 })
   }
 }
