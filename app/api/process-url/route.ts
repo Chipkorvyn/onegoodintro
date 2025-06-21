@@ -1,18 +1,45 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
+import { NextRequest } from 'next/server'
+import { ApiResponse } from '@/lib/api-responses'
+import { authenticate } from '@/lib/auth-middleware'
+import { FileUtils } from '@/lib/file-utils'
 import { detectUrlType, extractYoutubeVideoId } from '@/lib/url-processor'
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession()
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const auth = await authenticate()
+    if ('error' in auth) {
+      return auth
     }
 
     const { url } = await request.json()
     
     if (!url || typeof url !== 'string') {
-      return NextResponse.json({ error: 'Invalid URL' }, { status: 400 })
+      return ApiResponse.badRequest('Invalid URL')
+    }
+
+    // Validate URL format and security
+    if (!FileUtils.isValidURL(url)) {
+      return ApiResponse.badRequest('Invalid URL format')
+    }
+
+    // Security check: prevent SSRF attacks
+    const urlObj = new URL(url)
+    const hostname = urlObj.hostname.toLowerCase()
+    
+    const blockedHosts = [
+      'localhost', '127.0.0.1', '0.0.0.0',
+      '10.', '192.168.', '172.16.', '172.17.', '172.18.', '172.19.',
+      '172.20.', '172.21.', '172.22.', '172.23.', '172.24.', '172.25.',
+      '172.26.', '172.27.', '172.28.', '172.29.', '172.30.', '172.31.',
+      '169.254.' // Link-local
+    ]
+    
+    const isBlocked = blockedHosts.some(blocked => 
+      hostname === blocked || hostname.startsWith(blocked)
+    )
+    
+    if (isBlocked) {
+      return ApiResponse.badRequest('URL is not allowed')
     }
 
     const type = detectUrlType(url)
@@ -20,7 +47,7 @@ export async function POST(request: NextRequest) {
     if (type === 'youtube') {
       const videoId = extractYoutubeVideoId(url)
       if (!videoId) {
-        return NextResponse.json({ error: 'Invalid YouTube URL' }, { status: 400 })
+        return ApiResponse.badRequest('Invalid YouTube URL')
       }
       
       // Try to get YouTube metadata via oEmbed
@@ -30,7 +57,7 @@ export async function POST(request: NextRequest) {
         
         if (response.ok) {
           const data = await response.json()
-          return NextResponse.json({
+          return ApiResponse.success({
             type: 'youtube',
             url,
             metadata: {
@@ -46,7 +73,7 @@ export async function POST(request: NextRequest) {
       }
       
       // Fallback
-      return NextResponse.json({
+      return ApiResponse.success({
         type: 'youtube',
         url,
         metadata: {
@@ -98,7 +125,7 @@ export async function POST(request: NextRequest) {
         favicon: `https://www.google.com/s2/favicons?domain=${new URL(url).hostname}&sz=64`
       }
       
-      return NextResponse.json({
+      return ApiResponse.success({
         type: 'website',
         url,
         metadata
@@ -107,7 +134,7 @@ export async function POST(request: NextRequest) {
       console.error('Failed to fetch website metadata:', error)
       
       // Fallback for websites
-      return NextResponse.json({
+      return ApiResponse.success({
         type: 'website',
         url,
         metadata: {
@@ -119,6 +146,6 @@ export async function POST(request: NextRequest) {
     }
   } catch (error) {
     console.error('Error processing URL:', error)
-    return NextResponse.json({ error: 'Failed to process URL' }, { status: 500 })
+    return ApiResponse.internalServerError('Failed to process URL')
   }
 }

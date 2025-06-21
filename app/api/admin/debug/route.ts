@@ -1,8 +1,15 @@
-import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { NextRequest } from 'next/server'
+import { ApiResponse } from '@/lib/api-responses'
+import { authenticateAdmin, getAdminSupabase } from '@/lib/auth-middleware'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const auth = await authenticateAdmin(request)
+    if ('error' in auth) {
+      return auth
+    }
+
+    const supabase = getAdminSupabase()
     // Try different possible table names
     let helpRequests, error1, error2
 
@@ -28,7 +35,7 @@ export async function GET() {
       .not('current_focus', 'is', null)
       .limit(3)
 
-    return NextResponse.json({
+    return ApiResponse.success({
       helpRequests: helpRequests || [],
       helpRequestsError: error1?.message || null,
       helpRequestSingularError: error2?.message || null,
@@ -36,6 +43,7 @@ export async function GET() {
       message: 'Debug data loaded - checking table names'
     })
   } catch (error) {
-    return NextResponse.json({ error: 'Debug failed', details: error }, { status: 500 })
+    console.error('Debug endpoint error:', error)
+    return ApiResponse.internalServerError('Debug failed')
   }
 }

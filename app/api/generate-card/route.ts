@@ -1,30 +1,23 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
+import { ApiResponse } from '@/lib/api-responses';
+import { AIService } from '@/lib/ai-services';
+
+interface CardData {
+  title: string;
+  proof: string;
+}
 
 export async function POST(request: NextRequest) {
   try {
     const { transcript } = await request.json();
     
     if (!transcript || transcript.trim().length === 0) {
-      return NextResponse.json({ error: 'No transcript provided' }, { status: 400 });
+      return ApiResponse.badRequest('No transcript provided');
     }
 
     console.log('Generating card from transcript:', transcript.substring(0, 100) + '...');
 
-    // Claude API call
-    const claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.CLAUDE_API_KEY!,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: 'claude-3-sonnet-20240229',
-        max_tokens: 300,
-        messages: [
-          {
-            role: 'user',
-            content: `You are analyzing a voice transcript where someone describes their professional experience and what they can help others with.
+    const prompt = `You are analyzing a voice transcript where someone describes their professional experience and what they can help others with.
 
 TRANSCRIPT: "${transcript}"
 
@@ -41,47 +34,32 @@ Focus on:
 Return JSON format:
 { "title": "...", "proof": "..." }
 
-IMPORTANT: Keep within character limits and make it sound professional but conversational, no corporate jargon.`
-          }
-        ]
-      })
+IMPORTANT: Keep within character limits and make it sound professional but conversational, no corporate jargon.`;
+
+    const response = await AIService.generateWithClaude<CardData>(prompt, {
+      model: 'claude-3-sonnet-20240229',
+      maxTokens: 300
     });
 
-    if (!claudeResponse.ok) {
-      console.error('Claude API error:', claudeResponse.status, claudeResponse.statusText);
-      return NextResponse.json({ error: 'AI processing failed' }, { status: 500 });
+    if (!response.success || !response.data) {
+      console.error('AI generation failed:', response.error);
+      return ApiResponse.internalServerError('AI processing failed');
     }
 
-    const claudeData = await claudeResponse.json();
-    const content = claudeData.content[0]?.text;
-
-    if (!content) {
-      return NextResponse.json({ error: 'No content generated' }, { status: 500 });
+    if (!response.data.title || !response.data.proof) {
+      return ApiResponse.internalServerError('Incomplete card data');
     }
 
-    // Parse JSON response from Claude
-    let cardData;
-    try {
-      cardData = JSON.parse(content);
-    } catch (parseError) {
-      console.error('Failed to parse Claude response:', content);
-      return NextResponse.json({ error: 'Invalid AI response format' }, { status: 500 });
-    }
+    console.log('Generated card:', response.data);
 
-    if (!cardData.title || !cardData.proof) {
-      return NextResponse.json({ error: 'Incomplete card data' }, { status: 500 });
-    }
-
-    console.log('Generated card:', cardData);
-
-    return NextResponse.json({
-      title: cardData.title,
-      proof: cardData.proof,
+    return ApiResponse.success({
+      title: response.data.title,
+      proof: response.data.proof,
       success: true
     });
 
   } catch (error) {
     console.error('Card generation error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return ApiResponse.internalServerError('Internal server error');
   }
 }

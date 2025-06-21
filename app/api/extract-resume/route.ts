@@ -1,4 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
+import { ApiResponse } from '@/lib/api-responses';
+import { FileUtils } from '@/lib/file-utils';
 import mammoth from 'mammoth';
 import { promises as fs } from 'fs';
 import path from 'path';
@@ -15,42 +17,29 @@ export async function POST(request: NextRequest) {
   
   try {
     const formData = await request.formData();
-    const file = formData.get('file') as File;
-    
-    if (!file) {
-      return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+    const fileResult = await FileUtils.processFormDataFile(formData, 'file', {
+      maxSizeMB: 5, // Reduced from 10MB for security
+      allowedTypes: [
+        'application/pdf',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/msword'
+      ],
+      allowedExtensions: ['pdf', 'docx', 'doc']
+    });
+
+    if (!fileResult.success) {
+      return ApiResponse.badRequest(fileResult.error);
     }
 
-    // Validate file type
-    const validTypes = [
-      'application/pdf',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/msword'
-    ];
-    
-    if (!validTypes.includes(file.type)) {
-      return NextResponse.json({ 
-        error: 'Invalid file type. Please upload PDF, DOC, or DOCX.' 
-      }, { status: 400 });
-    }
+    const { file } = fileResult;
 
-    // File size limit (10MB - increased for better compatibility)
-    const maxSize = 10 * 1024 * 1024;
-    if (file.size > maxSize) {
-      return NextResponse.json({ 
-        error: 'File too large. Maximum size is 10MB.' 
-      }, { status: 400 });
-    }
+    console.log('Processing resume file:', file.filename, 'Type:', file.mimeType, 'Size:', file.size);
 
-    console.log('Processing resume file:', file.name, 'Type:', file.type, 'Size:', file.size);
-
-    // Convert file to buffer
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    const buffer = file.buffer;
     let extractedText = '';
 
     // Extract text based on file type
-    if (file.type === 'application/pdf') {
+    if (file.mimeType === 'application/pdf') {
       try {
         // Create a temporary file for pdf2json (it requires file path)
         const tempDir = path.join(process.cwd(), 'tmp');
@@ -119,12 +108,12 @@ export async function POST(request: NextRequest) {
           message: pdfError instanceof Error ? pdfError.message : 'Unknown error',
           name: pdfError instanceof Error ? pdfError.name : 'Unknown',
           fileSize: file.size,
-          fileName: file.name
+          fileName: file.filename
         });
         
-        return NextResponse.json({ 
-          error: 'Failed to parse PDF. This could be due to the PDF being password-protected, corrupted, image-based (scanned), or using unsupported formatting. Please try a text-based PDF or convert your resume to a Word document.' 
-        }, { status: 500 });
+        return ApiResponse.internalServerError(
+          'Failed to parse PDF. This could be due to the PDF being password-protected, corrupted, image-based (scanned), or using unsupported formatting. Please try a text-based PDF or convert your resume to a Word document.'
+        );
         
       } finally {
         // Clean up temporary file
@@ -136,7 +125,7 @@ export async function POST(request: NextRequest) {
           }
         }
       }
-    } else if (file.type.includes('word') || file.type.includes('document')) {
+    } else if (file.mimeType.includes('word') || file.mimeType.includes('document')) {
       try {
         const result = await mammoth.extractRawText({ buffer });
         extractedText = result.value;
@@ -150,9 +139,9 @@ export async function POST(request: NextRequest) {
         
       } catch (docError) {
         console.error('Document parsing error:', docError);
-        return NextResponse.json({ 
-          error: 'Failed to parse document. Please ensure the file is not corrupted.' 
-        }, { status: 500 });
+        return ApiResponse.internalServerError(
+          'Failed to parse document. Please ensure the file is not corrupted.'
+        );
       }
     }
 
@@ -167,16 +156,16 @@ export async function POST(request: NextRequest) {
       console.log('Insufficient text extracted. Length:', extractedText.length);
       console.log('First 200 chars:', extractedText.substring(0, 200));
       
-      return NextResponse.json({ 
-        error: 'Could not extract sufficient readable text from the file. This may indicate the PDF is image-based (scanned), password-protected, or uses complex formatting. For best results, please use a text-based PDF or Word document.' 
-      }, { status: 400 });
+      return ApiResponse.badRequest(
+        'Could not extract sufficient readable text from the file. This may indicate the PDF is image-based (scanned), password-protected, or uses complex formatting. For best results, please use a text-based PDF or Word document.'
+      );
     }
 
     console.log('Successfully extracted text. Length:', extractedText.length, 'Words:', extractedText.split(/\s+/).length);
 
-    return NextResponse.json({
+    return ApiResponse.success({
       text: extractedText,
-      filename: file.name,
+      filename: file.filename,
       wordCount: extractedText.split(/\s+/).length,
       success: true
     });
@@ -189,9 +178,9 @@ export async function POST(request: NextRequest) {
       stack: error instanceof Error ? error.stack : undefined
     });
     
-    return NextResponse.json({ 
-      error: 'Failed to process resume file. Please try a different file format or ensure the file is not corrupted.' 
-    }, { status: 500 });
+    return ApiResponse.internalServerError(
+      'Failed to process resume file. Please try a different file format or ensure the file is not corrupted.'
+    );
     
   } finally {
     // Ensure temporary file cleanup

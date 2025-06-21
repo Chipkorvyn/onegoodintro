@@ -1,11 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ApiResponse } from '@/lib/api-responses';
+import { authenticate } from '@/lib/auth-middleware';
+import { BackgroundProcessor, JobType } from '@/lib/background-processor';
 
 export async function POST(request: NextRequest) {
   try {
-    const { resumeText, conversationHistory = [] } = await request.json();
+    const auth = await authenticate()
+    if ('error' in auth) {
+      return auth
+    }
+
+    const { resumeText, conversationHistory = [], background = false } = await request.json();
     
     if (!resumeText || resumeText.trim().length === 0) {
-      return NextResponse.json({ error: 'No resume text provided' }, { status: 400 });
+      return ApiResponse.badRequest('No resume text provided');
+    }
+
+    // For large resumes or background processing requests, queue the job
+    if (background || resumeText.length > 10000) {
+      const jobId = await BackgroundProcessor.addJob(JobType.PROCESS_RESUME, {
+        userId: auth.userId,
+        resumeText,
+        filename: 'resume.txt'
+      });
+
+      return ApiResponse.success({
+        jobId,
+        status: 'processing',
+        message: 'Resume processing queued. Check status with the job ID.'
+      });
     }
 
     console.log('Processing resume with conversation history:', conversationHistory.length, 'previous interactions');

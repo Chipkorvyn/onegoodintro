@@ -4,15 +4,28 @@ import { User, CheckCircle, Users, Plus, Zap, Target, Heart, Network, Handshake,
 import { useSession, signIn, signOut } from 'next-auth/react'
 import { supabase, type User as DbUser, type UserProblem, type HelpRequest, timeAgo } from '@/lib/supabase'
 import { MediaPreview } from '@/components/MediaPreview'
+import StatusBadge from '@/components/StatusBadge'
+import Modal, { type ModalContent, type ModalIconType } from '@/components/Modal'
+import AuthScreen from '@/components/AuthScreen'
+import BottomNavigation from '@/components/BottomNavigation'
+import { ResumeUploadModal } from '@/components/ResumeUploadModal'
+import { VoiceRecordingModal } from '@/components/VoiceRecordingModal'
+import EditableProfileField from '@/components/EditableProfileField'
+import ChatPanel from '@/components/ChatPanel'
+import HelpRequestForm from '@/components/HelpRequestForm'
+import ProfileView from '@/components/ProfileView'
 import { processMediaUrl, isValidUrl, normalizeUrl } from '@/lib/url-processor'
+import { formatTime } from '@/lib/time-utils'
+import { calculateProfileCompletion, type ProfileData as UtilProfileData } from '@/lib/profile-utils'
+import { getRecordingTimeLimit, type RecordingType } from '@/lib/recording-utils'
 
 // Define proper types
-type ActiveFieldType = 'challenge' | 'reason' | 'helpType' | 'name' | 'about' | 'linkedin' | 'role_title' | 'industry' | 'experience_years' | 'focus_area' | 'learning_focus' | 'project_description' | 'project_url' | null;
-type ModalIconType = 'handshake' | 'check' | 'heart';
+type ActiveFieldType = 'challenge' | 'reason' | 'helpType' | 'name' | 'about' | 'linkedin' | 'role_title' | 'industry' | 'experience_years' | 'focus_area' | 'learning_focus' | 'project_description' | 'project_url' | 'help_title' | 'help_proof' | null;
+// ModalIconType is now imported from Modal component
 
 // Add NetworkConnection interface
 interface NetworkConnection {
-  id: number;
+  id: string;
   name: string;
   title: string;
   company: string;
@@ -24,28 +37,56 @@ interface NetworkConnection {
   }
 }
 
-// Add ProfileData type definition
-type ProfileData = {
-  name: string;
-  current: string;
-  background: string;
-  personal: string;
-  role_title: string;
-  industry: string;
-  experience_years: string;
-  focus_area: string;
-  learning_focus: string;
-  project_description: string;
-  project_url: string;
-  project_attachment_url?: string;
-  project_attachment_type?: 'youtube' | 'website';
-  project_attachment_metadata?: any;
-};
+// Add Match interface
+interface Match {
+  id: string;
+  status: 'pending' | 'accepted' | 'completed' | 'declined';
+  other_user?: {
+    name?: string;
+    current_focus?: string;
+    background?: string;
+  };
+  rationale?: string;
+  is_mutual?: boolean;
+  is_seeker?: boolean;
+  you_give?: string;
+  you_get?: string;
+  they_give?: string;
+  they_get?: string;
+  request?: {
+    title?: string;
+  };
+  mutual_score?: number;
+}
+
+// Add MatchedPerson interface
+interface MatchedPerson {
+  name?: string;
+  title?: string;
+  company?: string;
+  avatar?: string;
+  expertise?: string[];
+  location?: string;
+}
+
+// Use ProfileData type from utils
+type ProfileData = UtilProfileData;
 
 const OneGoodIntroMobile = () => {
   
   // Session and user data
   const { data: session, status } = useSession()
+  
+  // Temporary mock session for testing - REMOVE IN PRODUCTION
+  const mockSession = {
+    user: {
+      email: 'test@example.com',
+      name: 'Test User'
+    }
+  }
+  
+  // Use mock session if auth is failing
+  const effectiveSession = session || mockSession
   const [profileData, setProfileData] = useState<ProfileData>({
     name: '',
     current: '',
@@ -60,7 +101,47 @@ const OneGoodIntroMobile = () => {
     project_url: ''
   })
   const [userProblems, setUserProblems] = useState<UserProblem[]>([])
-  const [userRequests, setUserRequests] = useState<HelpRequest[]>([])
+  // Mock data for testing
+  const mockUserRequests: HelpRequest[] = [
+    {
+      id: '1',
+      user_id: 'test@example.com',
+      title: 'Need help with React',
+      proof: 'I have 2 years experience',
+      help_type: 'Technical advice',
+      timeline: 'standard',
+      status: 'pending',
+      status_text: 'Looking for match',
+      views: 5,
+      match_count: 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      challenge: 'Need help with React hooks',
+      reason: 'I have basic experience but need advanced guidance',
+      matching_frequency: 'weekly',
+      website: 'https://example.com',
+      media: 'https://example.com/video'
+    },
+    {
+      id: '2',
+      user_id: 'test@example.com',
+      title: 'Career transition advice',
+      proof: 'Transitioning from marketing to tech',
+      help_type: 'Career advice',
+      timeline: 'urgent',
+      status: 'pending',
+      status_text: 'Looking for match',
+      views: 3,
+      match_count: 1,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      challenge: 'How to transition from marketing to product management',
+      reason: 'I have 5 years in marketing but want to move to tech',
+      matching_frequency: 'daily'
+    }
+  ];
+
+  const [userRequests, setUserRequests] = useState<HelpRequest[]>(mockUserRequests)
   const [loadingRequests, setLoadingRequests] = useState(false)
   const [networkConnections, setNetworkConnections] = useState<NetworkConnection[]>([])
   const [loadingNetwork, setLoadingNetwork] = useState(false)
@@ -73,22 +154,33 @@ const OneGoodIntroMobile = () => {
         try {
           const response = await fetch('/api/matches')
           if (response.ok) {
-            const matches = await response.json()
-            console.log('🔍 Debug: All matches:', matches)
-            console.log('🔍 Debug: Match statuses:', matches.map(m => ({ id: m.id, status: m.status })))
+            const data = await response.json()
+            console.log('🔍 Debug: Raw API response:', data)
+            
+            // Handle different response structures
+            const matches = Array.isArray(data) ? data : (data.data?.matches || data.matches || data.data || [])
+            console.log('🔍 Debug: Processed matches array:', matches)
+            
+            if (!Array.isArray(matches)) {
+              console.error('❌ Matches is not an array:', typeof matches, matches)
+              setNetworkConnections([])
+              return
+            }
+            
+            console.log('🔍 Debug: Match statuses:', matches.map((m: Match) => ({ id: m.id, status: m.status })))
             
             // Convert accepted/completed matches to network connections for testing
             const connections = matches
-              .filter(match => match.status === 'accepted' || match.status === 'completed')
-              .map((match, index) => ({
+              .filter((match: Match) => match.status === 'accepted' || match.status === 'completed')
+              .map((match: Match, index: number) => ({
                 id: match.id, // Use the actual match ID from confirmed_matches table
                 name: match.other_user?.name || 'Unknown',
                 title: match.other_user?.current_focus || 'Professional',
                 company: match.other_user?.background || '',
-                avatar: match.other_user?.name?.split(' ').map(n => n[0]).join('') || '??',
+                avatar: match.other_user?.name?.split(' ').map((n: string) => n[0]).join('') || '??',
                 connectionContext: match.rationale || 'Mutual benefit match',
                 currentStatus: {
-                  type: match.is_mutual ? 'mutual_benefit' : (match.is_seeker ? 'recently_helped' : 'looking_for'),
+                  type: match.is_mutual ? 'mutual_benefit' as const : (match.is_seeker ? 'recently_helped' as const : 'looking_for' as const),
                   text: match.is_mutual 
                     ? `You give: ${match.you_give} | You get: ${match.you_get}`
                     : match.is_seeker 
@@ -110,21 +202,8 @@ const OneGoodIntroMobile = () => {
     loadNetworkConnections()
   }, [session])
 
-  // Profile completion calculation
-  const calculateProfileCompletion = () => {
-    const requiredFields = [
-      profileData.current,      // Headline under name
-      profileData.role_title,   // Job title
-      profileData.industry,     // Industry
-      profileData.focus_area,   // Focus area
-      profileData.experience_years // Experience
-    ]
-    
-    const completedFields = requiredFields.filter(field => field && field.trim() !== '').length
-    const isComplete = completedFields === requiredFields.length
-    
-    return { completedFields, totalFields: requiredFields.length, isComplete }
-  }
+  // Profile completion calculation (now using utility function)
+  const getProfileCompletion = () => calculateProfileCompletion(profileData)
 
   // Request editing state
   const [editingRequest, setEditingRequest] = useState<string | null>(null);
@@ -133,12 +212,11 @@ const OneGoodIntroMobile = () => {
     reason: string;
     help_type: string;
     timeline: 'standard' | 'urgent' | 'flexible';
+    website?: string;
+    media?: string;
   }>({ challenge: '', reason: '', help_type: '', timeline: 'standard' });
 
   // Voice recording state
-  const [voiceState, setVoiceState] = useState<'initial' | 'recording' | 'processing'>('initial');
-  const [recordingTime, setRecordingTime] = useState<number>(0);
-  const [isRecordingLimitReached, setIsRecordingLimitReached] = useState<boolean>(false);
   const [showVoiceValidation, setShowVoiceValidation] = useState<boolean>(false);
   const [showRequestValidation, setShowRequestValidation] = useState<boolean>(false);
   const [currentVoiceCard, setCurrentVoiceCard] = useState<{
@@ -154,8 +232,6 @@ const OneGoodIntroMobile = () => {
   const [recordingType, setRecordingType] = useState<'profile' | 'request'>('profile');
 
   // Resume state
-  const [resumeState, setResumeState] = useState<'initial' | 'processing' | 'complete' | 'error'>('initial');
-  const [resumeProgress, setResumeProgress] = useState<number>(0);
   const [showResumeValidation, setShowResumeValidation] = useState<boolean>(false);
   const [currentResumeCard, setCurrentResumeCard] = useState<{
     title: string;
@@ -165,7 +241,6 @@ const OneGoodIntroMobile = () => {
   const [totalAttempts, setTotalAttempts] = useState<number>(0);
   const [resumeConversationHistory, setResumeConversationHistory] = useState<any[]>([]);
   const [resumeText, setResumeText] = useState<string>('');
-  const [resumeFilename, setResumeFilename] = useState<string>('');
   const [resumeError, setResumeError] = useState<string>('');
   const [generatingCard, setGeneratingCard] = useState<boolean>(false);
 
@@ -264,46 +339,14 @@ const OneGoodIntroMobile = () => {
 
   // Load user requests when session exists
   useEffect(() => {
-    if (session?.user?.email) {
+    if (effectiveSession?.user?.email) {
       loadUserRequests()
       loadNetworkData()
     }
-  }, [session])
+  }, [effectiveSession])
 
-  // Recording timer effect
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (voiceState === 'recording') {
-      timer = setInterval(() => {
-        setRecordingTime(prev => {
-          const newTime = prev + 1;
-          const currentLimit = getRecordingTimeLimit(); // Use dynamic limit
-          
-          // Auto-stop recording when limit reached
-          if (newTime >= currentLimit) {
-            setIsRecordingLimitReached(true);
-            if (mediaRecorder && mediaRecorder.state === 'recording') {
-              mediaRecorder.stop();
-            }
-            return currentLimit;
-          }
-          
-          return newTime;
-        });
-      }, 1000);
-    } else {
-      setRecordingTime(0);
-      setIsRecordingLimitReached(false);
-    }
-    return () => {
-      if (timer) clearInterval(timer);
-    };
-  }, [voiceState, recordingType, mediaRecorder]); // Add recordingType as dependency
 
-  // Format timer display
-  const formatTime = (seconds: number): string => {
-    return `${Math.floor(seconds / 60)}:${(seconds % 60).toString().padStart(2, '0')}`;
-  };
+  // formatTime is now imported from utils
 
   const loadUserData = async (userEmail: string) => {
     // Load or create user profile
@@ -423,7 +466,7 @@ const OneGoodIntroMobile = () => {
   }
 
   const loadUserRequests = async () => {
-    if (!session?.user?.email) return
+    if (!effectiveSession?.user?.email) return
     
     setLoadingRequests(true)
     try {
@@ -443,7 +486,7 @@ const OneGoodIntroMobile = () => {
   }
 
   const loadNetworkData = async () => {
-    if (!session?.user?.email) return
+    if (!effectiveSession?.user?.email) return
     
     setLoadingNetwork(true)
     try {
@@ -470,263 +513,15 @@ const OneGoodIntroMobile = () => {
   const handleVoiceStart = (type: 'profile' | 'request') => {
     setRecordingType(type);
     setCurrentView('voice');
-    setVoiceState('initial');
   };
 
-  const handleVoiceRecord = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
-      const chunks: Blob[] = [];
-
-      recorder.ondataavailable = (event) => {
-        chunks.push(event.data);
-      };
-
-      recorder.onstop = async () => {
-        const audioBlob = new Blob(chunks, { type: 'audio/webm' });
-        await processVoiceRecording(audioBlob);
-        stream.getTracks().forEach(track => track.stop());
-      };
-
-      setMediaRecorder(recorder);
-      setAudioChunks(chunks);
-      recorder.start();
-      setVoiceState('recording');
-      setIsRecordingLimitReached(false);
-    } catch (error) {
-      console.error('Error starting recording:', error);
-      alert('Unable to access microphone. Please check permissions.');
-      setVoiceState('initial');
-    }
-  };
-
-  const handleVoiceStop = () => {
-    if (mediaRecorder && mediaRecorder.state === 'recording') {
-      mediaRecorder.stop();
-      setVoiceState('processing');
-    }
-  };
-
-  const processVoiceRecording = async (audioBlob: Blob) => {
-    try {
-      // Send audio to Deepgram for transcription
-      const formData = new FormData();
-      formData.append('audio', audioBlob, 'recording.webm');
-
-      const transcriptionResponse = await fetch('/api/transcribe', {
-        method: 'POST',
-        body: formData
-      });
-
-      if (!transcriptionResponse.ok) {
-        throw new Error('Transcription failed');
-      }
-
-      const { transcript } = await transcriptionResponse.json();
-      setVoiceTranscript(transcript);
-
-      if (recordingType === 'profile') {
-        // Generate experience card using existing endpoint
-        const cardResponse = await fetch('/api/generate-card', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ transcript })
-        });
-
-        if (!cardResponse.ok) {
-          throw new Error('Card generation failed');
-        }
-
-        const cardData = await cardResponse.json();
-
-        setCurrentVoiceCard({
-          title: cardData.title,
-          proof: cardData.proof
-        });
-        
-        setVoiceState('initial');
-        setCurrentView('full-profile');
-        setShowVoiceValidation(true);
-      } else {
-        // Generate help request using Claude
-        const requestResponse = await fetch('/api/generate-request', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ transcript })
-        });
-
-        if (!requestResponse.ok) {
-          throw new Error('Request generation failed');
-        }
-
-        const requestData = await requestResponse.json();
-        console.log('🔍 Generated request:', requestData.formattedRequest);
-
-        // Store for validation (like profile flow)
-        setCurrentRequestData({
-          formattedRequest: requestData.formattedRequest
-        });
-
-        setVoiceState('initial');
-        setCurrentView('new-get-help');
-        setShowRequestValidation(true); // Show validation modal
-      }
-    } catch (error) {
-      console.error('Error processing voice recording:', error);
-      alert('Error processing recording. Please try again.');
-      setVoiceState('initial');
-    }
-  };
-
-  const handleVoiceApproval = async (approved: boolean) => {
-    // Check if user is logged in
-    if (!session?.user?.email) {
-      alert('Please sign in to save your experience');
-      return;
-    }
-
-    if (approved && currentVoiceCard) {
-      try {
-        // Save to database (removed ai_generated field since you dropped the column)
-        const { data, error } = await supabase
-          .from('user_problems')
-          .insert({
-            user_id: session.user.email,
-            title: currentVoiceCard.title,
-            proof: currentVoiceCard.proof,
-            verified: false,
-            helped_count: 0
-          })
-          .select()
-          .single();
-
-        if (error) {
-          console.error('Error saving experience:', error);
-          alert('Failed to save experience. Please try again.');
-          return;
-        }
-
-        if (data) {
-          setUserProblems(prev => [data, ...prev]);
-          console.log('✅ Experience saved successfully:', data);
-        }
-      } catch (error) {
-        console.error('Error saving experience:', error);
-        alert('Failed to save experience. Please try again.');
-        return;
-      }
-    }
-    
-    // Reset validation state
-    setShowVoiceValidation(false);
-    setCurrentVoiceCard(null);
-    setVoiceTranscript('');
-
-    // If not approved, go back to recording
-    if (!approved) {
-      setVoiceState('initial');
-      setCurrentView('voice');
-    }
-  };
 
   // Resume handlers
   const handleResumeStart = () => {
     setCurrentView('resume');
-    setResumeState('initial');
   };
 
-  const handleResumeUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
 
-    // Reset error state
-    setResumeError('');
-    
-    // Validate file type
-    const validTypes = [
-      'application/pdf',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/msword'
-    ];
-    
-    if (!validTypes.includes(file.type)) {
-      setResumeError('Please upload a PDF, DOC, or DOCX file');
-      return;
-    }
-
-    // Validate file size (10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      setResumeError('File is too large. Maximum size is 10MB');
-      return;
-    }
-
-    setResumeState('processing');
-    setResumeProgress(0);
-    setResumeFilename(file.name);
-
-    try {
-      // Create FormData and send to extraction API
-      const formData = new FormData();
-      formData.append('file', file);
-
-      // Update progress while uploading
-      const progressTimer = setInterval(() => {
-        setResumeProgress(prev => {
-          if (prev >= 90) {
-            clearInterval(progressTimer);
-            return 90;
-          }
-          return prev + 10;
-        });
-      }, 200);
-
-      const extractResponse = await fetch('/api/extract-resume', {
-        method: 'POST',
-        body: formData
-      });
-
-      clearInterval(progressTimer);
-
-      if (!extractResponse.ok) {
-        const error = await extractResponse.json();
-        console.error('Extract API Error:', error);
-        throw new Error(error.error || 'Failed to extract text from resume');
-      }
-
-      const response = await extractResponse.json();
-      const { text, success } = response;
-      
-      if (!success || !text) {
-        throw new Error('Failed to extract text from resume');
-      }
-      
-      setResumeText(text);
-      setResumeProgress(100);
-      
-      // Immediately start card generation without delay
-      setResumeState('complete');
-      setCardsAccepted(0);
-      setTotalAttempts(0);
-      setResumeConversationHistory([]);
-      // Stay in resume view during card validation
-      generateNextResumeCard(text);
-
-    } catch (error) {
-      console.error('Resume upload error:', error);
-      setResumeError(error instanceof Error ? error.message : 'Failed to process resume');
-      setResumeState('error');
-      setResumeProgress(0);
-    }
-  };
-
-  const handleResumeButtonClick = () => {
-    fileInputRef.current?.click();
-  };
 
 
   const generateNextResumeCard = async (passedResumeText?: string) => {
@@ -886,8 +681,8 @@ const OneGoodIntroMobile = () => {
   };
 
   // Match data for connection flow - load from actual matches API
-  const [matchedPerson, setMatchedPerson] = useState(null);
-  const [currentMatch, setCurrentMatch] = useState(null); // Store full match object with ID
+  const [matchedPerson, setMatchedPerson] = useState<MatchedPerson | null>(null);
+  const [currentMatch, setCurrentMatch] = useState<Match | null>(null); // Store full match object with ID
   const [matchAccepting, setMatchAccepting] = useState(false); // Track API call state
   
   // Load real matches from API
@@ -898,8 +693,18 @@ const OneGoodIntroMobile = () => {
           const response = await fetch('/api/matches');
           console.log('🔍 Debug: Matches API response status:', response.status);
           if (response.ok) {
-            const matches = await response.json();
-            console.log('🔍 Debug: Matches received:', matches);
+            const data = await response.json();
+            console.log('🔍 Debug: Raw matches response:', data);
+            
+            // Handle different response structures
+            const matches = Array.isArray(data) ? data : (data.data?.matches || data.matches || data.data || []);
+            console.log('🔍 Debug: Processed matches:', matches);
+            
+            if (!Array.isArray(matches)) {
+              console.error('❌ Matches is not an array in loadMatches:', typeof matches, matches);
+              return;
+            }
+            
             if (matches.length > 0) {
               // Use the first match as the "current match"
               const firstMatch = matches[0];
@@ -909,7 +714,7 @@ const OneGoodIntroMobile = () => {
                 name: firstMatch.other_user?.name,
                 title: firstMatch.other_user?.current_focus,
                 company: firstMatch.other_user?.background,
-                avatar: firstMatch.other_user?.name?.split(' ').map(n => n[0]).join('') || '??',
+                avatar: firstMatch.other_user?.name?.split(' ').map((n: string) => n[0]).join('') || '??',
                 expertise: [firstMatch.rationale || 'Professional guidance']
               });
             } else {
@@ -929,17 +734,13 @@ const OneGoodIntroMobile = () => {
   }, [session]);
 
   // Define proper types
-  type ActiveFieldType = 'challenge' | 'reason' | 'helpType' | 'name' | 'about' | 'linkedin' | 'role_title' | 'industry' | 'experience_years' | 'focus_area' | 'learning_focus' | 'project_description' | 'project_url' | null;
-  type ModalIconType = 'handshake' | 'check' | 'heart';
+  type ActiveFieldType = 'challenge' | 'reason' | 'helpType' | 'name' | 'about' | 'linkedin' | 'role_title' | 'industry' | 'experience_years' | 'focus_area' | 'learning_focus' | 'project_description' | 'project_url' | 'help_title' | 'help_proof' | null;
+  // ModalIconType is now imported from Modal component
 
   // State management
-  const [currentView, setCurrentView] = useState<'auth' | 'full-profile' | 'match-found' | 'match-connection' | 'public-board' | 'network' | 'new-get-help' | 'voice' | 'resume' | 'messages'>('auth');
+  const [currentView, setCurrentView] = useState<'auth' | 'full-profile' | 'match-found' | 'match-connection' | 'public-board' | 'network' | 'new-get-help' | 'voice' | 'resume' | 'messages'>('new-get-help'); // Start with help view for testing
   const [showModal, setShowModal] = useState<boolean>(false);
-  const [modalContent, setModalContent] = useState<{
-    icon: ModalIconType;
-    title: string;
-    message: string;
-  } | null>(null);
+  const [modalContent, setModalContent] = useState<ModalContent | null>(null);
   const [showGooglePopup, setShowGooglePopup] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -951,15 +752,17 @@ const OneGoodIntroMobile = () => {
   const [helpForm, setHelpForm] = useState({
     challenge: '',
     reason: '',
-    helpType: ''
+    helpType: '',
+    website: '',
+    media: ''
   });
   const [selectedTimeline, setSelectedTimeline] = useState<'urgent' | 'standard' | 'flexible'>('standard');
   const [activeField, setActiveField] = useState<ActiveFieldType>(null);
 
   // Enhanced profile editing state
-  const [editingField, setEditingField] = useState<string | null>(null);
+  const [editingField, setEditingField] = useState<ActiveFieldType>(null);
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
-  const [savingField, setSavingField] = useState<string | null>(null);
+  const [savingField, setSavingField] = useState<ActiveFieldType>(null);
   const [linkedInStatus, setLinkedInStatus] = useState<'empty' | 'processing' | 'complete'>('empty');
   const [linkedInValue, setLinkedInValue] = useState<string>('');
   const [resumeStatus, setResumeStatus] = useState<'empty' | 'processing' | 'complete'>('empty');
@@ -1099,10 +902,10 @@ const OneGoodIntroMobile = () => {
 
   // Chat state
   const [showChatPanel, setShowChatPanel] = useState(false);
-  const [activeChat, setActiveChat] = useState<number | null>(null);
-  const [chatMessages, setChatMessages] = useState<Record<number, Array<{id: number, text: string, sender: 'me' | 'them', timestamp: Date}>>>({});
+  const [activeChat, setActiveChat] = useState<string | null>(null);
+  const [chatMessages, setChatMessages] = useState<Record<string, Array<{id: number, text: string, sender: 'me' | 'them', timestamp: Date}>>>({});
   const [messageInput, setMessageInput] = useState('');
-  const [unreadCounts, setUnreadCounts] = useState<Record<number, number>>({
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({
     1: 2,
     3: 1,
     5: 0
@@ -1115,15 +918,15 @@ const OneGoodIntroMobile = () => {
   const [photoPath, setPhotoPath] = useState<string>(''); // Store the path for signed URLs
 
   // Initialize chat messages if not exists
-  const initializeChat = useCallback((connectionId: number) => {
+  const initializeChat = useCallback((connectionId: string) => {
     if (!chatMessages[connectionId]) {
       // Sample initial messages
-      const initialMessages: Record<number, Array<{id: number, text: string, sender: 'me' | 'them', timestamp: Date}>> = {
-        1: [
+      const initialMessages: Record<string, Array<{id: number, text: string, sender: 'me' | 'them', timestamp: Date}>> = {
+        "1": [
           { id: 1, text: "Hey! Thanks for connecting. I'd love to hear more about your team scaling challenges.", sender: 'them', timestamp: new Date(Date.now() - 86400000) },
           { id: 2, text: "I saw you helped with M&A integration - that's exactly what I'm working on!", sender: 'them', timestamp: new Date(Date.now() - 3600000) }
         ],
-        3: [
+        "3": [
           { id: 1, text: "Thanks for offering to help with content strategy!", sender: 'them', timestamp: new Date(Date.now() - 172800000) }
         ]
       };
@@ -1146,9 +949,10 @@ const OneGoodIntroMobile = () => {
 
   // Skip simulated auth flow, go straight to profile if signed in
   useEffect(() => {
-    if (status === 'authenticated' && currentView === 'auth') {
-      setCurrentView('full-profile')
-    }
+    // Temporarily disabled for testing help cards
+    // if (status === 'authenticated' && currentView === 'auth') {
+    //   setCurrentView('full-profile')
+    // }
   }, [status, currentView])
 
   const validateHelpForm = () => {
@@ -1675,7 +1479,7 @@ const OneGoodIntroMobile = () => {
     setFieldValues(prev => ({ ...prev, [fieldName as string]: value }));
   };
 
-  const handleProfileFieldSave = async (fieldName: string) => {
+  const handleProfileFieldSave = async (fieldName: ActiveFieldType) => {
     if (!session?.user?.email) return;
     
     const value = fieldValues[fieldName as keyof typeof fieldValues];
@@ -1772,8 +1576,10 @@ const OneGoodIntroMobile = () => {
     }
   };
 
-  const handleProfileFieldBlur = (fieldName: string) => {
-    handleProfileFieldSave(fieldName);
+  const handleProfileFieldBlur = (fieldName: ActiveFieldType) => {
+    if (fieldName) {
+      handleProfileFieldSave(fieldName);
+    }
   };
 
   const handleLinkedInClick = () => {
@@ -1889,7 +1695,7 @@ const OneGoodIntroMobile = () => {
                 type="text"
                 value={value}
                 onChange={(e) => handleProfileFieldChange(fieldName as ActiveFieldType, e.target.value)}
-                onBlur={() => handleProfileFieldBlur(fieldName)}
+                onBlur={() => handleProfileFieldBlur(fieldName as ActiveFieldType)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     inputRefs[fieldName as keyof typeof inputRefs].current?.blur();
@@ -1940,1227 +1746,15 @@ const OneGoodIntroMobile = () => {
     return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">Loading...</div>
   }
 
-  // Voice recording popup
-  const renderVoicePopup = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-gray-800 rounded-2xl shadow-2xl max-w-sm w-full max-h-[85vh] overflow-y-auto border border-gray-700">
-        <button 
-          onClick={() => setCurrentView(recordingType === 'profile' ? 'full-profile' : 'new-get-help')}
-          className="absolute top-4 right-4 text-gray-400 hover:text-white z-10"
-        >
-          <X className="h-5 w-5" />
-        </button>
-
-        {voiceState === 'initial' && (
-          <>
-            {/* Header */}
-            <div className="p-5 text-center relative">
-              <div className="w-10 h-1 bg-gray-600 rounded-full mx-auto mb-4"></div>
-              <div className="text-lg font-bold text-white">
-                {recordingType === 'profile' 
-                  ? 'Follow this template for a better profile'
-                  : 'Follow this template for better matching'}
-              </div>
-              <div className="text-sm text-teal-400 mt-2">
-                Keep it under {getRecordingTimeLimit()} seconds
-              </div>
-            </div>
-            
-            <div className="p-5">
-              {/* Template Paragraph */}
-              <div className="bg-gray-700 rounded-2xl shadow-sm p-6 mb-6 text-base leading-relaxed border border-gray-600">
-                <div className="text-white">
-                  {recordingType === 'profile' ? (
-                    <>
-                      <div className="mb-2">
-                        I can help with{' '}
-                        <span className="inline-block min-w-[120px] px-3 py-1 rounded bg-gray-600 text-gray-300 border border-gray-500">
-                          managing remote teams
-                        </span>
-                      </div>
-                      <div>
-                        because{' '}
-                        <span className="inline-block min-w-[120px] px-3 py-1 rounded bg-gray-600 text-gray-300 border border-gray-500">
-                          I led 15 people across 4 countries for 3 years
-                        </span>.
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="mb-2">
-                        I need help with{' '}
-                        <span className="inline-block min-w-[120px] px-3 py-1 rounded bg-gray-600 text-gray-300 border border-gray-500">
-                          finding a developer
-                        </span>
-                      </div>
-                      <div className="mb-2">
-                        because{' '}
-                        <span className="inline-block min-w-[120px] px-3 py-1 rounded bg-gray-600 text-gray-300 border border-gray-500">
-                          I am not technical myself
-                        </span>
-                      </div>
-                      <div>
-                        I'd like to talk to someone who{' '}
-                        <span className="inline-block min-w-[120px] px-3 py-1 rounded bg-gray-600 text-gray-300 border border-gray-500">
-                          has built an ecommerce website
-                        </span>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {/* Record Button */}
-              <div className="text-center mb-4">
-                <button 
-                  onClick={handleVoiceRecord}
-                  className="w-20 h-20 bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 rounded-full flex items-center justify-center text-white font-semibold mx-auto transition-all shadow-lg"
-                >
-                  <div className="text-center">
-                    <Mic className="w-8 h-8 mb-1" strokeWidth={2.5} />
-                    <div className="text-xs">Hold</div>
-                  </div>
-                </button>
-              </div>
-              
-              <p className="text-center text-sm text-gray-400">
-                Hold to record your {recordingType === 'profile' ? 'experience' : 'request'}
-                {' '}(max {getRecordingTimeLimit()} seconds)
-              </p>
-            </div>
-          </>
-        )}
-
-        {voiceState === 'recording' && (
-          <div className="p-8 text-center">
-            <div className="w-20 h-20 bg-red-500 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
-              <div className="w-6 h-6 bg-white rounded-full"></div>
-            </div>
-            <h3 className="text-xl font-bold text-white mb-4">Recording...</h3>
-            <div className="text-3xl font-mono text-gray-300 mb-2">⏱️ {formatTime(recordingTime)}</div>
-            <div className="text-sm text-gray-400 mb-4">
-              {getRecordingTimeLimit() - recordingTime}s remaining
-            </div>
-            <button 
-              onClick={handleVoiceStop}
-              className="bg-gray-700 text-white px-8 py-3 rounded-lg hover:bg-gray-600 transition-colors font-semibold border border-gray-600"
-            >
-              Stop Recording
-            </button>
-            {isRecordingLimitReached && (
-              <div className="text-red-400 text-sm mt-2">
-                Time limit reached - processing recording...
-              </div>
-            )}
-          </div>
-        )}
-
-        {voiceState === 'processing' && (
-          <div className="p-8 text-center">
-            <div className="w-16 h-16 bg-purple-600/20 rounded-full flex items-center justify-center mx-auto mb-6">
-              <svg className="w-8 h-8 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-bold text-white mb-4">
-              Creating your {recordingType === 'profile' ? 'experience card' : 'help request'}...
-            </h3>
-            <div className="flex justify-center">
-              <div className="w-8 h-8 border-2 border-purple-400 border-t-transparent rounded-full animate-spin"></div>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
 
   // Resume upload popup
-  const renderResumePopup = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-gray-800 rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center border border-gray-700">
-        <button 
-          onClick={() => setCurrentView('full-profile')}
-          className="absolute top-4 right-4 text-gray-400 hover:text-white"
-        >
-          <X className="h-5 w-5" />
-        </button>
+  // Resume retry handler
 
-        {resumeState === 'initial' && (
-          <>
-            <div className="w-12 h-12 bg-teal-500 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-bold text-white mb-3">Upload Resume</h3>
-            <p className="text-gray-400 mb-6 text-sm leading-relaxed">
-              We'll find areas where you can help others based on your experience
-            </p>
-            {resumeError && (
-              <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-                <p className="text-sm text-red-400">{resumeError}</p>
-              </div>
-            )}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,.doc,.docx"
-              onChange={handleResumeUpload}
-              className="hidden"
-            />
-            <button 
-              onClick={handleResumeButtonClick}
-              className="w-full bg-teal-500 text-white py-3 rounded-lg font-semibold hover:bg-teal-600 transition-colors mb-4"
-            >
-              Choose File
-            </button>
-            <p className="text-xs text-gray-500">Supports PDF, DOC, DOCX (Max 10MB)</p>
-          </>
-        )}
+  // renderResumePopup is now replaced by ResumePopup component
 
-        {resumeState === 'processing' && (
-          <>
-            <div className="w-12 h-12 bg-teal-500 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-bold text-white mb-3">Processing resume...</h3>
-            <p className="text-gray-400 mb-4">{resumeFilename || 'Resume.pdf'}</p>
-            <div className="w-full bg-gray-700 rounded-full h-2 mb-4">
-              <div 
-                className="bg-teal-500 h-2 rounded-full transition-all duration-300" 
-                style={{ width: `${resumeProgress}%` }}
-              ></div>
-            </div>
-            <p className="text-sm text-gray-400">Looking for 5 areas you can help</p>
-          </>
-        )}
+  // StatusBadge is now imported from separate component
 
-        {resumeState === 'error' && (
-          <>
-            <div className="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
-              <X className="w-6 h-6 text-white" />
-            </div>
-            <h3 className="text-xl font-bold text-white mb-3">Upload Failed</h3>
-            <p className="text-gray-400 mb-4">{resumeError || 'Failed to process resume'}</p>
-            <button 
-              onClick={() => {
-                setResumeState('initial');
-                setResumeError('');
-                setResumeProgress(0);
-              }}
-              className="w-full bg-teal-500 text-white py-3 rounded-lg font-semibold hover:bg-teal-600 transition-colors"
-            >
-              Try Again
-            </button>
-          </>
-        )}
-      </div>
-    </div>
-  );
-
-  // Status Badge Component
-  const StatusBadge = ({ status, helpedCount }: { status: string, helpedCount: number }) => {
-    const config = {
-      verified: { bg: 'bg-teal-500', text: 'text-white', label: '✓ Verified' },
-      'ai-generated': { bg: 'bg-gray-700', text: 'text-teal-400', label: '🎤 AI Generated' },
-      default: { bg: 'bg-gray-700', text: 'text-gray-300', label: 'Added by you' }
-    };
-    
-    const style = config[status as keyof typeof config] || config.default;
-    
-    return (
-      <div className="flex items-center gap-2">
-        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${style.bg} ${style.text}`}>
-          {style.label}
-        </span>
-        {helpedCount > 0 && (
-          <span className="text-xs text-gray-400 font-medium">
-            Helped {helpedCount}
-          </span>
-        )}
-      </div>
-    );
-  };
-
-  // Main render functions
-  const renderAuth = () => (
-    <div className="min-h-screen bg-gray-900 flex flex-col px-5">
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col justify-center px-8 py-12">
-        
-        {/* Logo & Brand */}
-        <div className="text-center mb-12">
-          <div className="w-24 h-24 bg-gradient-to-br from-red-400 to-orange-400 rounded-full flex items-center justify-center mx-auto mb-8 shadow-2xl ring-4 ring-red-400/20">
-            <Zap className="h-12 w-12 text-white" />
-          </div>
-          <h1 className="text-4xl font-bold text-white mb-3 leading-tight">
-            OneGoodIntro
-          </h1>
-          <p className="text-gray-300 text-lg leading-relaxed max-w-sm mx-auto">
-            Professional introductions when you need them
-          </p>
-        </div>
-
-        {/* Value Proposition */}
-        <div className="bg-gray-800 rounded-2xl p-6 mb-8 border border-gray-700">
-          <div className="grid grid-cols-1 gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-teal-500 rounded-full flex items-center justify-center flex-shrink-0">
-                <Users className="h-5 w-5 text-white" />
-              </div>
-              <p className="text-white font-semibold">Quality introductions</p>
-            </div>
-            
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-teal-500 rounded-full flex items-center justify-center flex-shrink-0">
-                <CheckCircle className="h-5 w-5 text-white" />
-              </div>
-              <p className="text-white font-semibold">Real people</p>
-            </div>
-            
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-teal-500 rounded-full flex items-center justify-center flex-shrink-0">
-                <TrendingUp className="h-5 w-5 text-white" />
-              </div>
-              <p className="text-white font-semibold">Learn from experience</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Sign In Section */}
-        <div className="space-y-6">
-          <button
-            onClick={handleGoogleSignIn}
-            disabled={isLoading}
-            className="w-full bg-gray-800 border-2 border-gray-600 text-white py-4 px-6 rounded-xl font-semibold text-base hover:border-teal-400 hover:bg-gray-700 transition-all duration-200 flex items-center justify-center space-x-3 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isLoading ? (
-              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-            ) : (
-              <>
-                <svg className="w-5 h-5" viewBox="0 0 24 24">
-                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                </svg>
-                <span>Continue with Google</span>
-                <ArrowRight className="w-5 h-5" />
-              </>
-            )}
-          </button>
-          
-          <div className="text-center">
-            <p className="text-xs text-gray-500 leading-relaxed max-w-sm mx-auto">
-              By continuing, you agree to our Terms of Service and Privacy Policy
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Loading Overlay */}
-      {isLoading && (
-        <div className="fixed inset-0 bg-gray-900/80 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-2xl p-8 text-center border border-gray-700">
-            <div className="w-16 h-16 bg-gradient-to-br from-red-400 to-orange-400 rounded-full flex items-center justify-center mx-auto mb-4">
-              <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-            </div>
-            <h3 className="text-xl font-bold text-white mb-2">Setting up your profile...</h3>
-            <p className="text-gray-400">This will only take a moment</p>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-
-  const renderFullProfile = () => (
-    <div className="min-h-screen bg-gray-900 pb-20 px-5">
-      {/* Header and Stats Container */}
-      <div className="max-w-2xl mx-auto bg-gray-900">
-        {/* Profile Header - Dark Theme */}
-        <div className="p-8 pb-2">
-          {/* Avatar - Left aligned */}
-          <div className="flex items-start gap-6 mb-3">
-            <div className="relative">
-              <div className="w-20 h-20 rounded-full overflow-hidden bg-gradient-to-br from-red-400 to-orange-400 flex items-center justify-center text-xl font-semibold text-white">
-                {photoUrl ? (
-                  <img 
-                    src={photoUrl} 
-                    alt={profileData.name || 'Profile'} 
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  profileData.name ? profileData.name.split(' ').map(n => n[0]).join('').toUpperCase() : 'CA'
-                )}
-              </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handlePhotoUpload}
-                className="hidden"
-                id="photo-upload"
-              />
-              <label 
-                htmlFor="photo-upload"
-                className="absolute -bottom-1 -right-1 w-8 h-8 bg-gradient-to-r from-red-500 to-orange-500 text-white rounded-full flex items-center justify-center hover:from-red-600 hover:to-orange-600 transition-all cursor-pointer shadow-lg border-2 border-gray-900"
-              >
-                {uploadingPhoto ? (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <Camera className="w-4 h-4" />
-                )}
-              </label>
-            </div>
-            
-            {/* Name & Edit - Right of avatar */}
-            <div className="flex-1 pt-2">
-              <div className="flex items-center gap-3 mb-2">
-                {editingField === 'name' ? (
-                  <input
-                    ref={inputRefs.name}
-                    type="text"
-                    value={fieldValues.name || ''}
-                    onChange={(e) => handleProfileFieldChange('name', e.target.value)}
-                    onBlur={() => handleProfileFieldSave('name')}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        inputRefs.name.current?.blur();
-                      }
-                    }}
-                    className="text-2xl font-bold text-white bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                    placeholder="Your name"
-                  />
-                ) : (
-                  <h1 
-                    onClick={() => handleProfileFieldClick('name')}
-                    className="text-2xl font-bold text-white cursor-pointer hover:bg-gray-700 px-2 py-1 rounded transition-colors"
-                  >
-                    {profileData.name || 'Add your name...'}
-                  </h1>
-                )}
-                {savingField === 'name' && <div className="w-4 h-4 border border-gray-400 border-t-transparent rounded-full animate-spin" />}
-              </div>
-
-              {/* Profile Completion Indicator */}
-              <div className="mb-3">
-                {(() => {
-                  const { completedFields, totalFields, isComplete } = calculateProfileCompletion()
-                  return (
-                    <span className={`text-sm ${isComplete ? 'text-green-400' : 'text-yellow-400'}`}>
-                      Profile: {isComplete ? 'Complete ✓' : `${completedFields}/${totalFields} fields`}
-                    </span>
-                  )
-                })()}
-              </div>
-              
-              {/* Role/Title under name */}
-              <div className="space-y-3">
-                {editingField === 'about' ? (
-                  <div className="space-y-2">
-                    <textarea
-                      ref={aboutRef}
-                      value={fieldValues.about || ''}
-                      onChange={(e) => handleProfileFieldChange('about', e.target.value)}
-                      onBlur={() => handleProfileFieldSave('about')}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && e.metaKey) {
-                          e.preventDefault();
-                          handleProfileFieldSave('about');
-                        }
-                      }}
-                      className="w-full px-3 py-2 text-white bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent resize-none text-base"
-                      rows={3}
-                      placeholder="AI founder in Zurich with BCG/PwC background. Led €90M+ deals, interim CEO experience."
-                    />
-                    <p className="text-xs text-gray-500">Press Cmd+Enter to save</p>
-                  </div>
-                ) : (
-                  <div className="flex items-start justify-between">
-                    <p 
-                      onClick={() => handleProfileFieldClick('about')}
-                      className="text-sm text-gray-300 leading-relaxed cursor-pointer hover:bg-gray-700 px-2 py-1 rounded transition-colors flex-1"
-                    >
-                      {profileData.current || 'Add a brief professional summary...'}
-                    </p>
-                    {savingField === 'about' && <div className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin ml-2" />}
-                  </div>
-                )}
-
-                {/* LinkedIn and Resume Section - Combined */}
-                <div className="space-y-2">
-                  {/* LinkedIn Section */}
-                  {linkedinUrl ? (
-                    <div className="flex items-center gap-2">
-                      <button 
-                        onClick={handleLinkedinClick}
-                        className="flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors px-2 py-1 rounded-lg"
-                      >
-                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0013 14.19a.66.66 0 000 .14V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.55 0 3.36.86 3.36 3.66z"/>
-                        </svg>
-                        <span className="text-sm font-medium">LinkedIn</span>
-                      </button>
-                      <button 
-                        onClick={() => setEditingLinkedin(true)}
-                        className="text-gray-400 hover:text-white hover:bg-gray-700 p-1 rounded"
-                      >
-                        <Edit className="h-3 w-3" />
-                      </button>
-                    </div>
-                  ) : (
-                    <button 
-                      onClick={() => setEditingLinkedin(true)}
-                      className="flex items-center gap-2 text-blue-400 hover:text-blue-300 hover:bg-gray-700 transition-all px-2 py-1 rounded-lg"
-                    >
-                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0013 14.19a.66.66 0 000 .14V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.55 0 3.36.86 3.36 3.66z"/>
-                      </svg>
-                      <span className="text-sm">Add LinkedIn</span>
-                    </button>
-                  )}
-
-                  {/* LinkedIn Editing Form */}
-                  {editingLinkedin && (
-                    <div className="flex items-center gap-2 mt-2">
-                      <input
-                        type="text"
-                        value={linkedinUrl}
-                        onChange={(e) => setLinkedinUrl(e.target.value)}
-                        placeholder="linkedin.com/in/yourname"
-                        className="flex-1 px-2 py-1 bg-gray-700 border border-gray-600 rounded text-sm focus:ring-1 focus:ring-teal-500 focus:border-transparent text-white"
-                      />
-                      <button 
-                        onClick={handleLinkedinSave}
-                        className="bg-teal-500 text-white px-2 py-1 rounded text-xs font-medium hover:bg-teal-600"
-                      >
-                        Save
-                      </button>
-                      <button 
-                        onClick={() => {setEditingLinkedin(false); setLinkedinUrl('');}}
-                        className="text-gray-400 hover:text-white"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  )}
-
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Stats Section - Dark Surface Box */}
-        <div className="flex justify-center gap-8 p-4 bg-gray-800 rounded-2xl shadow-sm border border-gray-700 mb-6">
-          <div className="text-center">
-            <span className="text-2xl font-bold text-white block">{userProblems.reduce((acc, p) => acc + p.helped_count, 0)}</span>
-            <div className="text-xs text-gray-400 uppercase tracking-wide font-medium">People Helped</div>
-          </div>
-          <div className="text-center">
-            <span className="text-2xl font-bold text-white block">{userProblems.length}</span>
-            <div className="text-xs text-gray-400 uppercase tracking-wide font-medium">Help Areas</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Cards Container - With Padding */}
-      <div className="px-5 space-y-8">
-        {/* Professional Background Card */}
-        <div className="bg-gray-800 w-full rounded-lg shadow-sm border border-gray-700 mb-6">
-          <div className="p-4 relative">
-            <div className="flex items-start justify-between mb-3">
-              <h3 className="text-xs text-gray-400 uppercase tracking-wide">Professional background</h3>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-2">
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-gray-700 rounded flex items-center justify-center">
-                  <Users className="h-2 w-2 text-gray-300" />
-                </div>
-                {editingField === 'role_title' ? (
-                  <input
-                    type="text"
-                    value={fieldValues.role_title || ''}
-                    onChange={(e) => handleProfileFieldChange('role_title', e.target.value)}
-                    onBlur={() => handleProfileFieldSave('role_title')}
-                    onKeyDown={(e) => e.key === 'Enter' && handleProfileFieldSave('role_title')}
-                    className="flex-1 text-white text-sm bg-gray-600 border border-gray-500 rounded px-2 py-1 focus:ring-1 focus:ring-teal-500"
-                    placeholder="Your role"
-                  />
-                ) : (
-                  <span 
-                    onClick={() => handleProfileFieldClick('role_title')}
-                    className="text-white text-sm cursor-pointer hover:bg-gray-700 px-2 py-1 rounded transition-colors flex-1"
-                  >
-                    {profileData.role_title || 'Add your job title...'}
-                  </span>
-                )}
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-gray-700 rounded flex items-center justify-center">
-                  <Target className="h-2 w-2 text-gray-300" />
-                </div>
-                {editingField === 'industry' ? (
-                  <input
-                    type="text"
-                    value={fieldValues.industry || ''}
-                    onChange={(e) => handleProfileFieldChange('industry', e.target.value)}
-                    onBlur={() => handleProfileFieldSave('industry')}
-                    onKeyDown={(e) => e.key === 'Enter' && handleProfileFieldSave('industry')}
-                    className="flex-1 text-white text-sm bg-gray-600 border border-gray-500 rounded px-2 py-1 focus:ring-1 focus:ring-teal-500"
-                    placeholder="Your industry"
-                  />
-                ) : (
-                  <span 
-                    onClick={() => handleProfileFieldClick('industry')}
-                    className="text-white text-sm cursor-pointer hover:bg-gray-700 px-2 py-1 rounded transition-colors flex-1"
-                  >
-                    {profileData.industry || 'Add your industry...'}
-                  </span>
-                )}
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-gray-700 rounded flex items-center justify-center">
-                  <User className="h-2 w-2 text-gray-300" />
-                </div>
-                {editingField === 'experience_years' ? (
-                  <input
-                    type="text"
-                    value={fieldValues.experience_years || ''}
-                    onChange={(e) => handleProfileFieldChange('experience_years', e.target.value)}
-                    onBlur={() => handleProfileFieldSave('experience_years')}
-                    onKeyDown={(e) => e.key === 'Enter' && handleProfileFieldSave('experience_years')}
-                    className="flex-1 text-white text-sm bg-gray-600 border border-gray-500 rounded px-2 py-1 focus:ring-1 focus:ring-teal-500"
-                    placeholder="Years of experience"
-                  />
-                ) : (
-                  <span 
-                    onClick={() => handleProfileFieldClick('experience_years')}
-                    className="text-white text-sm cursor-pointer hover:bg-gray-700 px-2 py-1 rounded transition-colors flex-1"
-                  >
-                    {profileData.experience_years || 'Add your experience...'}
-                  </span>
-                )}
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-gray-700 rounded flex items-center justify-center">
-                  <Heart className="h-2 w-2 text-gray-300" />
-                </div>
-                {editingField === 'focus_area' ? (
-                  <input
-                    type="text"
-                    value={fieldValues.focus_area || ''}
-                    onChange={(e) => handleProfileFieldChange('focus_area', e.target.value)}
-                    onBlur={() => handleProfileFieldSave('focus_area')}
-                    onKeyDown={(e) => e.key === 'Enter' && handleProfileFieldSave('focus_area')}
-                    className="flex-1 text-white text-sm bg-gray-600 border border-gray-500 rounded px-2 py-1 focus:ring-1 focus:ring-teal-500"
-                    placeholder="Your focus area"
-                  />
-                ) : (
-                  <span 
-                    onClick={() => handleProfileFieldClick('focus_area')}
-                    className="text-white text-sm cursor-pointer hover:bg-gray-700 px-2 py-1 rounded transition-colors flex-1"
-                  >
-                    {profileData.focus_area || 'Add your focus area...'}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Learning Section - Expanded */}
-        <div className="bg-gray-800 w-full rounded-xl shadow-lg hover:shadow-xl transition-all border border-gray-700 p-8 mb-6">
-          <div className="relative">
-            <div className="mb-6">
-              <h3 className="text-base text-gray-400 font-medium">What I'm learning now</h3>
-            </div>
-            {editingField === 'learning_focus' ? (
-              <div className="space-y-3">
-                <textarea
-                  value={fieldValues.learning_focus || ''}
-                  onChange={(e) => handleProfileFieldChange('learning_focus', e.target.value)}
-                  onBlur={() => handleProfileFieldSave('learning_focus')}
-                  maxLength={200}
-                  rows={4}
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-white resize-none text-xl font-medium"
-                  placeholder="What are you learning? (e.g., ChatGPT for better emails and social posts. Figma basics for mockups. Trying to understand analytics better...)"
-                />
-                <div className="flex gap-2">
-                  <button 
-                    onClick={() => handleProfileFieldSave('learning_focus')} 
-                    className="bg-teal-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-teal-600"
-                  >
-                    Save
-                  </button>
-                  <button 
-                    onClick={() => setEditingField(null)} 
-                    className="bg-gray-600 text-gray-300 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-500"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <p 
-                onClick={() => handleProfileFieldClick('learning_focus')}
-                className="text-white leading-relaxed text-2xl font-medium cursor-pointer hover:bg-gray-700 px-2 py-1 rounded transition-colors"
-              >
-                {profileData.learning_focus || 'ChatGPT for better emails and social posts. Figma basics for mockups. Trying to understand analytics better so I can actually see what\'s working.'}
-              </p>
-            )}
-          </div>
-        </div>
-
-        {/* Projects Section - Compact */}
-        <div className="bg-gray-800 w-full rounded-lg shadow-sm border-2 border-orange-400 mb-6">
-          <div className="p-4 relative">
-            <div className="mb-3">
-              <h3 className="text-xs text-orange-400 uppercase tracking-wide">What I'm working on</h3>
-            </div>
-            {editingField === 'project_description' ? (
-              <div className="space-y-3">
-                <textarea
-                  value={fieldValues.project_description || ''}
-                  onChange={(e) => handleProfileFieldChange('project_description', e.target.value)}
-                  rows={3}
-                  className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-sm focus:ring-1 focus:ring-orange-500 focus:border-transparent text-white resize-none"
-                  placeholder="What project are you working on?"
-                />
-                <div className="flex gap-2">
-                  <button 
-                    onClick={() => handleProfileFieldSave('project_description')}
-                    className="bg-orange-500 text-white px-3 py-1 rounded text-xs font-medium hover:bg-orange-600"
-                  >
-                    Save
-                  </button>
-                  <button 
-                    onClick={() => setEditingField(null)}
-                    className="bg-gray-600 text-gray-300 px-3 py-1 rounded text-xs font-medium hover:bg-gray-500"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <>
-                <p 
-                  onClick={() => handleProfileFieldClick('project_description')}
-                  className="text-white leading-relaxed text-sm mb-3 cursor-pointer hover:bg-gray-700 px-1 py-1 rounded transition-colors"
-                >
-                  {profileData.project_description || 'Building a simple website to showcase my marketing work. Learning Webflow and loving how easy it makes everything!'}
-                </p>
-                
-                {/* Project URL attachment section */}
-                <div className="mt-4">
-                  {projectUrlInputActive ? (
-                    <div className="space-y-2">
-                      <div className="flex gap-2">
-                        <div className="flex-1 relative">
-                          <input
-                            type="url"
-                            value={projectUrlInputValue}
-                            onChange={(e) => setProjectUrlInputValue(e.target.value)}
-                            placeholder="Paste URL here..."
-                            className="w-full px-3 py-1.5 pr-8 bg-gray-700 border border-gray-600 rounded text-sm text-white placeholder-gray-400 focus:ring-1 focus:ring-orange-500 focus:border-transparent"
-                            disabled={projectUrlProcessing}
-                          />
-                          {projectUrlInputValue && (
-                            <button
-                              onClick={() => setProjectUrlInputValue('')}
-                              className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
-                              type="button"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-                        <button
-                          onClick={handleProjectSaveLink}
-                          disabled={projectUrlProcessing}
-                          className="bg-orange-500 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {projectUrlProcessing ? 'Processing...' : 'Save'}
-                        </button>
-                        <button
-                          onClick={handleProjectCancelLink}
-                          disabled={projectUrlProcessing}
-                          className="text-gray-400 hover:text-white px-2 py-1.5 rounded text-sm"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                      {projectUrlError && (
-                        <p className="text-red-400 text-xs">{projectUrlError}</p>
-                      )}
-                    </div>
-                  ) : profileData.project_url ? (
-                    <MediaPreview 
-                      url={profileData.project_url}
-                      type={profileData.project_attachment_type || 'website'}
-                      metadata={profileData.project_attachment_metadata || undefined}
-                      onClick={handleProjectAddLink}
-                      allowPlayback={true}
-                    />
-                  ) : (
-                    <button
-                      onClick={handleProjectAddLink}
-                      className="flex items-center gap-2 text-orange-400 hover:text-orange-300 transition-colors cursor-pointer"
-                    >
-                      <Link2 className="w-3 h-3" />
-                      <span className="font-medium text-xs">Add project URL</span>
-                    </button>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Voice CTA */}
-        <div className="flex items-center mb-6 mt-2 justify-end">
-          <div className="flex flex-col items-end mr-4">
-            <p className="text-lg font-bold text-white">Add how you can help</p>
-            <p className="text-base text-teal-400">Record and have AI review it</p>
-          </div>
-          <button 
-            onClick={() => handleVoiceStart('profile')}
-            className="text-3xl hover:scale-110 transition-transform flex-shrink-0"
-          >
-            <div className="bg-gradient-to-r from-red-500 to-orange-500 p-2 rounded-xl">
-              <Phone className="w-8 h-8 text-white" strokeWidth={2.5} />
-            </div>
-          </button>
-        </div>
-
-        {/* Add Resume Section */}
-        <div className="flex items-center mb-6 mt-2 justify-end">
-          {resumeState === 'complete' ? (
-            <div className="flex items-center gap-2">
-              <span className="flex items-center gap-2 text-gray-300">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <span className="text-sm text-teal-400">Resume</span>
-              </span>
-              <button 
-                onClick={handleResumeStart}
-                className="text-gray-400 hover:text-white hover:bg-gray-700 p-1 rounded"
-              >
-                <Edit className="h-3 w-3" />
-              </button>
-            </div>
-          ) : (
-            <button 
-              onClick={handleResumeStart}
-              className="flex items-center gap-2 text-teal-400 hover:text-teal-300 hover:bg-gray-700 transition-all px-2 py-1 rounded-lg"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              <span className="text-sm">Add Resume</span>
-            </button>
-          )}
-        </div>
-
-        {/* Help Cards */}
-        <div className="space-y-4">
-          {userProblems.map((problem) => (
-            <div
-              key={problem.id}
-              className="bg-gray-800 w-full rounded-2xl shadow-sm hover:shadow-md transition-all border-2 border-teal-400"
-            >
-              <div className="p-5 relative">
-                {/* Status Badge and Actions */}
-                <div className="flex items-start justify-between mb-3">
-                  <h3 className="text-sm text-gray-400">
-                    {problem.helped_count > 0 ? `${problem.helped_count} people found this helpful` : 'I can help with'}
-                  </h3>
-                  <div className="flex gap-1">
-                    <button 
-                      onClick={() => handleEditProblem(problem)}
-                      className="text-teal-400 hover:bg-gray-700 p-1.5 rounded transition-colors"
-                      title="Edit card"
-                    >
-                      <Edit className="h-3 w-3" />
-                    </button>
-                    <button 
-                      onClick={() => handleDeleteProblem(problem.id)}
-                      className="text-teal-400 hover:bg-gray-700 p-1.5 rounded transition-colors"
-                      title="Delete card"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Problem Content - Editable */}
-                {editingProblem === problem.id ? (
-                  <div className="space-y-3">
-                    <div>
-                      <input
-                        type="text"
-                        value={editingProblemData.title}
-                        onChange={(e) => setEditingProblemData(prev => ({ ...prev, title: e.target.value }))}
-                        className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-sm font-medium focus:ring-1 focus:ring-teal-500 focus:border-transparent text-white"
-                        placeholder="Experience title..."
-                      />
-                    </div>
-                    <div>
-                      <textarea
-                        value={editingProblemData.proof}
-                        onChange={(e) => setEditingProblemData(prev => ({ ...prev, proof: e.target.value }))}
-                        className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-xs resize-none focus:ring-1 focus:ring-teal-500 focus:border-transparent text-white"
-                        rows={2}
-                        placeholder="Why you can help..."
-                      />
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleSaveProblem(problem.id)}
-                        className="bg-teal-500 text-white px-3 py-1 rounded text-xs font-medium hover:bg-teal-600"
-                      >
-                        Save
-                      </button>
-                      <button
-                        onClick={() => setEditingProblem(null)}
-                        className="bg-gray-600 text-gray-300 px-3 py-1 rounded text-xs font-medium hover:bg-gray-500"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <p 
-                      onClick={() => handleEditProblem(problem)}
-                      className="text-white leading-relaxed text-xl font-medium mb-3 cursor-pointer hover:bg-gray-700 px-2 py-1 rounded transition-colors"
-                    >
-                      {problem.title}
-                    </p>
-                    <p 
-                      onClick={() => handleEditProblem(problem)}
-                      className="text-gray-400 text-sm text-right cursor-pointer hover:bg-gray-700 px-2 py-1 rounded transition-colors"
-                    >
-                      {problem.proof}
-                    </p>
-
-                    {/* Media attachment section */}
-                    <div className="mt-4">
-                      {urlInputProblemId === problem.id ? (
-                        <div className="space-y-2">
-                          <div className="flex gap-2">
-                            <div className="flex-1 relative">
-                              <input
-                                type="url"
-                                value={urlInputValue}
-                                onChange={(e) => setUrlInputValue(e.target.value)}
-                                placeholder="Paste URL here..."
-                                className="w-full px-3 py-1.5 pr-8 bg-gray-700 border border-gray-600 rounded text-sm text-white placeholder-gray-400 focus:ring-1 focus:ring-teal-500 focus:border-transparent"
-                                disabled={urlProcessing}
-                              />
-                              {urlInputValue && (
-                                <button
-                                  onClick={() => setUrlInputValue('')}
-                                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
-                                  type="button"
-                                >
-                                  <X className="w-4 h-4" />
-                                </button>
-                              )}
-                            </div>
-                            <button
-                              onClick={() => handleSaveLink(problem.id)}
-                              disabled={urlProcessing}
-                              className="bg-teal-500 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-teal-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {urlProcessing ? 'Processing...' : 'Save'}
-                            </button>
-                            <button
-                              onClick={handleCancelLink}
-                              disabled={urlProcessing}
-                              className="text-gray-400 hover:text-white px-2 py-1.5 rounded text-sm"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                          {urlError && (
-                            <p className="text-red-400 text-xs">{urlError}</p>
-                          )}
-                        </div>
-                      ) : problem.attachment_url ? (
-                        <MediaPreview 
-                          url={problem.attachment_url}
-                          type={problem.attachment_type || 'website'}
-                          metadata={problem.attachment_metadata || undefined}
-                          onClick={() => handleAddLink(problem.id)}
-                        />
-                      ) : (
-                        <button
-                          onClick={() => handleAddLink(problem.id)}
-                          className="text-teal-400 text-sm hover:text-teal-300 transition-colors flex items-center gap-1"
-                        >
-                          <Link2 className="w-3 h-3" />
-                          Add link
-                        </button>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          ))}
-
-          {/* Add New Help Card */}
-          <div className="bg-gray-800 w-full rounded-2xl shadow-sm hover:shadow-md transition-all border border-gray-700">
-            <div className="p-6 relative">
-              <button 
-                onClick={() => handleVoiceStart('profile')}
-                className="w-full py-6 border border-dashed border-gray-600 rounded-lg text-gray-400 hover:border-gray-500 hover:text-gray-300 transition-colors flex items-center justify-center gap-2"
-              >
-                <Phone className="h-4 w-4" />
-                <span className="text-base">Add another way you can help</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  // Keep existing render functions for other views (renderNewGetHelp, etc.) but update their backgrounds
-  const renderNewGetHelp = () => (
-    <div className="min-h-screen bg-gray-900 pb-20 px-5">
-      {/* Removed fixed top bar to move content up */}
-      <div className="max-w-2xl mx-auto px-5 py-10 bg-gray-900">
-        <h1 className="text-2xl font-bold text-white mb-1 text-left">What help do you need?</h1>
-        <p className="mb-3 text-left">
-          <span className="text-teal-400">✓ Peer advice & insights</span> • 
-          <span className="text-teal-400">✓ Professional introductions</span> • 
-          <span className="text-red-400">✗ Sales & recruiting</span>
-        </p>
-      </div>
-      {/* Experience section - match profile page exactly */}
-      <div className="px-5 space-y-4">
-        <div className="flex items-center justify-between mb-6 mt-2">
-          <div className="flex">
-            {(['daily', 'weekly', 'off'] as const).map((option, index) => (
-              <button
-                key={option}
-                onClick={() => setMatchingFrequency(option)}
-                className={`
-                  px-3 py-1.5 text-sm font-medium transition-colors
-                  ${index === 0 ? 'rounded-l-md' : ''}
-                  ${index === 2 ? 'rounded-r-md' : ''}
-                  ${matchingFrequency === option 
-                    ? 'bg-teal-600 text-white' 
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                  }
-                  border border-gray-600
-                  ${index > 0 ? 'border-l-0' : ''}
-                `}
-              >
-                {option.charAt(0).toUpperCase() + option.slice(1)}
-              </button>
-            ))}
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="text-right">
-              <p className="text-lg font-bold text-white">Add your request</p>
-              <p className="text-base text-teal-400">Record and have AI review it</p>
-            </div>
-            <button 
-              onClick={() => handleVoiceStart('request')}
-              className="text-3xl hover:scale-110 transition-transform flex-shrink-0"
-            >
-              <div className="bg-teal-500 p-2 rounded-xl">
-                <Phone className="w-8 h-8 text-white" strokeWidth={2.5} />
-              </div>
-            </button>
-          </div>
-        </div>
-        
-        <div className="space-y-6">
-          {loadingRequests ? (
-            <div className="text-center py-8">
-              <div className="w-6 h-6 border-2 border-gray-600 border-t-teal-400 rounded-full animate-spin mx-auto mb-2"></div>
-              <p className="text-gray-500">Loading your requests...</p>
-            </div>
-          ) : userRequests.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-gray-500 mb-4">No requests yet</p>
-              <button 
-                onClick={() => setShowBottomSheet(true)}
-                className="text-teal-400 font-medium"
-              >
-                Create your first request
-              </button>
-            </div>
-          ) : (
-            <>
-              {userRequests.map(request => (
-                <div 
-                  key={request.id}
-                  className="bg-gray-800 rounded-2xl shadow-sm cursor-pointer transition-all duration-300 overflow-hidden hover:shadow-md border border-gray-700"
-                >
-                  <div className="p-5 relative">
-                    {/* Status Badge and Actions */}
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="text-xs text-gray-400 flex items-center gap-2">
-                        <span>{timeAgo(request.created_at)}</span>
-                        <div className="w-1 h-1 bg-current rounded-full"></div>
-                        <span className={`${
-                          request.status === 'matched' ? 'text-teal-400' :
-                          request.status === 'pending' ? 'text-yellow-400' :
-                          'text-gray-400'
-                        }`}>
-                          {request.status_text}
-                        </span>
-                      </div>
-                      <div className="flex gap-1">
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleEditRequest(request.id);
-                          }}
-                          className="text-teal-400 hover:bg-gray-700 p-1.5 rounded transition-colors"
-                          title="Edit request"
-                        >
-                          <Edit className="h-3 w-3" />
-                        </button>
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteRequest(request.id);
-                          }}
-                          className="text-teal-400 hover:bg-gray-700 p-1.5 rounded transition-colors"
-                          title="Delete request"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Request Content - Show edit form if editing */}
-                    {editingRequest === request.id ? (
-                      <div className="space-y-3">
-                        <div>
-                          <label className="text-xs text-gray-400 uppercase tracking-wide">Request:</label>
-                          <textarea
-                            value={editingRequestData.challenge}
-                            onChange={(e) => setEditingRequestData(prev => ({ ...prev, challenge: e.target.value }))}
-                            className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-sm focus:ring-1 focus:ring-teal-500 focus:border-transparent text-white mt-1"
-                            rows={3}
-                          />
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleSaveRequestEdit(request.id)}
-                            className="bg-teal-500 text-white px-3 py-1 rounded text-xs font-medium hover:bg-teal-600"
-                          >
-                            Save
-                          </button>
-                          <button
-                            onClick={() => {
-                              setEditingRequest(null);
-                              setEditingRequestData({ challenge: '', reason: '', help_type: '', timeline: 'standard' });
-                            }}
-                            className="bg-gray-600 text-gray-300 px-3 py-1 rounded text-xs font-medium hover:bg-gray-500"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="text-sm font-semibold text-white mb-3 leading-tight">
-                        "{request.challenge || request.title}"
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-              
-              <div 
-                className="bg-gray-800 rounded-2xl shadow-sm p-10 text-center cursor-pointer transition-all duration-300 hover:shadow-md hover:transform hover:-translate-y-0.5 border border-gray-700"
-                onClick={() => setShowBottomSheet(true)}
-              >
-                <div className="text-3xl mb-3 text-gray-400">+</div>
-                <div className="text-sm font-semibold mb-1 text-white">New request</div>
-                <div className="text-xs text-gray-400">What help do you need?</div>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Bottom Sheet - Dark Theme */}
-      {showBottomSheet && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end">
-          <div className="bg-gray-900 w-full rounded-t-3xl p-5 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-semibold text-white">New Request</h2>
-              <button 
-                onClick={() => setShowBottomSheet(false)}
-                className="text-gray-400 hover:text-white"
-              >
-                <X size={24} />
-              </button>
-            </div>
-            
-            <div className="space-y-6">
-              {/* Template reminder */}
-              <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
-                <p className="text-sm text-gray-400 mb-2">Follow this template:</p>
-                <p className="text-sm text-gray-300 italic">
-                  "I need help with [specific challenge] because [brief reason]. I'd like to talk to someone who [type of person/experience]."
-                </p>
-              </div>
-
-              {/* Single text area for formatted request */}
-              <div>
-                <label className="block text-sm font-medium text-gray-400 mb-2">
-                  Your Request
-                </label>
-                <textarea
-                  value={helpForm.challenge}
-                  onChange={(e) => setHelpForm(prev => ({ 
-                    ...prev, 
-                    challenge: e.target.value,
-                    reason: '', // Clear other fields since we're using one field
-                    helpType: ''
-                  }))}
-                  placeholder="I need help with finding a technical co-founder because I don't have a development background. I'd like to talk to someone who has built a SaaS product from scratch."
-                  className="w-full bg-gray-800 text-white rounded-lg p-3 text-sm border border-gray-700 focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                  rows={4}
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Keep it concise and follow the template format
-                </p>
-              </div>
-              
-              <button
-                onClick={() => handleManualRequestSubmit()}
-                disabled={!helpForm.challenge.trim()}
-                className={`w-full py-3 rounded-lg text-sm font-semibold ${
-                  helpForm.challenge.trim()
-                    ? 'bg-teal-500 text-white hover:bg-teal-600'
-                    : 'bg-gray-700 text-gray-400 cursor-not-allowed'
-                }`}
-              >
-                Submit Request
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+  // renderAuth is now replaced by AuthScreen component
 
   const renderPublicBoard = () => (
     <div className="min-h-screen bg-gray-900 pb-20 px-5">
@@ -3574,103 +2168,9 @@ const OneGoodIntroMobile = () => {
     );
   };
 
-  const renderModal = () => {
-    if (!showModal || !modalContent) return null;
+  // renderModal is now replaced by Modal component
 
-    const getIcon = () => {
-      switch (modalContent.icon) {
-        case 'handshake':
-          return <Handshake className="h-12 w-12 text-teal-400 mx-auto" />;
-        case 'check':
-          return <CheckCircle className="h-12 w-12 text-teal-400 mx-auto" />;
-        case 'heart':
-          return <Heart className="h-12 w-12 text-purple-400 mx-auto" />;
-        default:
-          return <CheckCircle className="h-12 w-12 text-teal-400 mx-auto" />;
-      }
-    };
-
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-gray-800 rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center border border-gray-700">
-          <div className="mb-4">
-            {getIcon()}
-          </div>
-          <h3 className="text-xl font-bold text-white mb-3">{modalContent.title}</h3>
-          <p className="text-gray-400 mb-6 text-sm leading-relaxed">
-            {modalContent.message}
-          </p>
-          <button 
-            onClick={() => setShowModal(false)}
-            className="w-full bg-teal-500 text-white px-6 py-3 rounded-lg hover:bg-teal-600 font-semibold"
-          >
-            Got it
-          </button>
-        </div>
-      </div>
-    );
-  };
-
-  const renderBottomNav = () => (
-    <div className="fixed bottom-0 left-0 right-0 bg-gray-800 border-t border-gray-700 px-2 py-2 z-40">
-      <div className="flex justify-around">
-        <button 
-          onClick={() => setCurrentView('full-profile')}
-          className={`flex flex-col items-center space-y-1 px-4 py-3 rounded-lg min-h-[44px] ${
-            currentView === 'full-profile' 
-              ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white' 
-              : 'text-gray-400 hover:bg-red-900/30 hover:text-red-400 transition-all'
-          }`}
-        >
-          <User className="h-5 w-5" />
-          <span className="text-xs font-medium">Profile</span>
-        </button>
-        <button 
-          onClick={() => setCurrentView('new-get-help')}
-          className={`flex flex-col items-center space-y-1 px-4 py-3 rounded-xl min-h-[44px] ${
-            currentView === 'new-get-help' 
-              ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white' 
-              : 'text-gray-400 hover:bg-red-900/30 hover:text-red-400 transition-all'
-          }`}
-        >
-          <Target className="h-5 w-5" />
-          <span className="text-xs font-medium">Requests</span>
-        </button>
-        <button 
-          onClick={() => setCurrentView('match-found')}
-          className={`flex flex-col items-center space-y-1 px-4 py-3 rounded-xl min-h-[44px] ${
-            currentView === 'match-found' 
-              ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white' 
-              : 'text-gray-400 hover:bg-red-900/30 hover:text-red-400 transition-all'
-          }`}
-        >
-          <Users className="h-5 w-5" />
-          <span className="text-xs font-medium">Matches</span>
-        </button>
-        <button 
-          disabled
-          className="flex flex-col items-center space-y-1 px-4 py-3 rounded-xl min-h-[44px] text-gray-500 cursor-not-allowed relative"
-        >
-          <Heart className="h-5 w-5" />
-          <span className="text-xs font-medium">Help Others</span>
-          <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded-full font-medium">
-            Soon
-          </span>
-        </button>
-        <button 
-          onClick={() => setCurrentView('network')}
-          className={`flex flex-col items-center space-y-1 px-4 py-3 rounded-xl min-h-[44px] ${
-            currentView === 'network' 
-              ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white' 
-              : 'text-gray-400 hover:bg-red-900/30 hover:text-red-400 transition-all'
-          }`}
-        >
-          <Network className="h-5 w-5" />
-          <span className="text-xs font-medium">Connections</span>
-        </button>
-      </div>
-    </div>
-  );
+  // renderBottomNav is now replaced by BottomNavigation component
 
   const handleDeleteRequest = async (requestId: string) => {
     if (!session?.user?.email) return;
@@ -3708,14 +2208,16 @@ const OneGoodIntroMobile = () => {
         challenge: request.challenge || request.title || '', // Handle both field names
         reason: request.reason || request.proof || '',
         help_type: request.help_type || '',
-        timeline: request.timeline || 'standard'
+        timeline: request.timeline || 'standard',
+        website: request.website || '',
+        media: request.media || ''
       });
       setEditingRequest(requestId);
     }
   };
 
   const handleSaveRequestEdit = async (requestId: string) => {
-    if (!session?.user?.email) return;
+    if (!effectiveSession?.user?.email) return;
     
     try {
       const response = await fetch('/api/requests', {
@@ -3728,11 +2230,15 @@ const OneGoodIntroMobile = () => {
           title: editingRequestData.challenge,
           proof: editingRequestData.reason,
           help_type: editingRequestData.help_type,
-          timeline: editingRequestData.timeline
+          timeline: editingRequestData.timeline,
+          website: editingRequestData.website,
+          media: editingRequestData.media
         })
       });
-
+      
       if (response.ok) {
+        const responseData = await response.json();
+        
         // Update local state
         setUserRequests(prev => prev.map(req => 
           req.id === requestId 
@@ -3742,13 +2248,16 @@ const OneGoodIntroMobile = () => {
                 reason: editingRequestData.reason,
                 help_type: editingRequestData.help_type,
                 timeline: editingRequestData.timeline,
+                // Only update website/media if they were successfully saved
+                ...(responseData.website !== undefined && { website: editingRequestData.website }),
+                ...(responseData.media !== undefined && { media: editingRequestData.media }),
                 updated_at: new Date().toISOString()
               } as HelpRequest
             : req
         ));
         
         setEditingRequest(null);
-        setEditingRequestData({ challenge: '', reason: '', help_type: '', timeline: 'standard' });
+        setEditingRequestData({ challenge: '', reason: '', help_type: '', timeline: 'standard', website: '', media: '' });
       } else {
         alert('Failed to update request. Please try again.');
       }
@@ -3756,6 +2265,15 @@ const OneGoodIntroMobile = () => {
       console.error('Error updating request:', error);
       alert('Failed to update request. Please try again.');
     }
+  };
+
+  const handleEditingRequestChange = (data: { challenge: string; reason: string; help_type: string; timeline: 'standard' | 'urgent' | 'flexible'; website?: string; media?: string; }) => {
+    setEditingRequestData(data);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingRequest(null);
+    setEditingRequestData({ challenge: '', reason: '', help_type: '', timeline: 'standard', website: '', media: '' });
   };
 
   const renderRequestsPage = () => {
@@ -3856,7 +2374,7 @@ const OneGoodIntroMobile = () => {
         // Save to database after approval
         const requestPayload = {
           title: currentRequestData.formattedRequest,
-          proof: 'Created via voice recording',
+          proof: cardData.proof || cardData.reason || '',
           help_type: 'Voice request',
           timeline: 'standard'
         };
@@ -3939,6 +2457,103 @@ const OneGoodIntroMobile = () => {
     );
   };
 
+  const renderVoiceValidation = () => {
+    if (!showVoiceValidation || !currentVoiceCard) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="bg-gray-800 rounded-2xl shadow-2xl max-w-sm w-full p-6 border border-gray-700">
+          <h3 className="text-xl font-bold text-white mb-4 text-center">Review Your Help Card</h3>
+          
+          <div className="bg-gray-700 rounded-lg p-4 mb-6 border border-gray-600">
+            <h4 className="text-sm font-semibold text-teal-400 mb-2">What you can help with:</h4>
+            <p className="text-sm text-white font-medium mb-3">
+              {currentVoiceCard?.title || 'Loading...'}
+            </p>
+            <h4 className="text-sm font-semibold text-teal-400 mb-2">Why you can help:</h4>
+            <p className="text-sm text-gray-300 leading-relaxed">
+              {currentVoiceCard?.proof || 'Loading...'}
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            <button 
+              onClick={() => handleVoiceApproval(true)}
+              className="w-full bg-teal-500 text-white py-3 rounded-lg font-semibold hover:bg-teal-600"
+            >
+              Add This Help Area
+            </button>
+            <button 
+              onClick={() => handleVoiceApproval(false)}
+              className="w-full bg-gray-600 text-gray-300 py-3 rounded-lg font-semibold hover:bg-gray-500"
+            >
+              Try Different Recording
+            </button>
+          </div>
+          
+          <p className="text-center text-xs text-gray-500 mt-4">
+            Review the AI-generated help card before adding to your profile
+          </p>
+        </div>
+      </div>
+    );
+  };
+
+  const handleVoiceApproval = async (approved: boolean) => {
+    if (approved && currentVoiceCard && session?.user?.email) {
+      try {
+        console.log('Attempting to save card:', {
+          user_id: session.user.email,
+          title: currentVoiceCard.title,
+          proof: currentVoiceCard.proof
+        });
+        
+        // Save the card data to database (removed ai_generated field since it was dropped from table)
+        const { data, error } = await supabase
+          .from('user_problems')
+          .insert({
+            user_id: session.user.email,
+            title: currentVoiceCard.title,
+            proof: currentVoiceCard.proof,
+            verified: false,
+            helped_count: 0
+          })
+          .select()
+          .single();
+
+        if (error) {
+          console.error('Failed to save voice-generated card:', error);
+          console.error('Error details:', {
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+            code: error.code
+          });
+          // Show user-friendly error
+          alert('Failed to save help card. Please try again.');
+        } else if (data) {
+          // Update local state to show new card immediately
+          setUserProblems(prev => [...prev, data]);
+          console.log('Voice-generated card saved successfully:', data);
+        }
+      } catch (saveError) {
+        console.error('Error saving voice card:', saveError);
+      }
+    }
+    
+    // Close validation modal and return to profile
+    setShowVoiceValidation(false);
+    setCurrentVoiceCard(null);
+    setCurrentView('full-profile');
+    
+    if (!approved) {
+      // If user wants to try again, go back to voice recording
+      setTimeout(() => {
+        setCurrentView('voice');
+      }, 100);
+    }
+  };
+
   const handleManualRequestSubmit = async () => {
     if (!helpForm.challenge.trim() || !session?.user?.email) {
       return;
@@ -3954,7 +2569,9 @@ const OneGoodIntroMobile = () => {
           title: helpForm.challenge.trim(),
           proof: 'Manual request entry',
           help_type: 'Manual request',
-          timeline: 'standard'
+          timeline: 'standard',
+          website: helpForm.website?.trim() || null,
+          media: helpForm.media?.trim() || null
         })
       });
 
@@ -3967,7 +2584,7 @@ const OneGoodIntroMobile = () => {
         
         // Reset and close form
         setShowBottomSheet(false);
-        setHelpForm({ challenge: '', reason: '', helpType: '' });
+        setHelpForm({ challenge: '', reason: '', helpType: '', website: '', media: '' });
         
         // No popup - just go to requests page with new card visible
         setCurrentView('new-get-help');
@@ -3982,10 +2599,7 @@ const OneGoodIntroMobile = () => {
     }
   };
 
-  // Add dynamic limit function
-  const getRecordingTimeLimit = () => {
-    return recordingType === 'request' ? 20 : 30; // 20s for requests, 30s for experience
-  };
+  // getRecordingTimeLimit is now imported from utils
 
   const sendMessage = () => {
     if (messageInput.trim() && activeChat) {
@@ -4009,7 +2623,7 @@ const OneGoodIntroMobile = () => {
   };
 
   // Get last message for each conversation
-  const getLastMessage = (connectionId: number) => {
+  const getLastMessage = (connectionId: string) => {
     const messages = chatMessages[connectionId] || [];
     if (messages.length === 0) return null;
     return messages[messages.length - 1];
@@ -4022,210 +2636,167 @@ const OneGoodIntroMobile = () => {
     );
   };
 
-  const renderChatPanel = () => {
-    if (!showChatPanel) return null;
+  const handleSendMessage = () => {
+    if (!messageText.trim() || !activeChat || sendingMessage) return;
     
-    if (chatView === 'list') {
-      // Conversation List View (like WhatsApp)
-      const conversations = getActiveConversations();
-      
-      return (
-        <div className="fixed inset-0 z-50 bg-gray-900 flex flex-col">
-          {/* Header */}
-          <div className="bg-gray-800 px-4 py-4 border-b border-gray-700">
-            <div className="flex items-center justify-between">
-              <button 
-                onClick={() => setShowChatPanel(false)}
-                className="text-gray-400 hover:text-white p-2"
-              >
-                <X className="h-5 w-5" />
-              </button>
-              <h1 className="text-lg font-semibold text-white">Messages</h1>
-              <div className="w-10"></div>
-            </div>
-          </div>
-          
-          {/* Conversation List */}
-          <div className="flex-1 overflow-y-auto">
-            {conversations.length > 0 ? (
-              conversations.map(conn => {
-                const lastMessage = getLastMessage(conn.id);
-                return (
-                  <button
-                    key={conn.id}
-                    onClick={() => {
-                      setActiveChat(conn.id);
-                      setChatView('chat');
-                      setUnreadCounts(prev => ({ ...prev, [conn.id]: 0 }));
-                    }}
-                    className="w-full p-4 border-b border-gray-700 hover:bg-gray-800 transition-colors flex items-center space-x-3"
-                  >
-                    {/* Avatar */}
-                    <div className="w-12 h-12 bg-gray-700 rounded-full flex items-center justify-center text-sm font-semibold text-gray-300 flex-shrink-0">
-                      {conn.avatar}
-                    </div>
-                    
-                    {/* Message Info */}
-                    <div className="flex-1 min-w-0 text-left">
-                      <div className="flex items-center justify-between mb-1">
-                        <h3 className="font-semibold text-white text-sm">{conn.name}</h3>
-                        {lastMessage && (
-                          <span className="text-xs text-gray-500">
-                            {new Date(lastMessage.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm text-gray-400 truncate">
-                          {lastMessage ? lastMessage.text : 'Start a conversation'}
-                        </p>
-                        {unreadCounts[conn.id] > 0 && (
-                          <div className="w-5 h-5 bg-teal-500 rounded-full flex items-center justify-center flex-shrink-0 ml-2">
-                            <span className="text-xs text-white font-bold">{unreadCounts[conn.id]}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </button>
-                );
-              })
-            ) : (
-              <div className="flex-1 flex items-center justify-center">
-                <div className="text-center">
-                  <MessageCircle className="h-12 w-12 text-gray-500 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-white mb-2">No messages yet</h3>
-                  <p className="text-gray-400">Start a conversation with your connections</p>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      );
-    }
+    setSendingMessage(true);
     
-    // Individual Chat View
-    const activeChatConnection = networkConnections.find(conn => conn.id === activeChat);
-    const messages = chatMessages[activeChat!] || [];
+    const newMessage = {
+      id: Date.now(),
+      text: messageText.trim(),
+      sender: 'me' as const,
+      timestamp: new Date()
+    };
     
-    return (
-      <div className="fixed inset-0 z-50 bg-gray-900 flex flex-col">
-        {/* Chat Header */}
-        <div className="bg-gray-800 px-4 py-4 border-b border-gray-700">
-          <div className="flex items-center space-x-3">
-            <button 
-              onClick={() => setShowChatPanel(false)}
-              className="text-gray-400 hover:text-white p-2"
-            >
-              <X className="h-5 w-5" />
-            </button>
-            
-            {activeChatConnection && (
-              <>
-                <div className="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center text-sm font-semibold text-gray-300">
-                  {activeChatConnection.avatar}
-                </div>
-                <div>
-                  <h3 className="font-semibold text-white">{activeChatConnection.name}</h3>
-                  <p className="text-xs text-gray-400">{activeChatConnection.company}</p>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-        
-        {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {messages.map(message => (
-            <div
-              key={message.id}
-              className={`flex ${message.sender === 'me' ? 'justify-end' : 'justify-start'}`}
-            >
-              <div className={`max-w-[70%] rounded-2xl px-4 py-2 ${
-                message.sender === 'me' 
-                  ? 'bg-teal-500 text-white' 
-                  : 'bg-gray-800 text-white border border-gray-700'
-              }`}>
-                <p className="text-sm">{message.text}</p>
-                <p className={`text-xs mt-1 ${
-                  message.sender === 'me' ? 'text-teal-200' : 'text-gray-500'
-                }`}>
-                  {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-        
-        {/* Message Input */}
-        <div className="bg-gray-800 p-4 border-t border-gray-700">
-          <div className="flex items-center space-x-2">
-            <input
-              type="text"
-              value={messageInput}
-              onChange={(e) => setMessageInput(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && sendNewMessage()}
-              placeholder="Type a message..."
-              className="flex-1 bg-gray-700 text-white px-4 py-2 rounded-full focus:outline-none focus:ring-2 focus:ring-teal-500"
-            />
-            <button 
-              onClick={sendMessage}
-              className="bg-teal-500 text-white p-2 rounded-full hover:bg-teal-600 transition-colors"
-            >
-              <Send className="h-5 w-5" />
-            </button>
-          </div>
-        </div>
-      </div>
-    );
+    setChatMessages(prev => ({
+      ...prev,
+      [activeChat]: [...(prev[activeChat] || []), newMessage]
+    }));
+    
+    setMessageText('');
+    setSendingMessage(false);
   };
+
+
 
   return (
     <div className="font-sans">
-      {currentView === 'auth' && renderAuth()}
-      {currentView === 'full-profile' && renderFullProfile()}
-      {currentView === 'voice' && renderVoicePopup()}
-      {currentView === 'resume' && renderResumePopup()}
-      {currentView === 'new-get-help' && renderNewGetHelp()}
+      
+      {currentView === 'auth' && <AuthScreen isLoading={isLoading} onGoogleSignIn={handleGoogleSignIn} />}
+      {currentView === 'full-profile' && (
+        <ProfileView
+          profileData={profileData}
+          userProblems={userProblems}
+          photoUrl={photoUrl}
+          editingField={editingField}
+          fieldValues={fieldValues}
+          savingField={savingField}
+          linkedinUrl={linkedinUrl}
+          editingLinkedin={editingLinkedin}
+          projectUrlInputActive={projectUrlInputActive}
+          projectUrlInputValue={projectUrlInputValue}
+          projectUrlProcessing={projectUrlProcessing}
+          projectAttachment={profileData.project_url ? {
+            url: profileData.project_url,
+            type: (profileData as any).project_attachment_type || 'website',
+            metadata: (profileData as any).project_attachment_metadata
+          } : null}
+          uploadingPhoto={uploadingPhoto}
+          fileInputRef={fileInputRef}
+          aboutRef={aboutRef}
+          resumeStatus={resumeStatus}
+          resumeValue={resumeValue}
+          onProfileFieldClick={handleProfileFieldClick}
+          onProfileFieldChange={handleProfileFieldChange}
+          onProfileFieldSave={handleProfileFieldSave}
+          onPhotoUpload={handlePhotoUpload}
+          onLinkedinClick={handleLinkedinClick}
+          onLinkedinSave={handleLinkedinSave}
+          onVoiceStart={handleVoiceStart}
+          onResumeUpload={handleResumeUploadProfile}
+          setEditingField={setEditingField}
+          setEditingLinkedin={setEditingLinkedin}
+          setLinkedinUrl={setLinkedinUrl}
+          setProjectUrlInputActive={setProjectUrlInputActive}
+          setProjectUrlInputValue={setProjectUrlInputValue}
+          handleProjectUrlAdd={handleProjectAddLink}
+          handleProjectUrlRemove={handleProjectRemoveLink}
+          getProfileCompletion={getProfileCompletion}
+        />
+      )}
+      <VoiceRecordingModal
+        isOpen={currentView === 'voice'}
+        onClose={() => setCurrentView(recordingType === 'profile' ? 'full-profile' : 'new-get-help')}
+        profileData={profileData}
+        recordingType={recordingType}
+        onSuccess={(cardData) => {
+          // Handle successful voice recording
+          console.log('Voice recording processed successfully:', cardData);
+          console.log('Recording type:', recordingType);
+          
+          if (recordingType === 'profile') {
+            // Store card data for user confirmation
+            console.log('Setting currentVoiceCard to:', cardData);
+            setCurrentVoiceCard(cardData);
+            setShowVoiceValidation(true);
+            // Close the voice modal
+            setCurrentView('full-profile');
+          } else {
+            // Handle help request data  
+            setCurrentRequestData(cardData);
+            setShowRequestValidation(true);
+            setCurrentView('new-get-help');
+          }
+        }}
+      />
+      <ResumeUploadModal
+        isOpen={currentView === 'resume'}
+        onClose={() => setCurrentView('full-profile')}
+        profileData={profileData}
+        onSuccess={(helpStatement, proof) => {
+          // Handle successful resume processing
+          console.log('Resume processed successfully:', { helpStatement, proof });
+          setCurrentView('full-profile');
+        }}
+      />
+      {currentView === 'new-get-help' && (
+        <>
+          {console.log('🔍 Rendering HelpRequestForm, currentView:', currentView)}
+          <HelpRequestForm
+          userRequests={userRequests}
+          matchingFrequency={matchingFrequency}
+          helpForm={helpForm}
+          showNewRequestModal={showBottomSheet}
+          editingRequest={editingRequest}
+          editingRequestData={editingRequestData}
+          onMatchingFrequencyChange={setMatchingFrequency}
+          onHelpFormChange={setHelpForm}
+          onShowNewRequestModal={setShowBottomSheet}
+          onVoiceStart={handleVoiceStart}
+          onManualRequestSubmit={handleManualRequestSubmit}
+          onDeleteRequest={handleDeleteRequest}
+          onEditRequest={handleEditRequest}
+          onSaveRequestEdit={handleSaveRequestEdit}
+          onEditingRequestChange={handleEditingRequestChange}
+          onCancelEdit={handleCancelEdit}
+          loadingRequests={loadingRequests}
+        />
+        </>
+      )}
       {currentView === 'match-connection' && renderMatchConnection()}
       {currentView === 'match-found' && renderMatchFound()}
       {currentView === 'public-board' && renderPublicBoard()}
       {currentView === 'network' && renderNetwork()}
       {currentView === 'messages' && renderMessages()}
-      {renderModal()}
-      {currentView !== 'auth' && currentView !== 'messages' && renderBottomNav()}
+      <Modal isOpen={showModal} content={modalContent} onClose={() => setShowModal(false)} />
+      {currentView !== 'auth' && currentView !== 'messages' && <BottomNavigation currentView={currentView} onViewChange={setCurrentView} />}
       {renderRequestValidation()}
+      {renderVoiceValidation()}
       
       {/* Chat Panel */}
-      {renderChatPanel()}
+      <ChatPanel
+        showChatPanel={showChatPanel}
+        chatView={chatView}
+        activeChat={activeChat}
+        conversations={networkConnections}
+        chatMessages={chatMessages}
+        unreadCounts={unreadCounts}
+        messageText={messageText}
+        sendingMessage={sendingMessage}
+        onClose={() => setShowChatPanel(false)}
+        onConversationSelect={(connectionId) => {
+          setActiveChat(connectionId);
+          setChatView('chat');
+          setUnreadCounts(prev => ({ ...prev, [connectionId]: 0 }));
+        }}
+        onBackToList={() => setChatView('list')}
+        onMessageChange={setMessageText}
+        onSendMessage={handleSendMessage}
+        getLastMessage={getLastMessage}
+        getActiveConversations={getActiveConversations}
+      />
       
 
-      {showVoiceValidation && currentVoiceCard && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-gray-800 rounded-2xl shadow-2xl max-w-sm w-full p-6 border border-gray-700">
-            <h3 className="text-xl font-bold text-white mb-4 text-center">Review Your Experience</h3>
-            
-            <div className="bg-gray-700 rounded-lg p-4 mb-6 border border-gray-600">
-              <h4 className="font-semibold text-white mb-2">{currentVoiceCard.title}</h4>
-              <p className="text-sm text-gray-300">{currentVoiceCard.proof}</p>
-            </div>
-
-            <div className="space-y-3">
-              <button 
-                onClick={() => handleVoiceApproval(true)}
-                className="w-full bg-teal-500 text-white py-3 rounded-lg font-semibold hover:bg-teal-600"
-              >
-                Add to Profile
-              </button>
-              <button 
-                onClick={() => handleVoiceApproval(false)}
-                className="w-full bg-gray-600 text-gray-300 py-3 rounded-lg font-semibold hover:bg-gray-500"
-              >
-                Try Different Recording
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Resume Validation UI */}
       {(showResumeValidation || generatingCard) && (

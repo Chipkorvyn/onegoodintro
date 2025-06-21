@@ -63,6 +63,8 @@ export interface HelpRequest {
   challenge?: string
   reason?: string
   matching_frequency: 'daily' | 'weekly' | 'off'
+  website?: string | null
+  media?: string | null
 }
 
 // Utility function to format time ago

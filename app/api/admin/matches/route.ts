@@ -1,8 +1,15 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { NextRequest } from 'next/server'
+import { ApiResponse } from '@/lib/api-responses'
+import { authenticateAdmin, getAdminSupabase } from '@/lib/auth-middleware'
 
 export async function GET(request: NextRequest) {
   try {
+    const auth = await authenticateAdmin(request)
+    if ('error' in auth) {
+      return auth
+    }
+
+    const supabase = getAdminSupabase()
     const { data: matches, error } = await supabase
       .from('potential_matches')
       .select(`
@@ -16,8 +23,8 @@ export async function GET(request: NextRequest) {
       .order('created_at', { ascending: false })
 
     if (error) {
-      console.log('Error fetching mutual matches:', error)
-      return NextResponse.json([])
+      console.error('Error fetching mutual matches:', error)
+      return ApiResponse.success([])
     }
 
     const transformedMatches = matches?.map(match => ({
@@ -40,9 +47,9 @@ export async function GET(request: NextRequest) {
       status: match.status
     })) || []
 
-    return NextResponse.json(transformedMatches)
+    return ApiResponse.success(transformedMatches)
   } catch (error) {
     console.error('API error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return ApiResponse.internalServerError('Failed to fetch matches')
   }
 }

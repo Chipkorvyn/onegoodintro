@@ -1,14 +1,17 @@
-import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
-import { OpenAI } from 'openai'
+import { NextRequest, NextResponse } from 'next/server'
+import { ApiResponse } from '@/lib/api-responses'
+import { authenticateAdmin, getAdminSupabase } from '@/lib/auth-middleware'
+import { AIService } from '@/lib/ai-services'
 import { getUsersForMatching, generateMutualMatchPrompt } from '@/lib/matching-utils'
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
-
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
+    const auth = await authenticateAdmin(request)
+    if ('error' in auth) {
+      return auth
+    }
+
+    const supabase = getAdminSupabase()
     console.log('🚀 Starting mutual benefit matching...')
 
     // Get users for matching
@@ -23,33 +26,28 @@ export async function POST() {
     const prompt = generateMutualMatchPrompt(users)
     console.log('📝 Generated prompt for', users.length, 'users')
 
-    // Call OpenAI
-    const completion = await openai.chat.completions.create({
+    // Call AI service
+    const aiResponse = await AIService.generateWithGPT(prompt, {
       model: "gpt-4o-mini",
-      messages: [{ role: "user", content: prompt }],
       temperature: 0.3,
-      max_tokens: 2000,
+      maxTokens: 2000
     })
 
-    const responseText = completion.choices[0]?.message?.content
-    console.log('🤖 OpenAI response received:', responseText)
-
-    if (!responseText) {
-      return NextResponse.json({ error: 'No response from OpenAI' }, { status: 500 })
+    if (!aiResponse.success || !aiResponse.rawResponse) {
+      console.error('AI generation failed:', aiResponse.error)
+      return ApiResponse.internalServerError('Failed to generate matches')
     }
 
-    // Clean and parse response
-    let cleanedResponse = responseText.trim()
-    if (cleanedResponse.startsWith('```json')) {
-      cleanedResponse = cleanedResponse.replace(/```json\s*/, '').replace(/\s*```$/, '')
-    }
-    if (cleanedResponse.startsWith('```')) {
-      cleanedResponse = cleanedResponse.replace(/```\s*/, '').replace(/\s*```$/, '')
-    }
+    const responseText = aiResponse.rawResponse
+    console.log('🤖 AI response received')
 
-    console.log('🧹 Cleaned response:', cleanedResponse)
-
-    const llmMatches = JSON.parse(cleanedResponse)
+    // Parse response using AI service utility
+    const llmMatches = AIService.parseJSONResponse(responseText)
+    
+    if (!llmMatches || !Array.isArray(llmMatches)) {
+      console.error('Invalid AI response format')
+      return ApiResponse.internalServerError('Invalid AI response format')
+    }
     console.log(`✅ Parsed ${llmMatches.length} mutual matches:`, llmMatches)
 
     // Save matches to database
@@ -111,10 +109,10 @@ export async function POST() {
     }
 
     console.log(`🎯 Successfully saved ${savedMatches.length} matches`)
-    return NextResponse.json(savedMatches)
+    return ApiResponse.success(savedMatches)
 
   } catch (error) {
     console.error('💥 Matching error:', error)
-    return NextResponse.json({ error: 'Matching failed', details: error.message }, { status: 500 })
+    return ApiResponse.internalServerError('Matching failed')
   }
 }

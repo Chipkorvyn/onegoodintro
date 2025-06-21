@@ -1,0 +1,33 @@
+
+> onegoodintro@0.1.0 dev
+> next dev
+
+   ▲ Next.js 15.3.2
+   - Local:        http://localhost:3000
+   - Network:      http://172.20.10.2:3000
+   - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 1425ms
+ ○ Compiling / ...
+ ✓ Compiled / in 2.4s (996 modules)
+ GET / 200 in 2715ms
+ ✓ Compiled in 708ms (1010 modules)
+ GET / 200 in 125ms
+ ○ Compiling /api/auth/[...nextauth] ...
+ ✓ Compiled /api/auth/[...nextauth] in 945ms (1227 modules)
+ GET /api/auth/session 200 in 1500ms
+ ○ Compiling /api/network ...
+ ✓ Compiled /api/network in 720ms (1330 modules)
+ GET /api/auth/session 200 in 753ms
+ GET /api/auth/session 200 in 6ms
+ GET /api/requests 200 in 1063ms
+ GET /api/requests 200 in 194ms
+Confirmed matches table not ready yet, returning empty network
+ GET /api/network 200 in 1367ms
+ GET /api/matches 200 in 1380ms
+ GET /api/matches 200 in 101ms
+Confirmed matches table not ready yet, returning empty network
+ GET /api/network 200 in 211ms
+ GET / 200 in 106ms
+[?25h
