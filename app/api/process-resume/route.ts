@@ -5,7 +5,7 @@ import { BackgroundProcessor, JobType } from '@/lib/background-processor';
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = await authenticate()
+    const auth = await authenticate(request)
     if ('error' in auth) {
       return auth
     }
