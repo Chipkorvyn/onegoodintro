@@ -1,8 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
-import { supabase } from '@/lib/supabase'
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
 import { authenticateWithSession } from '@/lib/auth-middleware'
+
+function createSupabaseServerClient() {
+  const cookieStore = cookies()
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value
+        },
+      },
+    }
+  )
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,6 +28,7 @@ export async function POST(request: NextRequest) {
       return authResult
     }
 
+    const supabase = createSupabaseServerClient()
     const { title, proof, help_type, timeline, website, media } = await request.json()
 
     // Validate required fields
@@ -82,6 +99,7 @@ export async function GET(request: NextRequest) {
       return authResult
     }
 
+    const supabase = createSupabaseServerClient()
     const { data, error } = await supabase
       .from('help_requests')
       .select('*')
@@ -113,6 +131,7 @@ export async function PUT(request: NextRequest) {
       return authResult
     }
 
+    const supabase = createSupabaseServerClient()
     const body = await request.json()
     console.log('🔍 PUT request body:', body)
     
@@ -187,6 +206,7 @@ export async function DELETE(request: NextRequest) {
       return authResult
     }
 
+    const supabase = createSupabaseServerClient()
     const { id } = await request.json()
 
     if (!id) {

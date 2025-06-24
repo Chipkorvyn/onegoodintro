@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 
@@ -10,6 +11,20 @@ export async function GET(request: NextRequest) {
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    // Create server-side Supabase client
+    const cookieStore = cookies()
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value
+          },
+        },
+      }
+    )
 
     // Get user's ID
     const { data: user, error: userError } = await supabase
