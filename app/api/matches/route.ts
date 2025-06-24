@@ -7,7 +7,7 @@ import { PerformanceUtils } from '@/lib/performance-utils'
 
 export async function GET(request: NextRequest) {
   try {
-    const auth = await authenticate()
+    const auth = await authenticate(request)
     if ('error' in auth) {
       return auth
     }

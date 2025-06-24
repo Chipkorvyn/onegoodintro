@@ -8,7 +8,7 @@ export async function GET(
   { params }: { params: { jobId: string } }
 ) {
   try {
-    const auth = await authenticate()
+    const auth = await authenticate(request)
     if ('error' in auth) {
       return auth
     }
