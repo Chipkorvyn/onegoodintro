@@ -1,9 +1,7 @@
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { ApiResponse } from '@/lib/api-responses'
 import { createClient } from '@supabase/supabase-js'
 import type { Session } from 'next-auth'
-import type { NextRequest, NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 
 export interface AuthenticatedRequest {
   session: Session
@@ -11,10 +9,11 @@ export interface AuthenticatedRequest {
   userEmail: string
 }
 
-export async function authenticate(request: NextRequest): Promise<AuthenticatedRequest | ReturnType<typeof ApiResponse.unauthorized>> {
-  const response = NextResponse.next()
-  const session = await getServerSession(authOptions)
-  
+// New function that takes session as parameter instead of calling getServerSession
+export async function authenticateWithSession(
+  session: Session | null,
+  request?: NextRequest
+): Promise<AuthenticatedRequest | ReturnType<typeof ApiResponse.unauthorized>> {
   if (!session?.user?.email) {
     return ApiResponse.unauthorized()
   }
@@ -41,8 +40,17 @@ export async function authenticate(request: NextRequest): Promise<AuthenticatedR
   }
 }
 
-export async function authenticateAdmin(request: NextRequest): Promise<AuthenticatedRequest | ReturnType<typeof ApiResponse.forbidden>> {
-  const authResult = await authenticate(request)
+// Keep the old function for backward compatibility but mark as deprecated
+export async function authenticate(request: NextRequest): Promise<AuthenticatedRequest | ReturnType<typeof ApiResponse.unauthorized>> {
+  // This function is deprecated - use authenticateWithSession instead
+  throw new Error('authenticate() is deprecated. Use authenticateWithSession() and pass session explicitly.')
+}
+
+export async function authenticateAdminWithSession(
+  session: Session | null,
+  request?: NextRequest
+): Promise<AuthenticatedRequest | ReturnType<typeof ApiResponse.forbidden>> {
+  const authResult = await authenticateWithSession(session, request)
   
   if ('error' in authResult) {
     return authResult
@@ -55,6 +63,12 @@ export async function authenticateAdmin(request: NextRequest): Promise<Authentic
   }
 
   return authResult
+}
+
+// Keep the old function for backward compatibility but mark as deprecated
+export async function authenticateAdmin(request: NextRequest): Promise<AuthenticatedRequest | ReturnType<typeof ApiResponse.forbidden>> {
+  // This function is deprecated - use authenticateAdminWithSession instead
+  throw new Error('authenticateAdmin() is deprecated. Use authenticateAdminWithSession() and pass session explicitly.')
 }
 
 export function getAdminSupabase() {

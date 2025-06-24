@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server'
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { ApiResponse } from '@/lib/api-responses'
-import { authenticate } from '@/lib/auth-middleware'
+import { authenticateWithSession } from '@/lib/auth-middleware'
 import { BackgroundProcessor } from '@/lib/background-processor'
 
 export async function GET(
@@ -8,7 +10,8 @@ export async function GET(
   { params }: { params: { jobId: string } }
 ) {
   try {
-    const auth = await authenticate(request)
+    const session = await getServerSession(authOptions)
+    const auth = await authenticateWithSession(session, request)
     if ('error' in auth) {
       return auth
     }

@@ -1,10 +1,13 @@
 import { NextRequest } from 'next/server'
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { ApiResponse } from '@/lib/api-responses'
-import { authenticateAdmin, getAdminSupabase } from '@/lib/auth-middleware'
+import { authenticateAdminWithSession, getAdminSupabase } from '@/lib/auth-middleware'
 
 export async function GET(request: NextRequest) {
   try {
-    const auth = await authenticateAdmin(request)
+    const session = await getServerSession(authOptions)
+    const auth = await authenticateAdminWithSession(session, request)
     if ('error' in auth) {
       return auth
     }

@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { supabase } from '@/lib/supabase'
-import { authenticate } from '@/lib/auth-middleware'
+import { authenticateWithSession } from '@/lib/auth-middleware'
 
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await authenticate(request)
+    const session = await getServerSession(authOptions)
+    const authResult = await authenticateWithSession(session, request)
     if ('error' in authResult) {
       return authResult
     }
@@ -75,7 +76,8 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await authenticate(request)
+    const session = await getServerSession(authOptions)
+    const authResult = await authenticateWithSession(session, request)
     if ('error' in authResult) {
       return authResult
     }
@@ -105,7 +107,8 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const authResult = await authenticate(request)
+    const session = await getServerSession(authOptions)
+    const authResult = await authenticateWithSession(session, request)
     if ('error' in authResult) {
       return authResult
     }
@@ -178,7 +181,8 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const authResult = await authenticate(request)
+    const session = await getServerSession(authOptions)
+    const authResult = await authenticateWithSession(session, request)
     if ('error' in authResult) {
       return authResult
     }
