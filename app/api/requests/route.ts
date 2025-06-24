@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { supabase } from '@/lib/supabase'
+import { authenticate } from '@/lib/auth-middleware'
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession()
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const authResult = await authenticate(request)
+    if ('error' in authResult) {
+      return authResult
     }
 
     const { title, proof, help_type, timeline, website, media } = await request.json()
@@ -21,7 +22,7 @@ export async function POST(request: NextRequest) {
     let { data, error } = await supabase
       .from('help_requests')
       .insert([{
-        user_id: session.user.email,
+        user_id: authResult.userEmail,
         challenge: title.trim(),
         reason: proof.trim(),
         help_type: help_type.trim(),
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest) {
       const { data: fallbackData, error: fallbackError } = await supabase
         .from('help_requests')
         .insert([{
-          user_id: session.user.email,
+          user_id: authResult.userEmail,
           challenge: title.trim(),
           reason: proof.trim(),
           help_type: help_type.trim(),
@@ -74,15 +75,15 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const authResult = await authenticate(request)
+    if ('error' in authResult) {
+      return authResult
     }
 
     const { data, error } = await supabase
       .from('help_requests')
       .select('*')
-      .eq('user_id', session.user.email)
+      .eq('user_id', authResult.userEmail)
       .order('created_at', { ascending: false })
 
     if (error) {
@@ -104,9 +105,9 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const authResult = await authenticate(request)
+    if ('error' in authResult) {
+      return authResult
     }
 
     const body = await request.json()
@@ -120,7 +121,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'All fields are required' }, { status: 400 })
     }
 
-    console.log('🔍 Updating request with ID:', id, 'for user:', session.user.email)
+    console.log('🔍 Updating request with ID:', id, 'for user:', authResult.userEmail)
 
     // Try updating with website and media fields first
     let { data, error } = await supabase
@@ -135,7 +136,7 @@ export async function PUT(request: NextRequest) {
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
-      .eq('user_id', session.user.email)
+      .eq('user_id', authResult.userEmail)
       .select()
       .single()
 
@@ -153,7 +154,7 @@ export async function PUT(request: NextRequest) {
           updated_at: new Date().toISOString()
         })
         .eq('id', id)
-        .eq('user_id', session.user.email)
+        .eq('user_id', authResult.userEmail)
         .select()
         .single()
       
@@ -177,9 +178,9 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const authResult = await authenticate(request)
+    if ('error' in authResult) {
+      return authResult
     }
 
     const { id } = await request.json()
@@ -192,7 +193,7 @@ export async function DELETE(request: NextRequest) {
       .from('help_requests')
       .delete()
       .eq('id', id)
-      .eq('user_id', session.user.email) // Ensure user can only delete their own requests
+      .eq('user_id', authResult.userEmail) // Ensure user can only delete their own requests
 
     if (error) {
       console.error('Database error:', error)

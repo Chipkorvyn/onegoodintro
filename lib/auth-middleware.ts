@@ -3,7 +3,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { ApiResponse } from '@/lib/api-responses'
 import { createClient } from '@supabase/supabase-js'
 import type { Session } from 'next-auth'
-import type { NextRequest } from 'next/server'
+import type { NextRequest, NextResponse } from 'next/server'
 
 export interface AuthenticatedRequest {
   session: Session
@@ -11,7 +11,8 @@ export interface AuthenticatedRequest {
   userEmail: string
 }
 
-export async function authenticate(request?: NextRequest): Promise<AuthenticatedRequest | ReturnType<typeof ApiResponse.unauthorized>> {
+export async function authenticate(request: NextRequest): Promise<AuthenticatedRequest | ReturnType<typeof ApiResponse.unauthorized>> {
+  const response = NextResponse.next()
   const session = await getServerSession(authOptions)
   
   if (!session?.user?.email) {
@@ -40,7 +41,7 @@ export async function authenticate(request?: NextRequest): Promise<Authenticated
   }
 }
 
-export async function authenticateAdmin(request?: NextRequest): Promise<AuthenticatedRequest | ReturnType<typeof ApiResponse.forbidden>> {
+export async function authenticateAdmin(request: NextRequest): Promise<AuthenticatedRequest | ReturnType<typeof ApiResponse.forbidden>> {
   const authResult = await authenticate(request)
   
   if ('error' in authResult) {
